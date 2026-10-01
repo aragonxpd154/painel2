@@ -285,6 +285,22 @@
   #edit-device-metrics-list.proto-modbus .em-modbus{display:block;}
   #edit-device-metrics-list.proto-modbus .em-snmp{display:none;}
   .em-test-result{font-size:11px;margin-left:8px;}
+  .ab-top{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;}
+  .ab-top label{margin-bottom:4px !important;font-size:11.5px !important;color:var(--gray);}
+  .ab-top-btns{display:flex;gap:8px;flex-wrap:wrap;}
+  .ab-table-wrap{margin-top:14px;border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:520px;}
+  .ab-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .ab-table th{position:sticky;top:0;background:#0b1326;color:var(--gray);font-size:11px;text-align:left;padding:8px 10px;font-weight:700;}
+  .ab-table td{padding:7px 10px;border-top:1px solid #182442;vertical-align:middle;}
+  .ab-table tr:hover td{background:#111b33;}
+  .ab-table td.n b{font-size:13px;} .ab-table td small{color:var(--gray);display:block;font-size:11px;}
+  .ab-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#434f6c;margin-right:6px;}
+  .ab-dot.up{background:var(--green);} .ab-dot.down{background:var(--red);}
+  .ab-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;}
+  .ab-actions button,.ab-actions select{padding:4px 9px !important;font-size:11.5px !important;}
+  .ab-add{margin-top:14px;padding:12px 14px;border:1px dashed var(--line);border-radius:10px;}
+  .ab-add-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .ab-add-row input[type=text]{min-width:200px;}
 </style>
 <link rel="stylesheet" href="/static/theme.css">
 </head>
@@ -324,7 +340,7 @@
       <button id="font-scale-reset-interior" type="button" class="reset-btn">restaurar padrão</button>
     </div>
 
-    <label for="font-scale-slider-fg" style="margin-top:16px;">Tamanho da fonte — Mapa FG</label>
+    <label for="font-scale-slider-fg" style="margin-top:16px;">Tamanho da fonte — Abrigo Fonte Grande</label>
     <div class="font-scale-row">
       <button id="font-scale-minus-fg" type="button">A-</button>
       <input type="range" id="font-scale-slider-fg" min="0.7" max="1.8" step="0.05" value="1">
@@ -385,7 +401,7 @@
       <span class="scan-status" id="alarm-status-interior"></span>
     </div>
 
-    <label style="margin-top:16px;">Mapa FG</label>
+    <label style="margin-top:16px;">Abrigo Fonte Grande</label>
     <div class="font-scale-row">
       <input type="time" id="alarm-start-fg" value="00:00">
       <span style="color:var(--gray);font-family:var(--mono);font-size:12px;">até</span>
@@ -560,9 +576,53 @@
   </div>
 </div>
 
+<div class="appearance-panel" id="ab-panel" style="max-width:1180px;">
+  <div class="appearance-head">
+    <span>&#127968; Abrigos e dispositivos</span>
+  </div>
+  <div class="appearance-body">
+    <div class="ab-top">
+      <div><label>Abrigo</label><select id="ab-select" style="min-width:260px;"></select></div>
+      <div><label>Nome exibido</label><input type="text" id="ab-nome" style="width:260px;"></div>
+      <div><label>Nome no alerta do Telegram</label><input type="text" id="ab-alerta" style="width:200px;" placeholder="ex: SERRA"></div>
+      <div><label>Subtítulo</label><input type="text" id="ab-sub" style="width:160px;" placeholder="ex: Morro do Céu"></div>
+      <div class="ab-top-btns">
+        <button type="button" class="btn-primary" id="ab-save">Salvar nomes</button>
+        <button type="button" class="btn-secondary" id="ab-new">&#10133; Novo abrigo</button>
+        <button type="button" class="btn-secondary" id="ab-del" title="Só exclui abrigo sem dispositivos">Excluir abrigo</button>
+        <a class="btn-secondary" id="ab-open" target="_blank" rel="noopener" style="text-decoration:none;">Abrir mapa &#8599;</a>
+      </div>
+    </div>
+    <div class="appearance-note" id="ab-msg" style="margin:8px 0 0;"></div>
+
+    <div class="ab-table-wrap">
+      <table class="ab-table">
+        <thead><tr><th>Dispositivo</th><th>IP</th><th>Protocolo</th><th>Categoria / tipo</th><th>Medidas</th><th></th></tr></thead>
+        <tbody id="ab-devices"></tbody>
+      </table>
+    </div>
+
+    <div class="ab-add">
+      <b>&#10133; Adicionar dispositivo neste abrigo</b>
+      <div class="ab-add-row">
+        <input type="text" id="ab-add-name" placeholder="Nome (ex: TX SERRA)">
+        <input type="text" id="ab-add-ip" placeholder="IP" style="width:140px;">
+        <select id="ab-add-proto"><option value="snmp">SNMP</option><option value="modbus">Modbus TCP</option></select>
+        <select id="ab-add-kind">
+          <option value="tx">Transmissor</option><option value="power">Gerador / energia</option><option value="ups">Nobreak</option>
+          <option value="link">Enlace</option><option value="sensor">Sensor / CLP / FLEX</option><option value="other">Outro</option>
+        </select>
+        <select id="ab-add-cat" title="Categoria no Abrigo Fonte Grande"></select>
+        <button type="button" class="btn-primary" id="ab-add-btn">Adicionar e configurar medidas</button>
+      </div>
+      <div class="appearance-note" style="margin-top:6px;">Depois de adicionar, abre a janela de edição para cadastrar os OIDs (SNMP) ou registradores (Modbus), unidades e divisores.</div>
+    </div>
+  </div>
+</div>
+
 <div class="appearance-panel">
   <div class="appearance-head">
-    <span>&#127912; Editor de Mapa</span>
+    <span>&#127912; Editor de Mapa (avançado — biblioteca e mapas personalizados)</span>
   </div>
   <div class="appearance-body">
     <div class="appearance-note" style="margin:0 0 12px;">
@@ -575,8 +635,8 @@
       <div class="form-field">
         <label>Mapa</label>
         <select id="editor-map-select">
-          <option value="interior">Mapa Abrigos</option>
-          <option value="fg">Mapa FG</option>
+          <option value="interior">Todos os abrigos (posições antigas)</option>
+          <option value="fg">Abrigo Fonte Grande</option>
           <option value="biblioteca">&#128218; Biblioteca de Dispositivos</option>
         </select>
       </div>
@@ -753,8 +813,8 @@
       <div class="form-field">
         <label>Mapa</label>
         <select id="msg-map-select">
-          <option value="interior">Mapa Abrigos</option>
-          <option value="fg">Mapa FG</option>
+          <option value="interior">Todos os abrigos (posições antigas)</option>
+          <option value="fg">Abrigo Fonte Grande</option>
         </select>
       </div>
       <div class="form-actions" style="margin:0;">
@@ -774,7 +834,7 @@
 
 <div class="map-tabs">
   <button class="map-tab active" id="tab-interior" data-map="interior">Mapa Abrigos</button>
-  <button class="map-tab" id="tab-fg" data-map="fg">Mapa FG</button>
+  <button class="map-tab" id="tab-fg" data-map="fg">Abrigo Fonte Grande</button>
 </div>
 
 <div class="toolbar">
@@ -2191,7 +2251,7 @@ document.getElementById('editor-move-to-library-btn').addEventListener('click', 
 document.getElementById('editor-paste-from-library-btn').addEventListener('click', async () => {
   if(!editorSelected || editorSelected.kind === 'label') return;
 
-  const targetMaps = {interior: 'Mapa Abrigos', fg: 'Mapa FG'};
+  const targetMaps = {interior: 'Abrigos', fg: 'Abrigo Fonte Grande'};
   Array.from(document.getElementById('editor-map-select').options).forEach(opt => {
     if(opt.dataset.custom) targetMaps[opt.value] = opt.textContent;
   });
@@ -2450,6 +2510,7 @@ document.getElementById('edit-device-save-btn').addEventListener('click', async 
       editorSelected = null;
       document.getElementById('editor-size-panel').style.display = 'none';
       editorLoadMap();
+      if(window.abReload) window.abReload();
     }, 500);
   }catch(err){
     statusEl.textContent = 'erro: ' + err.message;
@@ -2667,6 +2728,152 @@ loadDevices();
     }catch(e){ msg('erro: ' + e.message, false); }
   });
   load();
+})();
+
+// ==================== Abrigos e dispositivos ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  let AB = {abrigos: [], fg: {}};
+  let FGNET = null, ABNET = null, LIVE = {};
+  const KIND_TXT = {tx:'Transmissor', power:'Gerador / energia', ups:'Nobreak', link:'Enlace', sensor:'Sensor / CLP', radio:'Rádio', other:'Outro', camera:'Câmera', tower:'Torre'};
+  const msg = (t, ok) => { $('ab-msg').textContent = t || ''; $('ab-msg').style.color = ok ? 'var(--green)' : (ok === false ? 'var(--red)' : 'var(--gray)'); };
+  const esc = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+  const post = async (url, body) => {
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const d = await r.json().catch(() => ({ok:false, error:'resposta invalida'}));
+    if(!d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    return d;
+  };
+  const current = () => $('ab-select').value;
+
+  async function loadAll(keep){
+    const [a, st] = await Promise.all([
+      fetch('/api/abrigos', {cache:'no-store'}).then(r => r.json()),
+      fetch('/api/status', {cache:'no-store'}).then(r => r.json()).catch(() => ({})),
+    ]);
+    AB = a; LIVE = st.devices || {};
+    const sel = $('ab-select'); const prev = keep || sel.value || 'fg';
+    sel.innerHTML = '<option value="fg">' + esc(AB.fg.nome || 'Abrigo Fonte Grande') + '</option>' +
+      AB.abrigos.map(x => '<option value="' + x.slug + '">' + esc(x.nome) + '</option>').join('');
+    sel.value = [...sel.options].some(o => o.value === prev) ? prev : 'fg';
+    await showAbrigo();
+  }
+
+  async function showAbrigo(){
+    const slug = current();
+    const isFg = slug === 'fg';
+    const info = isFg ? AB.fg : AB.abrigos.find(x => x.slug === slug) || {};
+    $('ab-nome').value = info.nome || '';
+    $('ab-alerta').value = info.alerta || '';
+    $('ab-sub').value = info.sub || '';
+    $('ab-del').style.display = isFg ? 'none' : '';
+    $('ab-open').href = isFg ? '/mapa-fg' : '/mapa-abrigo/' + slug;
+    const url = isFg ? '/api/devices-fg' : '/api/devices-abrigo/' + slug;
+    const net = await fetch(url, {cache:'no-store'}).then(r => r.json());
+    if(isFg) FGNET = net; else ABNET = net;
+    // categorias (so faz sentido no FG; nos abrigos a categoria vem do tipo)
+    const cats = (net.categories_order || []);
+    $('ab-add-cat').innerHTML = cats.map(c => '<option>' + esc(c) + '</option>').join('') + '<option value="__nova">+ nova categoria...</option>';
+    $('ab-add-cat').style.display = isFg ? '' : 'none';
+    renderTable(net.devices || [], isFg);
+  }
+
+  function renderTable(devs, isFg){
+    const moveOpts = '<option value="">mover para…</option><option value="fg">' + esc(AB.fg.nome || 'Abrigo Fonte Grande') + '</option>' +
+      AB.abrigos.map(x => '<option value="' + x.slug + '">' + esc(x.nome) + '</option>').join('');
+    $('ab-devices').innerHTML = devs.length ? devs.map(d => {
+      const st = LIVE[d.id] || LIVE[String(d.id)];
+      const dot = st ? (st.reachable ? 'up' : 'down') : '';
+      const proto = d.protocol === 'modbus' ? ('Modbus · ID ' + (d.modbus ? d.modbus.unit_id : '?')) : ('SNMP v' + ((d.metrics && d.metrics[0] && d.metrics[0].version) || '1'));
+      const ativos = (d.metrics || []).filter(m => m.enabled !== false).length;
+      return '<tr data-id="' + d.id + '"><td class="n"><span class="ab-dot ' + dot + '"></span><b>' + esc(d.name) + '</b>' +
+        (d.netx_id ? '<small>' + esc(d.netx_id) + '</small>' : '') + '</td>' +
+        '<td>' + esc(d.ip || '—') + '</td><td>' + proto + '</td>' +
+        '<td>' + esc(d.category || '') + '<small>' + esc(KIND_TXT[d.kind] || d.kind || '') + '</small></td>' +
+        '<td>' + ativos + (ativos !== (d.metrics || []).length ? ' <small>(' + (d.metrics.length - ativos) + ' desativadas)</small>' : '') + '</td>' +
+        '<td><div class="ab-actions"><button type="button" class="btn-secondary ab-edit">Editar medidas / OIDs</button>' +
+        '<select class="ab-move">' + moveOpts + '</select>' +
+        '<button type="button" class="btn-secondary ab-delete" style="color:var(--red)">Excluir</button></div></td></tr>';
+    }).join('') : '<tr><td colspan="6" style="color:var(--gray);padding:14px;">Nenhum dispositivo neste abrigo ainda.</td></tr>';
+
+    const byId = id => devs.find(x => String(x.id) === String(id));
+    $('ab-devices').querySelectorAll('.ab-edit').forEach(b => b.addEventListener('click', () => {
+      const dev = byId(b.closest('tr').dataset.id);
+      editorSelected = {id: dev.id, name: dev.name};
+      openEditDeviceModal(dev);
+    }));
+    $('ab-devices').querySelectorAll('.ab-delete').forEach(b => b.addEventListener('click', async () => {
+      const dev = byId(b.closest('tr').dataset.id);
+      if(!confirm('Excluir "' + dev.name + '" de vez?\n\n(Se for só tirar do mapa por um tempo, prefira mover para a Biblioteca no Editor de Mapa.)')) return;
+      try{ await post('/api/devices/delete', {id: dev.id}); msg('"' + dev.name + '" excluído', true); loadAll(current()); }
+      catch(e){ msg('erro: ' + e.message, false); }
+    }));
+    $('ab-devices').querySelectorAll('.ab-move').forEach(sel => sel.addEventListener('change', async () => {
+      const dev = byId(sel.closest('tr').dataset.id); const to = sel.value; if(!to) return;
+      if(to === current()){ sel.value = ''; return; }
+      try{ await post('/api/abrigos/move-device', {id: dev.id, slug: to}); msg('"' + dev.name + '" movido', true); loadAll(current()); }
+      catch(e){ msg('erro: ' + e.message, false); sel.value = ''; }
+    }));
+  }
+
+  $('ab-select').addEventListener('change', () => { msg(''); showAbrigo(); });
+
+  $('ab-save').addEventListener('click', async () => {
+    const slug = current();
+    const body = slug === 'fg'
+      ? {fg: {nome: $('ab-nome').value, alerta: $('ab-alerta').value}}
+      : {abrigos: [{slug, nome: $('ab-nome').value, alerta: $('ab-alerta').value, sub: $('ab-sub').value}]};
+    try{ await post('/api/abrigos/save', body); msg('nomes salvos', true); loadAll(slug); }
+    catch(e){ msg('erro: ' + e.message, false); }
+  });
+
+  $('ab-new').addEventListener('click', async () => {
+    const nome = prompt('Nome do novo abrigo (ex: Abrigo Cachoeiro):', 'Abrigo ');
+    if(!nome || !nome.trim() || nome.trim().toLowerCase() === 'abrigo') return;
+    try{
+      const d = await post('/api/abrigos/save', {abrigos: [{nome: nome.trim()}]});
+      const novo = d.config.abrigos[d.config.abrigos.length - 1];
+      msg('abrigo criado — agora adicione os dispositivos', true);
+      loadAll(novo.slug);
+    }catch(e){ msg('erro: ' + e.message, false); }
+  });
+
+  $('ab-del').addEventListener('click', async () => {
+    const slug = current(); if(slug === 'fg') return;
+    if(!confirm('Excluir o abrigo "' + $('ab-nome').value + '"? (só funciona se ele não tiver dispositivos)')) return;
+    try{ await post('/api/abrigos/delete', {slug}); msg('abrigo excluído', true); loadAll('fg'); }
+    catch(e){ msg('erro: ' + e.message, false); }
+  });
+
+  $('ab-add-btn').addEventListener('click', async () => {
+    const slug = current(), isFg = slug === 'fg';
+    const name = $('ab-add-name').value.trim(), ip = $('ab-add-ip').value.trim();
+    if(!name){ msg('preencha o nome do dispositivo', false); return; }
+    let category = $('ab-add-cat').value;
+    if(isFg && category === '__nova'){ category = (prompt('Nome da nova categoria:') || '').trim().toUpperCase(); if(!category) return; }
+    const proto = $('ab-add-proto').value;
+    const base = {name, ip, kind: $('ab-add-kind').value, metrics: [], protocol: proto,
+                  modbus: proto === 'modbus' ? {port: 502, unit_id: 1, word_swap: 'T', dword_swap: 'T', timeout_ms: 5000} : null};
+    try{
+      let created;
+      if(isFg){
+        created = await post('/api/map-devices/fg/add', Object.assign({category, site: category}, base));
+      } else {
+        const ab = AB.abrigos.find(x => x.slug === slug);
+        created = await post('/api/devices/add', Object.assign({site: ab.site}, base));
+      }
+      $('ab-add-name').value = ''; $('ab-add-ip').value = '';
+      msg('"' + name + '" adicionado — cadastre as medidas na janela de edição', true);
+      await loadAll(slug);
+      const dev = created.device || created.new_device || null;
+      const net = isFg ? FGNET : ABNET;
+      const full = (net.devices || []).find(d => dev ? String(d.id) === String(dev.id) : d.name === name);
+      if(full){ editorSelected = {id: full.id, name: full.name}; openEditDeviceModal(full); }
+    }catch(e){ msg('erro: ' + e.message, false); }
+  });
+
+  window.abReload = () => loadAll(current());
+  loadAll('fg');
 })();
 </script>
 </body>

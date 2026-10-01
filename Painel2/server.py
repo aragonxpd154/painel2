@@ -88,15 +88,61 @@ CLIMATIZACAO_HTML_FILE = os.path.join(BASE_DIR, "climatizacao.html")
 # "site"); aqui so se define a ordem, o nome exibido e o nome usado nos
 # alertas do Telegram ("ALERTA SERRA", "ALERTA GUARAPARI"...).
 # --------------------------------------------------------------------------
-ABRIGOS = [
-    {"slug": "sede", "site": "SEDE", "nome": "Sede Rede Gazeta", "alerta": "SEDE"},
-    {"slug": "serra", "site": "SERRA", "nome": "Serra", "alerta": "SERRA"},
-    {"slug": "guarapari", "site": "MORRO DO CÉU", "nome": "Guarapari", "sub": "Morro do Céu", "alerta": "GUARAPARI"},
-    {"slug": "morro-do-moreno", "site": "MORRO DO MORENO", "nome": "Morro do Moreno", "alerta": "MORRO DO MORENO"},
-    {"slug": "viana", "site": "VIANA", "nome": "Viana", "alerta": "VIANA"},
-    {"slug": "domingos-martins", "site": "DOMINGOS MARTINS", "nome": "Domingos Martins", "sub": "Campinho", "alerta": "DOMINGOS MARTINS"},
-    {"slug": "pedra-azul", "site": "PEDRA AZUL", "nome": "Pedra Azul", "alerta": "PEDRA AZUL"},
+ABRIGOS_FILE = os.path.join(BASE_DIR, "abrigos.json")
+ABRIGOS_LOCK = threading.Lock()
+DEFAULT_FG_INFO = {"nome": "Abrigo Fonte Grande", "alerta": "FONTE GRANDE", "sub": ""}
+DEFAULT_ABRIGOS = [
+    {"slug": "sede", "site": "SEDE", "nome": "Abrigo Sede", "alerta": "SEDE"},
+    {"slug": "serra", "site": "SERRA", "nome": "Abrigo Serra", "alerta": "SERRA"},
+    {"slug": "guarapari", "site": "MORRO DO CÉU", "nome": "Abrigo Guarapari", "sub": "Morro do Céu", "alerta": "GUARAPARI"},
+    {"slug": "morro-do-moreno", "site": "MORRO DO MORENO", "nome": "Abrigo Morro do Moreno", "alerta": "MORRO DO MORENO"},
+    {"slug": "viana", "site": "VIANA", "nome": "Abrigo Viana", "alerta": "VIANA"},
+    {"slug": "domingos-martins", "site": "DOMINGOS MARTINS", "nome": "Abrigo Domingos Martins", "sub": "Campinho", "alerta": "DOMINGOS MARTINS"},
+    {"slug": "pedra-azul", "site": "PEDRA AZUL", "nome": "Abrigo Pedra Azul", "alerta": "PEDRA AZUL"},
 ]
+ABRIGOS = DEFAULT_ABRIGOS   # compatibilidade; use get_abrigos()
+
+
+def load_abrigos_config():
+    """abrigos.json: nomes exibidos (editaveis na Configuracao), nome usado
+    no alerta e os abrigos novos que forem criados."""
+    try:
+        with open(ABRIGOS_FILE, encoding="utf-8") as f:
+            data = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        data = {}
+    fg = dict(DEFAULT_FG_INFO)
+    fg.update({k: v for k, v in (data.get("fg") or {}).items() if v})
+    if fg.get("nome") == "Abrigo FG":      # nome padrao antigo -> "Abrigo Fonte Grande"
+        fg["nome"] = "Abrigo Fonte Grande"
+    if fg.get("sub") == "Fonte Grande":
+        fg["sub"] = ""
+    abrigos = data.get("abrigos")
+    if not isinstance(abrigos, list) or not abrigos:
+        abrigos = [dict(a) for a in DEFAULT_ABRIGOS]
+    for ab in abrigos:   # nome antigo padrao da Sede -> "Abrigo Sede"
+        if ab.get("slug") == "sede" and ab.get("nome") == "Abrigo Sede Rede Gazeta":
+            ab["nome"] = "Abrigo Sede"
+    return {"fg": fg, "abrigos": abrigos}
+
+
+def save_abrigos_config(cfg):
+    with ABRIGOS_LOCK:
+        tmp = ABRIGOS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(cfg, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, ABRIGOS_FILE)
+
+
+def get_abrigos():
+    return load_abrigos_config()["abrigos"]
+
+
+def _slugify(text):
+    import unicodedata
+    t = unicodedata.normalize("NFKD", str(text or "")).encode("ascii", "ignore").decode().lower()
+    t = re.sub(r"^abrigo\s+", "", t.strip())
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-") or "abrigo"
 ABRIGO_CATEGORIES_ORDER = ["TRANSMISSORES", "GERADORES", "MEDIÇÃO DE ENERGIA", "NOBREAK",
                            "ENLACES", "INFRAESTRUTURA"]
 
@@ -108,12 +154,12 @@ def _norm_site(text):
 
 
 def abrigo_by_slug(slug):
-    return next((a for a in ABRIGOS if a["slug"] == slug), None)
+    return next((a for a in get_abrigos() if a["slug"] == slug), None)
 
 
 def abrigo_for_site(site):
     key = _norm_site(site)
-    return next((a for a in ABRIGOS if _norm_site(a["site"]) == key), None)
+    return next((a for a in get_abrigos() if _norm_site(a["site"]) == key), None)
 
 
 def abrigo_category(dev):
@@ -158,11 +204,11 @@ def build_abrigo_network(slug):
         if order:
             lst.sort(key=lambda d: order.index(str(d.get("id"))) if str(d.get("id")) in order else 999)
     cats_order = [c for c in ABRIGO_CATEGORIES_ORDER if c in cats] + [c for c in cats if c not in ABRIGO_CATEGORIES_ORDER]
-    titulo = "Mapa " + ab["nome"]
+    titulo = ab["nome"]
     return {
         "map_name": titulo,
         "abrigo": ab,
-        "caption": ab["nome"] + (" — " + ab["sub"] if ab.get("sub") else ""),
+        "caption": re.sub(r"^Abrigo\s+", "", ab["nome"]) + (" — " + ab["sub"] if ab.get("sub") else ""),
         "categories_order": cats_order,
         "categories": {c: cats[c] for c in cats_order},
         "devices": [d for c in cats_order for d in cats[c]],
@@ -172,7 +218,7 @@ def build_abrigo_network(slug):
 def abrigo_alert_name(device):
     """Nome do abrigo que aparece no cabecalho do alerta do Telegram."""
     if device.get("map") == "fg":
-        return "FONTE GRANDE"
+        return load_abrigos_config()["fg"].get("alerta") or "FONTE GRANDE"
     ab = abrigo_for_site(device.get("site"))
     if ab:
         return ab["alerta"]
@@ -193,7 +239,7 @@ MAPS_REGISTRY_LOCK = threading.Lock()
 
 _DEFAULT_MAPS_REGISTRY = {
     "interior": {"name": "Abrigos (dispositivos)", "kind": "legacy", "url": "/selecionar"},
-    "fg": {"name": "Mapa FG", "kind": "legacy", "url": "/mapa-fg"},
+    "fg": {"name": "Abrigo Fonte Grande", "kind": "legacy", "url": "/mapa-fg"},
     "biblioteca": {"name": "Biblioteca de Dispositivos", "kind": "library", "url": "/mapa/biblioteca"},
 }
 
@@ -2491,13 +2537,13 @@ def build_report_device_list():
     result = {}
     interior = load_devices().get("devices", [])
     result["interior"] = {
-        "name": "Mapa Interior",
+        "name": "Abrigos",
         "devices": [{"id": d["id"], "name": d["name"], "site": d.get("site"),
                      "report_enabled": d.get("report_enabled", True)} for d in interior],
     }
     fg = load_devices_fg().get("devices", [])
     result["fg"] = {
-        "name": "Mapa FG",
+        "name": "Abrigo Fonte Grande",
         "devices": [{"id": d["id"], "name": d["name"], "site": d.get("site") or d.get("category"),
                      "report_enabled": d.get("report_enabled", True)} for d in fg],
     }
@@ -2582,7 +2628,7 @@ def build_monthly_report(year, month):
 
     # inclui tambem sites/mapas que existem no sistema mas nao tiveram
     # nenhuma ocorrencia no mes (aparecem como "Sem Ocorrencias")
-    map_names = {"interior": "Mapa Interior", "fg": "Mapa FG"}
+    map_names = {"interior": "Abrigos", "fg": "Abrigo Fonte Grande"}
     for map_id, entry in load_maps_registry().items():
         if entry.get("kind") == "custom":
             map_names[map_id] = entry.get("name", map_id)
@@ -4836,12 +4882,29 @@ def format_value(raw_value, metric):
     divisor = metric.get("divisor")
     if divisor:
         num = num / float(divisor)
-    if num == int(num):
-        num_str = str(int(num))
-    else:
-        num_str = f"{num:.2f}"
     unit = metric.get("unit") or ""
+    # potencias grandes em W/VA/var aparecem em k (29148 W -> 29,15 kW)
+    if unit in ("W", "VA", "var") and abs(num) >= 10000:
+        num, unit = num / 1000.0, "k" + unit
+    decimals = UNIT_DECIMALS.get(unit)
+    if decimals is None:
+        decimals = 0 if num == int(num) else 2
+    num_str = _fmt_br(num, decimals)
     return f"{num_str}{unit}".strip() if unit in ("%", "°C") else f"{num_str} {unit}".strip()
+
+
+# casas decimais por unidade (o valor guardado/gráfico continua com a precisao total)
+UNIT_DECIMALS = {
+    "V": 1, "kV": 2, "A": 1, "Hz": 1, "°C": 1, "%": 0,
+    "W": 0, "VA": 0, "var": 0, "kW": 2, "kVA": 2, "kvar": 2, "kWh": 0, "Wh": 0,
+    "h": 0, "min": 0, "L": 0, "rpm": 0, "bar": 1, "dB": 1, "dBm": 1,
+}
+
+
+def _fmt_br(num, decimals):
+    """1234.5 -> '1.234,5' (padrao brasileiro)."""
+    txt = f"{num:,.{decimals}f}"
+    return txt.replace(",", "\x00").replace(".", ",").replace("\x00", ".")
 
 
 def evaluate_threshold(raw_value, compare_method, compare_value):
@@ -5492,11 +5555,13 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/abrigos":
             data = load_devices()
             out = []
-            for ab in ABRIGOS:
+            for ab in get_abrigos():
                 key = _norm_site(ab["site"])
                 ids = [d.get("id") for d in data.get("devices", []) if _norm_site(d.get("site")) == key]
                 out.append(dict(ab, device_ids=ids, url="/mapa-abrigo/" + ab["slug"]))
-            self._send_json({"abrigos": out})
+            fg_info = dict(load_abrigos_config()["fg"])
+            fg_info["device_ids"] = [d.get("id") for d in load_devices_fg().get("devices", [])]
+            self._send_json({"abrigos": out, "fg": fg_info})
         elif parsed.path.startswith("/api/devices-abrigo/"):
             slug = parsed.path.rstrip("/").rsplit("/", 1)[-1]
             net = build_abrigo_network(slug)
@@ -5529,7 +5594,10 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path in ("/config", "/config.html", "/configuracao"):
             self._send_file(CONFIG_HTML_FILE, "text/html; charset=utf-8")
         elif parsed.path == "/api/devices-fg":
-            self._send_json(load_devices_fg())
+            _fgnet = load_devices_fg()
+            _fgi = load_abrigos_config()["fg"]
+            _fgnet = dict(_fgnet, map_name=_fgi.get("nome"), caption=_fgi.get("sub") or re.sub(r"^Abrigo\s+", "", _fgi.get("nome") or "Fonte Grande"))
+            self._send_json(_fgnet)
         elif parsed.path == "/api/maps":
             self._send_json(load_maps_registry())
         elif parsed.path.startswith("/api/map-devices/"):
@@ -7040,6 +7108,18 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True, "config": cfg})
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)}, status=500)
+        elif parsed.path in ("/api/abrigos/save", "/api/abrigos/delete", "/api/abrigos/move-device", "/api/devices/delete"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                payload = json.loads((self.rfile.read(length) if length else b"{}").decode("utf-8") or "{}")
+            except (ValueError, json.JSONDecodeError):
+                self._send_json({"ok": False, "error": "JSON invalido"}, status=400)
+                return
+            try:
+                result = handle_abrigos_api(parsed.path, payload)
+                self._send_json(result, status=200 if result.get("ok") else 400)
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, status=500)
         elif parsed.path in ("/api/telegram-config", "/api/telegram-test", "/api/telegram-discover"):
             try:
                 length = int(self.headers.get("Content-Length", 0))
@@ -7205,6 +7285,164 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404, "Nao encontrado")
 
 
+def handle_abrigos_api(path, payload):
+    """Gerenciamento feito pela tela Configuracao > Abrigos e dispositivos."""
+    if path == "/api/abrigos/save":
+        cfg = load_abrigos_config()
+        fg_in = payload.get("fg") or {}
+        if fg_in.get("nome"):
+            cfg["fg"]["nome"] = str(fg_in["nome"]).strip()[:80]
+        if fg_in.get("alerta"):
+            cfg["fg"]["alerta"] = str(fg_in["alerta"]).strip().upper()[:60]
+        by_slug = {a["slug"]: a for a in cfg["abrigos"]}
+        for item in payload.get("abrigos") or []:
+            nome = str(item.get("nome") or "").strip()[:80]
+            if not nome:
+                continue
+            slug = item.get("slug")
+            if slug and slug in by_slug:
+                ab = by_slug[slug]
+                ab["nome"] = nome
+                if item.get("alerta"):
+                    ab["alerta"] = str(item["alerta"]).strip().upper()[:60]
+                if "sub" in item:
+                    ab["sub"] = str(item.get("sub") or "").strip()[:60]
+            else:
+                # abrigo novo
+                site = _norm_site(re.sub(r"^\s*abrigo\s+", "", nome, flags=re.I))
+                if any(_norm_site(a["site"]) == site for a in cfg["abrigos"]):
+                    return {"ok": False, "error": "ja existe um abrigo com esse nome"}
+                new_slug = _slugify(nome)
+                n = 2
+                while new_slug in by_slug or new_slug == "fg":
+                    new_slug = _slugify(nome) + "-" + str(n)
+                    n += 1
+                ab = {"slug": new_slug, "site": site, "nome": nome,
+                      "alerta": str(item.get("alerta") or site).strip().upper()[:60]}
+                if item.get("sub"):
+                    ab["sub"] = str(item["sub"]).strip()[:60]
+                cfg["abrigos"].append(ab)
+                by_slug[new_slug] = ab
+        order = payload.get("order")
+        if isinstance(order, list) and order:
+            cfg["abrigos"].sort(key=lambda a: order.index(a["slug"]) if a["slug"] in order else 999)
+        save_abrigos_config(cfg)
+        log_event("ABRIGOS ATUALIZADOS", "Configuracao", None)
+        return {"ok": True, "config": cfg}
+
+    if path == "/api/abrigos/delete":
+        slug = payload.get("slug")
+        cfg = load_abrigos_config()
+        ab = next((a for a in cfg["abrigos"] if a["slug"] == slug), None)
+        if not ab:
+            return {"ok": False, "error": "abrigo nao encontrado"}
+        key = _norm_site(ab["site"])
+        if any(_norm_site(d.get("site")) == key for d in load_devices().get("devices", [])):
+            return {"ok": False, "error": "o abrigo ainda tem dispositivos - mova ou exclua os dispositivos antes"}
+        cfg["abrigos"] = [a for a in cfg["abrigos"] if a["slug"] != slug]
+        save_abrigos_config(cfg)
+        log_event("ABRIGO EXCLUIDO", ab["nome"], None)
+        return {"ok": True}
+
+    if path == "/api/abrigos/move-device":
+        dev_id = int(payload.get("id"))
+        target = payload.get("slug")
+        source_map, dev = find_device_anywhere(dev_id)
+        if source_map is None:
+            return {"ok": False, "error": "dispositivo nao encontrado"}
+        if target == "fg":
+            target_map, group = "fg", (payload.get("category") or dev.get("category") or abrigo_category(dev))
+        else:
+            ab = abrigo_by_slug(target)
+            if not ab:
+                return {"ok": False, "error": "abrigo de destino nao encontrado"}
+            target_map, group = "interior", ab["site"]
+        removed = remove_device_from_map(source_map, dev_id)
+        if removed is None:
+            return {"ok": False, "error": "falha ao remover do abrigo de origem"}
+        if target_map == "interior":
+            removed.pop("category", None)
+        saved = add_full_device_to_map(target_map, removed, group)
+        log_event("DISPOSITIVO MOVIDO", removed.get("name"), removed.get("ip"), detail="para " + str(target))
+        return {"ok": True, "device": saved}
+
+    if path == "/api/devices/delete":
+        dev_id = int(payload.get("id"))
+        source_map, dev = find_device_anywhere(dev_id)
+        if source_map is None:
+            return {"ok": False, "error": "dispositivo nao encontrado"}
+        removed = remove_device_from_map(source_map, dev_id)
+        if removed is None:
+            return {"ok": False, "error": "falha ao excluir"}
+        with STATUS_LOCK:
+            STATUS.pop(dev_id, None)
+            STATUS.pop(str(dev_id), None)
+        log_event("DISPOSITIVO EXCLUIDO", removed.get("name"), removed.get("ip"))
+        return {"ok": True}
+
+    return {"ok": False, "error": "acao desconhecida"}
+
+
+# --------------------------------------------------------------------------
+# Ajustes automaticos de unidade/escala (rodam UMA vez, na partida).
+# So mexem em medidas que ainda estao com o valor que veio da importacao -
+# se voce ja ajustou alguma no editor, ela nao e tocada.
+# --------------------------------------------------------------------------
+MIGRATIONS_FILE = os.path.join(BASE_DIR, "migrations.json")
+
+
+def apply_data_migrations():
+    try:
+        with open(MIGRATIONS_FILE, encoding="utf-8") as f:
+            done = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        done = {}
+    if done.get("unidades-2026-10"):
+        return
+    changes = 0
+    for path in (DEVICES_FILE, os.path.join(BASE_DIR, "network_fg.json")):
+        with DEVICES_FILE_LOCK:
+            try:
+                with open(path, encoding="utf-8") as f:
+                    data = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                continue
+            seen = {}
+            all_devs = list(data.get("devices", []))
+            for grp in (data.get("sites") or data.get("categories") or {}).values():
+                all_devs.extend(grp)
+            for dev in all_devs:
+                netx = str(dev.get("netx_id") or "")
+                for m in dev.get("metrics", []):
+                    label = (m.get("label") or "").lower()
+                    unit = m.get("unit") or ""
+                    div = m.get("divisor")
+                    # CLP de refrigeracao: temperatura vem em centesimos (2466 = 24,66 C)
+                    if netx == "FG_PLC_REFRIGERACAO" and unit == "°C" and div == 10:
+                        m["divisor"] = 100; changes += 1
+                    # SEPAM (media tensao): tensao em kV
+                    elif netx == "FG_SEPAM_S42" and label.startswith("tens") and unit == "V" and not div:
+                        m["unit"] = "kV"; m["divisor"] = 1000; changes += 1
+                    # excitadores M2X: entrada/modulador sao estados, nao volts
+                    elif "M2X" in netx and re.match(r"^entrada \d", label) and unit == "V":
+                        m["unit"] = ""; changes += 1
+                    # potencia de TX sem unidade -> W
+                    elif re.search(r"pot[eê]ncia (direta|refletida)", label) and unit == "" and not m.get("value_labels"):
+                        m["unit"] = "W"; changes += 1
+                    # nivel de RF dos receptores EITV
+                    elif "EITV" in netx and "recep" in label and unit == "":
+                        m["unit"] = "dBm"; changes += 1
+            tmp = path + ".tmp"
+            with open(tmp, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+            os.replace(tmp, path)
+    done["unidades-2026-10"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    with open(MIGRATIONS_FILE, "w", encoding="utf-8") as f:
+        json.dump(done, f, ensure_ascii=False, indent=2)
+    if changes:
+        print(f"[ajustes] {changes} medidas tiveram unidade/escala corrigida")
+
+
 def get_lan_ip():
     """Descobre o IP da maquina na rede local (sem depender de internet)."""
     try:
@@ -7230,6 +7468,10 @@ def main():
         except Exception:
             pass
 
+    try:
+        apply_data_migrations()
+    except Exception as e:
+        print("[ajustes] falhou:", e)
     load_incidents()
     load_sessions()
     load_history_from_disk()

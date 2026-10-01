@@ -143,14 +143,14 @@
 </div>
 
 <div class="wrap">
-  <h2>Selecione o mapa</h2>
+  <h2>Selecione o abrigo</h2>
   <div class="sub">cada mapa abre em uma aba separada — ideal para exibir em outro monitor</div>
 
   <div class="group-head"><span class="group-title">Fonte Grande</span><span class="group-sub">abrigo principal — transmissão de TV e rádios</span></div>
   <div class="cards featured">
     <a class="card fg" href="/mapa-fg" target="_blank" rel="noopener">
       <div class="icon">&#127970;</div>
-      <h3>Mapa FG</h3>
+      <h3 id="fg-title">Abrigo Fonte Grande</h3>
       <div class="desc">TX de TV e FM, geradores, medição de energia,<br>nobreaks, enlaces e infraestrutura</div>
       <span class="count" id="count-fg">– dispositivos</span>
       <div class="status-breakdown" id="status-fg"><span class="st-label">carregando status...</span></div>
@@ -159,7 +159,7 @@
 
     <a class="card energia" href="/energia" target="_blank" rel="noopener">
       <div class="icon">&#9889;</div>
-      <h3>Energia FG</h3>
+      <h3>Energia Fonte Grande</h3>
       <div class="desc">Geradores e medidores em Modbus:<br>tensões, correntes, potência e status</div>
       <span class="count" id="count-energia">– equipamentos</span>
       <div class="status-breakdown" id="status-energia"><span class="st-label">carregando status...</span></div>
@@ -168,7 +168,7 @@
 
     <a class="card clima" href="/climatizacao" target="_blank" rel="noopener">
       <div class="icon">&#10052;&#65039;</div>
-      <h3>Climatização FG</h3>
+      <h3>Climatização Fonte Grande</h3>
       <div class="desc">CLP de refrigeração: temperaturas das salas,<br>sondas, splits, condensadoras e evaporadoras</div>
       <span class="count" id="count-clima">– CLP</span>
       <div class="status-breakdown" id="status-clima"><span class="st-label">carregando status...</span></div>
@@ -238,7 +238,9 @@ async function loadAbrigos(){
       fetch('/api/status', {cache:'no-store'}),
     ]);
     if(abRes.status === 401){ location.href = '/login'; return; }
-    const abrigos = (await abRes.json()).abrigos || [];
+    const abData = await abRes.json();
+    const abrigos = abData.abrigos || [];
+    if(abData.fg && abData.fg.nome) document.getElementById('fg-title').textContent = abData.fg.nome;
     const live = (await stRes.json()).devices || {};
     box.innerHTML = abrigos.map((ab, i) => {
       let on = 0, off = 0;
@@ -246,7 +248,7 @@ async function loadAbrigos(){
       const n = ab.device_ids.length;
       return '<a class="card abrigo' + (off ? ' has-off' : '') + '" href="' + ab.url + '" target="_blank" rel="noopener">' +
         '<div class="icon">' + (i === 0 ? '&#127963;' : '&#128225;') + '</div>' +
-        '<h3>Mapa ' + ab.nome + '</h3>' +
+        '<h3>' + ab.nome + '</h3>' +
         '<div class="desc">' + (ab.sub || '&nbsp;') + '</div>' +
         '<span class="count">' + n + ' dispositivo' + (n === 1 ? '' : 's') + '</span>' +
         '<div class="status-breakdown"><span><span class="st-online">' + on + '</span><span class="st-label">online</span></span>' +

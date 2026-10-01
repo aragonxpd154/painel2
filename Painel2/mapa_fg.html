@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Mapa FG — Rede Gazeta</title>
+<title>Abrigo Fonte Grande — Rede Gazeta</title>
 <style>
   :root{
     --device-font-scale:1;
@@ -422,7 +422,7 @@
   <div class="brand">
     <div class="brand-badge gz"><img src="/static/img/logo-gazeta-azul.png" alt="Rede Gazeta"></div>
     <div class="title-block">
-      <h1>Mapa FG — Fonte Grande</h1>
+      <h1>Abrigo Fonte Grande</h1>
       <div class="sub"><span class="conn-dot" id="conn-dot"></span><span id="conn-label">conectando ao backend...</span></div>
     </div>
   </div>
@@ -1961,7 +1961,7 @@ async function init(){
     return;
   }
   NET = await res.json();
-  if(ABRIGO_SLUG && NET && NET.map_name){
+  if(NET && NET.map_name){
     document.title = NET.map_name + ' — Rede Gazeta';
     const h1 = document.querySelector('h1');
     if(h1) h1.textContent = NET.map_name;

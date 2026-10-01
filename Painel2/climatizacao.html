@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Climatização FG — Rede Gazeta</title>
+<title>Climatização Fonte Grande — Rede Gazeta</title>
 <style>
   :root{
     --bg:#070c18; --bg-1:#0e1628; --bg-2:#121d36; --line:#223050;
@@ -88,13 +88,13 @@
 <div class="topbar">
   <div class="brand-badge gz"><img src="/static/img/logo-gazeta-azul.png" alt="Rede Gazeta"></div>
   <div>
-    <h1>Climatização FG — Fonte Grande</h1>
+    <h1>Climatização Fonte Grande</h1>
     <div class="sub"><span class="dot" id="conn-dot"></span><span id="conn-label">conectando...</span></div>
   </div>
   <div class="spacer"></div>
   <div class="nav">
-    <a href="/mapa-fg">Mapa FG</a>
-    <a href="/energia">Energia FG</a>
+    <a href="/mapa-fg">Abrigo Fonte Grande</a>
+    <a href="/energia">Energia Fonte Grande</a>
     <a href="/refrigeracao">Manutenção ar-condicionado</a>
     <a href="/graficos-historico">Gráficos</a>
     <a href="/selecionar">Mapas</a>
@@ -227,7 +227,7 @@ function renderClp(dev){
 function render(){
   const main = document.getElementById('main');
   if(!CLPS.length){
-    main.innerHTML = '<div class="empty">Nenhum CLP de climatização encontrado no Mapa FG.</div>';
+    main.innerHTML = '<div class="empty">Nenhum CLP de climatização encontrado no Abrigo Fonte Grande.</div>';
     return;
   }
   main.innerHTML = CLPS.map(renderClp).join('') +
