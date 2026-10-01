@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gráficos — Histórico 7 Dias — Rede Gazeta</title>
+<style>
+  :root{
+    --bg:#070c18; --bg-1:#0f172a; --line:#232f4b;
+    --green:#2ecc55; --red:#e5384b; --amber:#f5c451; --gray:#8b95ab; --white:#f3f3f3;
+    --mono: 'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+    --sans: 'IBM Plex Sans','Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--white);font-family:var(--sans);}
+
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 26px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--bg);z-index:20;flex-wrap:wrap;gap:10px;
+  }
+  .topbar h1{margin:0;font-size:15px;font-weight:600;}
+  .topbar-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .btn{
+    font-family:var(--mono);font-size:12px;color:var(--gray);text-decoration:none;
+    border:1px solid var(--line);border-radius:7px;padding:7px 12px;transition:all .15s ease;
+    background:var(--bg-1);cursor:pointer;
+  }
+  .btn:hover{color:var(--white);border-color:var(--gray);}
+
+  .content{max-width:1100px;margin:0 auto;padding:24px 26px 60px;}
+  .loading{padding:60px;text-align:center;color:var(--gray);font-family:var(--mono);font-size:13px;}
+  .page-intro{font-size:12.5px;color:var(--gray);line-height:1.7;margin:0 0 16px;}
+
+  .search-row{margin-bottom:18px;}
+  .search-row input{
+    width:100%;background:var(--bg-1);border:1px solid var(--line);border-radius:8px;color:var(--white);
+    padding:10px 14px;font-family:var(--sans);font-size:13px;outline:none;
+  }
+  .search-row input:focus{border-color:var(--green);}
+
+  .map-group{margin-bottom:26px;}
+  .map-group-title{font-size:14px;font-weight:800;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+  .map-group-title::before{content:"";width:10px;height:10px;border-radius:50%;background:#5b8def;}
+
+  .category-block{margin-bottom:14px;}
+  .category-title{
+    font-family:var(--mono);font-size:10.5px;color:var(--gray);text-transform:uppercase;
+    letter-spacing:.05em;margin-bottom:6px;padding-left:4px;
+  }
+
+  .device-card{border:1px solid var(--line);border-radius:8px;background:var(--bg-1);margin-bottom:8px;overflow:hidden;}
+  .device-head{
+    display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:11px 16px;cursor:pointer;user-select:none;
+  }
+  .device-head:hover{background:#151e34;}
+  .device-name{font-size:13px;font-weight:600;}
+  .device-sub{font-size:10.5px;color:var(--gray);font-family:var(--mono);}
+  .device-chevron{color:var(--gray);font-size:11px;transition:transform .15s ease;}
+  .device-card.open .device-chevron{transform:rotate(90deg);}
+  .device-body{display:none;padding:6px 16px 16px;border-top:1px solid var(--line);}
+  .device-card.open .device-body{display:block;}
+
+  .metric-chart-block{margin-top:14px;}
+  .metric-chart-title{font-size:12px;font-weight:600;margin-bottom:6px;color:var(--white);}
+  .metric-chart-empty{font-size:11.5px;color:var(--gray);font-style:italic;padding:10px 0;}
+  .chart-wrap{position:relative;}
+  .chart-wrap svg{width:100%;height:100px;display:block;cursor:crosshair;}
+  .chart-line{fill:none;stroke:#5b8def;stroke-width:1.6;}
+  .chart-grid line{stroke:#1b2740;stroke-width:1;}
+  .chart-axis-label{font-family:var(--mono);font-size:8.5px;fill:var(--gray);}
+  .chart-hover-line{stroke:#8b95ab;stroke-width:1;stroke-dasharray:3,3;display:none;pointer-events:none;}
+  .chart-hover-dot{fill:#5b8def;stroke:#070c18;stroke-width:1.5;display:none;pointer-events:none;}
+  .chart-hover-tooltip{
+    position:fixed;background:var(--bg-1);border:1px solid var(--line);border-radius:6px;
+    padding:6px 10px;font-family:var(--mono);font-size:11px;color:var(--white);
+    pointer-events:none;display:none;z-index:50;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.5);
+  }
+  .chart-hover-tooltip b{color:#5b8def;}
+
+  .no-results{color:var(--gray);font-size:12.5px;text-align:center;padding:40px 0;}
+
+  ::-webkit-scrollbar{width:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;}
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Gráficos — Histórico de 7 Dias</h1>
+  <div class="topbar-right">
+    <a class="btn" href="/relatorios-sites">&#128203; Relatórios Sites</a>
+    <a class="btn" href="/nobreak">&#128267; Nobreak</a>
+    <a class="btn" href="/refrigeracao">&#10052; Refrigeração</a>
+    <a class="btn" href="/logs">&#128220; relatórios</a>
+    <a class="btn" href="/">&larr; mapa</a>
+    <a class="btn" href="/logout">&#128274; sair</a>
+  </div>
+</div>
+
+<div class="content" id="content">
+  <div class="loading">carregando dispositivos...</div>
+</div>
+
+<script>
+let allDevices = []; // [{id, name, site, map_name, metrics}]
+const historyCache = {};
+
+async function loadAllDevices(){
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading">carregando dispositivos...</div>';
+  try{
+    const mapsRes = await fetch('/api/maps', {cache:'no-store'});
+    const mapsRegistry = await mapsRes.json();
+    const mapIds = Object.entries(mapsRegistry)
+      .filter(([id, m]) => m.kind !== 'library')
+      .map(([id, m]) => ({id, name: m.name || id}));
+
+    allDevices = [];
+    for(const map of mapIds){
+      const url = map.id === 'interior' ? '/api/devices' : ('/api/map-devices/' + map.id);
+      const res = await fetch(url, {cache:'no-store'});
+      if(!res.ok) continue;
+      const data = await res.json();
+      (data.devices || []).forEach(dev => {
+        allDevices.push({
+          id: dev.id, name: dev.name, site: dev.site || dev.category || 'Sem categoria',
+          map_name: map.name, metrics: dev.metrics || [],
+        });
+      });
+    }
+    render();
+  }catch(err){
+    content.innerHTML = '<div class="loading">erro ao carregar: ' + err.message + '</div>';
+  }
+}
+
+let searchTerm = '';
+
+function render(){
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  const intro = document.createElement('p');
+  intro.className = 'page-intro';
+  intro.textContent = 'Histórico das leituras de todas as métricas monitoradas (OIDs), últimos 7 dias. Clique num dispositivo para carregar os gráficos dele.';
+  content.appendChild(intro);
+
+  const searchRow = document.createElement('div');
+  searchRow.className = 'search-row';
+  searchRow.innerHTML = '<input type="text" id="search-input" placeholder="Buscar dispositivo, categoria ou métrica...">';
+  content.appendChild(searchRow);
+  const searchInput = searchRow.querySelector('#search-input');
+  searchInput.value = searchTerm;
+  searchInput.addEventListener('input', (e) => {
+    searchTerm = e.target.value.toLowerCase();
+    renderList();
+  });
+
+  const listWrap = document.createElement('div');
+  listWrap.id = 'list-wrap';
+  content.appendChild(listWrap);
+
+  renderList();
+}
+
+function deviceMatchesSearch(dev){
+  if(!searchTerm) return true;
+  if(dev.name.toLowerCase().includes(searchTerm)) return true;
+  if((dev.site || '').toLowerCase().includes(searchTerm)) return true;
+  return (dev.metrics || []).some(m => m.label.toLowerCase().includes(searchTerm));
+}
+
+function renderList(){
+  const listWrap = document.getElementById('list-wrap');
+  listWrap.innerHTML = '';
+
+  // agrupa por mapa -> categoria/site
+  const byMap = {};
+  allDevices.forEach(dev => {
+    if(!deviceMatchesSearch(dev)) return;
+    (byMap[dev.map_name] = byMap[dev.map_name] || {});
+    (byMap[dev.map_name][dev.site] = byMap[dev.map_name][dev.site] || []).push(dev);
+  });
+
+  const mapNames = Object.keys(byMap);
+  if(!mapNames.length){
+    listWrap.innerHTML = '<div class="no-results">nenhum dispositivo encontrado</div>';
+    return;
+  }
+
+  mapNames.forEach(mapName => {
+    const mapGroup = document.createElement('div');
+    mapGroup.className = 'map-group';
+    mapGroup.innerHTML = '<div class="map-group-title">' + mapName + '</div>';
+
+    Object.keys(byMap[mapName]).sort((a,b) => a.localeCompare(b, 'pt-BR')).forEach(site => {
+      const catBlock = document.createElement('div');
+      catBlock.className = 'category-block';
+      catBlock.innerHTML = '<div class="category-title">' + site + '</div>';
+
+      byMap[mapName][site].forEach(dev => {
+        catBlock.appendChild(buildDeviceCard(dev));
+      });
+      mapGroup.appendChild(catBlock);
+    });
+    listWrap.appendChild(mapGroup);
+  });
+}
+
+function buildDeviceCard(dev){
+  const card = document.createElement('div');
+  card.className = 'device-card';
+  card.innerHTML = `
+    <div class="device-head">
+      <div>
+        <div class="device-name">${escapeHtml(dev.name)}</div>
+        <div class="device-sub">${dev.metrics.length} métrica(s) monitorada(s)</div>
+      </div>
+      <div class="device-chevron">&#9656;</div>
+    </div>
+    <div class="device-body"></div>`;
+  const head = card.querySelector('.device-head');
+  head.addEventListener('click', () => toggleDevice(card, dev));
+  return card;
+}
+
+async function toggleDevice(card, dev){
+  const isOpen = card.classList.contains('open');
+  if(isOpen){
+    card.classList.remove('open');
+    return;
+  }
+  card.classList.add('open');
+  const body = card.querySelector('.device-body');
+  if(body.dataset.loaded) return;
+  body.dataset.loaded = '1';
+
+  if(!dev.metrics.length){
+    body.innerHTML = '<div class="metric-chart-empty">este dispositivo não tem métricas SNMP configuradas (só ping)</div>';
+    return;
+  }
+
+  body.innerHTML = '<div class="metric-chart-empty">carregando histórico...</div>';
+  try{
+    let history = historyCache[dev.id];
+    if(!history){
+      const res = await fetch('/api/history?id=' + dev.id, {cache:'no-store'});
+      history = await res.json();
+      historyCache[dev.id] = history;
+    }
+    body.innerHTML = '';
+    dev.metrics.forEach(m => {
+      const series = (history.metrics && history.metrics[m.label]) || [];
+      body.appendChild(buildMetricChartBlock(m, series));
+    });
+  }catch(err){
+    body.innerHTML = '<div class="metric-chart-empty">erro ao carregar histórico: ' + err.message + '</div>';
+  }
+}
+
+const hoverTooltip = document.createElement('div');
+hoverTooltip.className = 'chart-hover-tooltip';
+document.body.appendChild(hoverTooltip);
+
+function buildMetricChartBlock(metric, series){
+  const block = document.createElement('div');
+  block.className = 'metric-chart-block';
+  const title = document.createElement('div');
+  title.className = 'metric-chart-title';
+  title.textContent = metric.label + (metric.unit ? ' (' + metric.unit + ')' : '');
+  block.appendChild(title);
+
+  const chartWrap = document.createElement('div');
+  chartWrap.className = 'chart-wrap';
+  const result = buildChartSVG(series);
+  chartWrap.innerHTML = result.html;
+  block.appendChild(chartWrap);
+
+  if(result.meta){
+    attachChartHover(chartWrap, result.meta, metric.unit);
+  }
+
+  return block;
+}
+
+function attachChartHover(chartWrap, meta, unit){
+  const svg = chartWrap.querySelector('svg');
+  if(!svg) return;
+
+  const guideLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+  guideLine.setAttribute('class', 'chart-hover-line');
+  guideLine.setAttribute('y1', meta.PAD_T);
+  guideLine.setAttribute('y2', meta.H - meta.PAD_B);
+  svg.appendChild(guideLine);
+
+  const guideDot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+  guideDot.setAttribute('class', 'chart-hover-dot');
+  guideDot.setAttribute('r', 3);
+  svg.appendChild(guideDot);
+
+  function findNearest(ts){
+    let nearest = meta.pts[0], nearestDist = Infinity;
+    for(const p of meta.pts){
+      const dist = Math.abs(p[0] - ts);
+      if(dist < nearestDist){ nearestDist = dist; nearest = p; }
+    }
+    return nearest;
+  }
+
+  svg.addEventListener('mousemove', (e) => {
+    const rect = svg.getBoundingClientRect();
+    if(rect.width === 0) return;
+    const relX = e.clientX - rect.left;
+    const vbX = (relX / rect.width) * meta.W;
+    const ts = meta.windowStart + ((vbX - meta.PAD_L) / meta.plotW) * (meta.now - meta.windowStart);
+    const point = findNearest(ts);
+
+    const px = meta.xFor(point[0]);
+    const py = meta.yFor(point[1]);
+    guideLine.setAttribute('x1', px);
+    guideLine.setAttribute('x2', px);
+    guideLine.style.display = 'block';
+    guideDot.setAttribute('cx', px);
+    guideDot.setAttribute('cy', py);
+    guideDot.style.display = 'block';
+
+    const d = new Date(point[0] * 1000);
+    const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    const numeroFormatado = Number.isInteger(point[1]) ? point[1] : point[1].toFixed(2);
+    hoverTooltip.innerHTML = '<b>' + numeroFormatado + (unit ? ' ' + unit : '') + '</b><br>' + dateStr;
+    hoverTooltip.style.display = 'block';
+
+    // mantem o tooltip dentro da tela, evitando cortar nas bordas
+    const tw = hoverTooltip.offsetWidth || 120;
+    let left = e.clientX + 14;
+    if(left + tw > window.innerWidth - 10) left = e.clientX - tw - 14;
+    hoverTooltip.style.left = left + 'px';
+    hoverTooltip.style.top = (e.clientY - 12) + 'px';
+  });
+
+  svg.addEventListener('mouseleave', () => {
+    guideLine.style.display = 'none';
+    guideDot.style.display = 'none';
+    hoverTooltip.style.display = 'none';
+  });
+}
+
+function buildChartSVG(series){
+  const now = Date.now() / 1000;
+  const windowStart = now - 7*24*3600;
+  const pts = (series || []).filter(p => p[0] >= windowStart);
+
+  if(pts.length < 2){
+    return {html: '<div class="metric-chart-empty">ainda sem dados suficientes nos últimos 7 dias</div>', meta: null};
+  }
+
+  const W = 1000, H = 100, PAD_L = 42, PAD_B = 16, PAD_T = 6, PAD_R = 6;
+  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+
+  const values = pts.map(p => p[1]);
+  let minV = Math.min(...values), maxV = Math.max(...values);
+  if(minV === maxV){ minV -= 1; maxV += 1; }
+  const rangePad = (maxV - minV) * 0.1;
+  minV -= rangePad; maxV += rangePad;
+
+  function xFor(ts){ return PAD_L + ((ts - windowStart) / (now - windowStart)) * plotW; }
+  function yFor(v){ return PAD_T + (1 - (v - minV)/(maxV - minV)) * plotH; }
+
+  let d = 'M ' + xFor(pts[0][0]).toFixed(1) + ' ' + yFor(pts[0][1]).toFixed(1);
+  for(let i=1;i<pts.length;i++){
+    d += ' L ' + xFor(pts[i][0]).toFixed(1) + ' ' + yFor(pts[i][1]).toFixed(1);
+  }
+
+  const gridLines = [0,0.5,1].map(f => {
+    const y = PAD_T + f*plotH;
+    const val = maxV - f*(maxV-minV);
+    return '<line x1="'+PAD_L+'" y1="'+y+'" x2="'+(W-PAD_R)+'" y2="'+y+'"/>' +
+           '<text class="chart-axis-label" x="2" y="'+(y+3)+'">'+val.toFixed(Math.abs(val)<10?1:0)+'</text>';
+  }).join('');
+
+  const dayLabels = [];
+  for(let d2=7; d2>=0; d2--){
+    const ts = now - d2*24*3600;
+    const x = xFor(ts);
+    const lbl = d2 === 0 ? 'hoje' : '-' + d2 + 'd';
+    const anchor = d2 === 7 ? 'start' : (d2 === 0 ? 'end' : 'middle');
+    dayLabels.push('<text class="chart-axis-label" x="'+x+'" y="'+(H-2)+'" text-anchor="'+anchor+'">'+lbl+'</text>');
+  }
+
+  const html = '<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">' +
+      '<g class="chart-grid">'+gridLines+'</g>' +
+      '<path class="chart-line" d="'+d+'"></path>' +
+      dayLabels.join('') +
+    '</svg>';
+
+  return {
+    html,
+    meta: {pts, xFor, yFor, windowStart, now, W, H, PAD_T, PAD_B, PAD_L, plotW},
+  };
+}
+
+function escapeHtml(s){
+  const div = document.createElement('div');
+  div.textContent = s || '';
+  return div.innerHTML;
+}
+
+loadAllDevices();
+</script>
+</body>
+</html>

@@ -1,0 +1,73 @@
+SISTEMA PAINEL NO DEBIAN (11 ou 12)
+===================================
+
+1) INSTALAR
+   Copie a pasta Painel2 para o Debian (pendrive, scp...) e rode:
+       sudo bash Painel2/linux/instalar_debian.sh
+   Fica em /opt/painel, como servico "painel" (sobe no boot, reinicia se cair).
+   Para ATUALIZAR depois, rode o mesmo comando com a pasta nova: so o codigo
+   e trocado, os dados ficam.
+
+   Levando os dados do Windows (dispositivos ajustados, historico, agenda,
+   Telegram)? Depois de instalar, copie por cima em /opt/painel os arquivos
+   *.json, eventos.log e as pastas arquivos_upload, site_photos,
+   inventario_pdfs, e rode:  sudo chown -R painel:painel /opt/painel
+                             sudo systemctl restart painel
+
+2) REDE - IGUAL AO PC WINDOWS: um IP em CADA rede dos equipamentos
+
+   JEITO FACIL (recomendado):
+       sudo bash /opt/painel/linux/configurar_rede.sh
+   Ele confere cada IP com arping (se tiver dono, pega o proximo), grava de
+   forma permanente, mantem a conexao atual (internet/Telegram), nao cria
+   outro gateway e no fim testa um equipamento de cada rede.
+   So testar, sem mudar nada:  sudo bash /opt/painel/linux/configurar_rede.sh --testar
+
+   JEITO MANUAL (se preferir):
+   (uma placa so, varios IPs). NAO repita os IPs do PC Windows se ele
+   continuar ligado - e confira cada IP antes (conflito foi o que travou os
+   geradores):
+       sudo arping -D -c 2 -I enp1s0 192.168.205.246   -> "Received 0 response(s)" = livre
+   (troque enp1s0 pelo nome da placa:  ip -br link)
+
+   Debian servidor (sem interface grafica) - /etc/network/interfaces:
+
+     auto enp1s0
+     iface enp1s0 inet static
+         address 192.168.200.230/24
+         gateway 192.168.200.150          # UM gateway so
+         dns-nameservers DNS-DA-REDE      # mesmo DNS do PC Windows (ipconfig /all)
+     iface enp1s0 inet static
+         address 192.168.205.246/24       # geradores
+     iface enp1s0 inet static
+         address 172.10.15.230/24         # medidores / SEPAM / CLP
+     iface enp1s0 inet static
+         address 192.168.101.230/24
+     iface enp1s0 inet static
+         address 192.168.204.230/24
+     iface enp1s0 inet static
+         address 192.168.220.230/24
+
+     depois:  sudo systemctl restart networking     (ou reinicie)
+
+   Debian com interface grafica (NetworkManager):
+     sudo nmcli con mod "Wired connection 1" ipv4.method manual \
+       ipv4.addresses "192.168.200.230/24,192.168.205.246/24,172.10.15.230/24,192.168.101.230/24,192.168.204.230/24,192.168.220.230/24" \
+       ipv4.gateway 192.168.200.150 ipv4.dns "DNS-DA-REDE"   # mesmo DNS do PC Windows (ipconfig /all)
+     sudo nmcli con up "Wired connection 1"
+
+   No Linux, cada IP extra ja e usado automaticamente como origem para a
+   propria rede (nao acontece o problema de "origem errada" do Windows).
+   Conferir:  ip route get 192.168.205.2     -> tem que mostrar "src 192.168.205.246"
+   Testar Modbus:  timeout 3 bash -c '</dev/tcp/192.168.205.2/502' && echo porta 502 OK
+
+3) DIA A DIA
+   Status:     systemctl status painel
+   Logs:       journalctl -u painel -f
+   Reiniciar:  sudo systemctl restart painel
+   Arquivos:   /opt/painel
+
+   Porta 80 funciona sem root (o servico recebe so a permissao de abrir a
+   porta 80 e de pingar). Para outra porta, edite ExecStart em
+   /etc/systemd/system/painel.service e rode  sudo systemctl daemon-reload.
+   Telegram: o Debian precisa de acesso a internet (api.telegram.org) e DNS.

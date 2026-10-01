@@ -1,0 +1,1261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inventário de Equipamentos — Rede Gazeta</title>
+<style>
+  :root{
+    --bg:#070c18; --bg-1:#0f172a; --line:#232f4b;
+    --green:#2ecc55; --red:#e5384b; --amber:#f5c451; --gray:#8b95ab; --white:#f3f3f3;
+    --mono: 'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+    --sans: 'IBM Plex Sans','Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--white);font-family:var(--sans);}
+
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 26px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--bg);z-index:20;flex-wrap:wrap;gap:10px;
+  }
+  .topbar h1{margin:0;font-size:15px;font-weight:600;}
+  .topbar-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .btn{
+    font-family:var(--mono);font-size:12px;color:var(--gray);text-decoration:none;
+    border:1px solid var(--line);border-radius:7px;padding:7px 12px;transition:all .15s ease;
+    background:var(--bg-1);cursor:pointer;
+  }
+  .btn:hover{color:var(--white);border-color:var(--gray);}
+  .btn-primary{
+    font-family:var(--mono);font-size:12px;color:#062712;background:var(--green);border:none;
+    border-radius:7px;padding:7px 14px;cursor:pointer;font-weight:700;
+  }
+  .btn-danger{color:#2a0a0a;background:var(--red);}
+
+  .content{max-width:1080px;margin:0 auto;padding:24px 26px 60px;}
+  .loading{padding:60px;text-align:center;color:var(--gray);font-family:var(--mono);font-size:13px;}
+  .page-intro{font-size:12.5px;color:var(--gray);line-height:1.7;margin:0 0 16px;}
+
+  .summary-bar{
+    display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;
+    background:var(--bg-1);border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin-bottom:20px;
+  }
+  .summary-bar .count-box{text-align:center;}
+  .summary-bar .count-box .v{font-size:22px;font-weight:800;line-height:1;}
+  .summary-bar .count-box .l{font-size:9.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.04em;margin-top:3px;}
+  .summary-bar .counts{display:flex;gap:22px;}
+  .site-filter-select{
+    background:var(--bg);border:1px solid var(--line);border-radius:7px;color:var(--white);
+    padding:7px 10px;font-family:var(--sans);font-size:12.5px;outline:none;cursor:pointer;max-width:260px;
+  }
+  .site-filter-select:focus{border-color:var(--green);}
+
+  .category-summary{
+    display:flex;flex-wrap:wrap;gap:8px;background:var(--bg-1);border:1px solid var(--line);
+    border-radius:10px;padding:12px 14px;margin-bottom:20px;
+  }
+  .category-chip{
+    display:flex;align-items:center;gap:6px;font-size:11.5px;padding:6px 11px;border-radius:14px;
+    background:var(--bg);border:1px solid var(--line);cursor:pointer;color:var(--white);
+    transition:all .15s ease;
+  }
+  .category-chip:hover{border-color:var(--gray);}
+  .category-chip.active{background:#0f2a16;border-color:var(--green);color:var(--green);}
+  .category-chip .n{font-family:var(--mono);font-weight:800;}
+  .category-chip.active .n{color:var(--green);}
+
+  .site-card{border:1px solid var(--line);border-radius:10px;background:var(--bg-1);margin-bottom:16px;overflow:hidden;}
+  .site-head{
+    display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap;
+  }
+  .site-name-row{display:flex;align-items:center;gap:8px;flex:1;min-width:180px;}
+  .site-name{font-size:15px;font-weight:700;color:var(--white);background:none;border:none;
+    outline:none;font-family:var(--sans);padding:2px 0;flex:1;min-width:120px;}
+  .site-name:focus{border-bottom:1px solid var(--green);}
+  .site-actions{display:flex;gap:6px;flex-shrink:0;}
+  .icon-btn{
+    background:none;border:1px solid var(--line);border-radius:6px;color:var(--gray);
+    cursor:pointer;padding:5px 8px;font-size:12px;
+  }
+  .icon-btn:hover{color:var(--white);border-color:var(--gray);}
+  .icon-btn.danger:hover{color:var(--red);border-color:var(--red);}
+  .icon-btn.location.has-location{color:var(--green);border-color:#1e4a2a;}
+  .site-address{
+    font-size:11px;color:var(--gray);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;
+  }
+  .site-address a{color:var(--gray);text-decoration:none;border-bottom:1px dotted var(--gray);}
+  .site-address a:hover{color:var(--green);border-color:var(--green);}
+
+  .equip-list{padding:14px 18px 16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;}
+  .equip-card{
+    border:1px solid var(--line);border-radius:8px;padding:12px 14px;background:var(--bg);
+    cursor:pointer;transition:border-color .15s ease;
+  }
+  .equip-card:hover{border-color:var(--gray);}
+  .equip-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;}
+  .equip-nome{font-size:13px;font-weight:700;color:var(--white);line-height:1.35;}
+  .equip-categoria{font-family:var(--mono);font-size:9.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.03em;margin-top:2px;}
+  .status-badge{
+    font-family:var(--mono);font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:10px;
+    text-transform:uppercase;letter-spacing:.02em;flex-shrink:0;white-space:nowrap;
+  }
+  .status-badge.em_uso{background:#0f2a16;color:var(--green);}
+  .status-badge.manutencao{background:#3a2a0a;color:var(--amber);}
+  .status-badge.desativado{background:#3a1414;color:var(--red);}
+  .status-badge.reserva{background:#18233a;color:var(--gray);}
+  .equip-meta{font-size:11px;color:var(--gray);line-height:1.6;margin-top:6px;}
+  .equip-meta b{color:var(--white);font-weight:600;}
+  .equip-thumb{width:100%;height:80px;object-fit:cover;border-radius:6px;margin-top:8px;border:1px solid var(--line);}
+  .equip-thumb-wrap{position:relative;}
+  .equip-thumb-count{
+    position:absolute;bottom:4px;right:4px;background:rgba(0,0,0,0.75);color:var(--white);
+    font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:10px;pointer-events:none;
+  }
+  .no-equip{color:var(--gray);font-size:11.5px;font-style:italic;padding:4px 4px 10px;grid-column:1/-1;}
+
+  .anexos-section{
+    padding:12px 18px 16px;border-top:1px solid var(--line);
+  }
+  .anexos-title{
+    font-size:10.5px;color:var(--gray);text-transform:uppercase;letter-spacing:.04em;
+    margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;
+  }
+  .anexos-list{display:flex;flex-direction:column;gap:6px;margin-bottom:8px;}
+  .anexo-item{
+    display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--line);
+    border-radius:6px;background:var(--bg);font-size:12px;
+  }
+  .anexo-item a{color:var(--white);text-decoration:none;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .anexo-item a:hover{color:var(--green);}
+  .anexo-item .anexo-meta{color:var(--gray);font-size:10px;font-family:var(--mono);white-space:nowrap;}
+  .anexo-item .icon-btn{padding:3px 7px;font-size:10.5px;flex-shrink:0;}
+  .anexo-empty{color:var(--gray);font-size:11px;font-style:italic;margin-bottom:8px;}
+  .add-anexo-btn{
+    font-family:var(--mono);font-size:11px;color:var(--amber);background:none;
+    border:1px dashed var(--line);border-radius:6px;padding:7px 10px;cursor:pointer;width:100%;
+  }
+  .add-anexo-btn:hover{border-color:var(--amber);}
+  .add-anexo-btn:disabled{opacity:.6;cursor:default;}
+  .add-equip-btn{
+    grid-column:1/-1;font-family:var(--mono);font-size:11px;color:var(--green);background:none;
+    border:1px dashed var(--line);border-radius:6px;padding:8px 10px;cursor:pointer;
+  }
+  .add-equip-btn:hover{border-color:var(--green);}
+
+  .add-site-bar{display:flex;gap:10px;justify-content:center;margin:20px 0 10px;flex-wrap:wrap;}
+
+  /* ---- modais ---- */
+  .modal-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,0.65);display:none;align-items:center;justify-content:center;
+    z-index:100;padding:20px;overflow-y:auto;
+  }
+  .modal-overlay.open{display:flex;}
+  .modal-box{
+    background:var(--bg-1);border:1px solid var(--line);border-radius:12px;padding:22px;
+    max-width:520px;width:100%;max-height:90vh;overflow-y:auto;margin:auto;
+  }
+  .modal-box h3{margin:0 0 16px;font-size:15px;}
+  .field{margin-bottom:14px;}
+  .field label{display:block;font-size:11px;color:var(--gray);margin-bottom:5px;text-transform:uppercase;letter-spacing:.03em;}
+  .field input[type=text], .field input[type=date], .field textarea, .field select{
+    width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;color:var(--white);
+    padding:8px 10px;font-family:var(--sans);font-size:13px;outline:none;
+  }
+  .field input:focus, .field textarea:focus, .field select:focus{border-color:var(--green);}
+  .field textarea{resize:vertical;min-height:60px;}
+  .field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:480px){ .field-row{grid-template-columns:1fr;} }
+  .status-toggle{display:flex;gap:8px;flex-wrap:wrap;}
+  .status-opt{
+    flex:1;min-width:90px;text-align:center;padding:7px 6px;border-radius:6px;border:1px solid var(--line);cursor:pointer;
+    font-family:var(--mono);font-size:10.5px;color:var(--gray);background:var(--bg);text-transform:uppercase;
+  }
+  .status-opt.active-em_uso{border-color:var(--green);color:var(--green);background:#0f2a16;}
+  .status-opt.active-manutencao{border-color:var(--amber);color:var(--amber);background:#241a08;}
+  .status-opt.active-desativado{border-color:var(--red);color:var(--red);background:#2a0a0a;}
+  .status-opt.active-reserva{border-color:var(--gray);color:var(--white);background:#18233a;}
+
+  .geo-btn{
+    width:100%;font-family:var(--mono);font-size:12px;color:var(--green);background:#0f2a16;
+    border:1px solid #1e4a2a;border-radius:7px;padding:10px;cursor:pointer;font-weight:700;
+    display:flex;align-items:center;justify-content:center;gap:8px;
+  }
+  .geo-btn:hover{border-color:var(--green);}
+  .geo-btn:disabled{opacity:.6;cursor:default;}
+  .geo-status{font-size:11px;color:var(--gray);margin-top:8px;text-align:center;}
+  .geo-status.ok{color:var(--green);}
+  .geo-status.err{color:var(--red);}
+  .geo-coords-preview{font-family:var(--mono);font-size:11px;color:var(--white);margin-top:6px;text-align:center;}
+
+  .photo-preview-grid{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+  .photo-preview-item{position:relative;width:70px;height:70px;}
+  .photo-preview-item img{width:100%;height:100%;object-fit:cover;border-radius:6px;border:1px solid var(--line);cursor:pointer;}
+  .photo-preview-item .remove-photo{
+    position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;
+    background:var(--red);color:#fff;border:none;cursor:pointer;font-size:11px;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .photo-count-note{font-size:10.5px;color:var(--gray);margin-top:6px;}
+  .modal-actions{display:flex;gap:10px;justify-content:space-between;margin-top:18px;}
+  .modal-actions-right{display:flex;gap:10px;}
+
+  .site-option-item{
+    padding:9px 12px;border-radius:6px;cursor:pointer;font-size:13px;color:var(--white);
+    border:1px solid transparent;
+  }
+  .site-option-item:hover{background:#151e34;border-color:var(--line);}
+  .site-option-empty{color:var(--gray);font-size:11.5px;font-style:italic;padding:8px 12px;}
+
+  .lightbox-overlay{
+    position:fixed;inset:0;background:rgba(0,0,0,0.9);display:none;align-items:center;justify-content:center;
+    z-index:200;overflow:hidden;
+  }
+  .lightbox-overlay.open{display:flex;}
+  .lightbox-overlay img{
+    max-width:92vw;max-height:92vh;border-radius:8px;user-select:none;-webkit-user-drag:none;
+    transition:transform .08s ease-out;touch-action:none;
+  }
+  .lightbox-overlay img.zoomed{cursor:grab;}
+  .lightbox-overlay img.zoomed.dragging{cursor:grabbing;transition:none;}
+  .lightbox-nav{
+    position:fixed;top:50%;transform:translateY(-50%);background:rgba(14,21,38,0.7);
+    border:1px solid var(--line);color:var(--white);width:44px;height:44px;border-radius:50%;
+    font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:201;
+  }
+  .lightbox-nav:hover{background:rgba(40,40,40,0.9);}
+  .lightbox-nav.prev{left:20px;}
+  .lightbox-nav.next{right:20px;}
+  .lightbox-counter{
+    position:fixed;top:20px;left:50%;transform:translateX(-50%);color:var(--white);
+    font-family:var(--mono);font-size:12.5px;background:rgba(14,21,38,0.7);
+    padding:5px 12px;border-radius:20px;z-index:201;
+  }
+  .lightbox-zoom-bar{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:201;
+    display:flex;align-items:center;gap:4px;background:rgba(14,21,38,0.85);
+    border:1px solid var(--line);border-radius:24px;padding:6px 8px;
+  }
+  .lightbox-zoom-bar button{
+    background:none;border:none;color:var(--white);width:34px;height:34px;border-radius:50%;
+    font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  }
+  .lightbox-zoom-bar button:hover{background:rgba(255,255,255,0.12);}
+  .lightbox-zoom-bar button:disabled{opacity:.35;cursor:default;}
+  .lightbox-zoom-bar button:disabled:hover{background:none;}
+  .lightbox-zoom-level{
+    font-family:var(--mono);font-size:11.5px;color:var(--white);min-width:44px;text-align:center;
+  }
+  .lightbox-close{
+    position:fixed;top:16px;right:20px;background:rgba(14,21,38,0.7);border:1px solid var(--line);
+    color:var(--white);width:38px;height:38px;border-radius:50%;font-size:18px;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;z-index:201;
+  }
+  .lightbox-close:hover{background:rgba(40,40,40,0.9);}
+
+  ::-webkit-scrollbar{width:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;}
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Inventário de Equipamentos</h1>
+  <div class="topbar-right">
+    <a class="btn" href="/relatorios-sites">&#128203; relatórios sites</a>
+    <a class="btn" href="/lixeira">&#128465; lixeira</a>
+    <a class="btn" href="/graficos-historico">&#128200; gráficos histórico</a>
+    <a class="btn" href="/nobreak">&#128267; Nobreak</a>
+    <a class="btn" href="/refrigeracao">&#10052; Refrigeração</a>
+    <a class="btn" href="/logs">&#128220; relatórios</a>
+    <a class="btn" href="/config">&#9881; config</a>
+    <a class="btn" href="/">&larr; mapa</a>
+    <a class="btn" href="/logout">&#128274; sair</a>
+  </div>
+</div>
+
+<div class="content" id="content">
+  <div class="loading">carregando...</div>
+</div>
+
+<div class="modal-overlay" id="equip-modal">
+  <div class="modal-box">
+    <h3 id="equip-modal-title">Novo Equipamento</h3>
+    <div class="field">
+      <label>Nome do equipamento</label>
+      <input type="text" id="f-nome" placeholder="Ex: TX Aracruz, Nobreak sala técnica...">
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Categoria</label>
+        <input type="text" id="f-categoria" list="categorias-lista" placeholder="Ex: TX, Rádio, Nobreak...">
+        <datalist id="categorias-lista">
+          <option value="Transmissor (TX)">
+          <option value="Rádio Enlace">
+          <option value="Nobreak">
+          <option value="Fonte/Retificador">
+          <option value="Volt (sensor)">
+          <option value="Antena">
+          <option value="Câmera">
+          <option value="Switch/Roteador">
+          <option value="Gerador">
+          <option value="Ar-condicionado">
+        </datalist>
+      </div>
+      <div class="field">
+        <label>Modelo</label>
+        <input type="text" id="f-modelo" list="modelos-lista" placeholder="Ex: DB-4000, TDA-500...">
+        <datalist id="modelos-lista"></datalist>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Fabricante/Marca</label>
+        <input type="text" id="f-fabricante" list="fabricantes-lista" placeholder="Ex: Linear, Aviat, APC...">
+        <datalist id="fabricantes-lista"></datalist>
+      </div>
+      <div class="field">
+        <label>Número de série</label>
+        <input type="text" id="f-numero-serie" list="numeros-serie-lista" placeholder="Número de série do fabricante">
+        <datalist id="numeros-serie-lista"></datalist>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>Patrimônio</label>
+        <input type="text" id="f-patrimonio" list="patrimonios-lista" placeholder="Número de patrimônio interno">
+        <datalist id="patrimonios-lista"></datalist>
+      </div>
+      <div class="field">
+        <label>Data de aquisição/instalação</label>
+        <input type="date" id="f-data-aquisicao">
+      </div>
+    </div>
+    <div class="field">
+      <label>Status</label>
+      <div class="status-toggle" id="status-toggle">
+        <div class="status-opt" data-val="em_uso">Em uso</div>
+        <div class="status-opt" data-val="manutencao">Manutenção</div>
+        <div class="status-opt" data-val="desativado">Desativado</div>
+        <div class="status-opt" data-val="reserva">Reserva</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>Observação</label>
+      <textarea id="f-observacao" placeholder="Detalhes, histórico, condição atual..."></textarea>
+    </div>
+    <div class="field">
+      <label>Fotos (até 10)</label>
+      <div class="photo-input-row">
+        <input type="file" id="f-foto" accept="image/*" multiple>
+      </div>
+      <div class="photo-preview-grid" id="photo-preview-grid"></div>
+      <div class="photo-count-note" id="photo-count-note"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" id="equip-modal-delete" style="display:none;">Excluir</button>
+      <div class="modal-actions-right">
+        <button class="btn" id="equip-modal-cancel">Cancelar</button>
+        <button class="btn-primary" id="equip-modal-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="site-modal">
+  <div class="modal-box" style="max-width:400px;">
+    <h3>Novo Município</h3>
+    <div class="field">
+      <label>Digite o nome do novo município</label>
+      <input type="text" id="site-search" placeholder="Nome do município...">
+    </div>
+    <div id="site-options-list" style="max-height:260px;overflow-y:auto;margin-bottom:14px;"></div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right">
+        <button class="btn" id="site-modal-cancel">Cancelar</button>
+        <button class="btn-primary" id="site-modal-add-new">+ Adicionar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="location-modal">
+  <div class="modal-box" style="max-width:420px;">
+    <h3 id="location-modal-title">Endereço e Localização</h3>
+    <div class="field">
+      <label>Endereço</label>
+      <textarea id="loc-endereco" placeholder="Rua, número, bairro, referência..."></textarea>
+    </div>
+    <button type="button" class="geo-btn" id="loc-obter-btn">&#128205; Obter localização do celular</button>
+    <div class="geo-status" id="loc-status"></div>
+    <div class="field-row" style="margin-top:14px;">
+      <div class="field">
+        <label>Latitude</label>
+        <input type="text" id="loc-lat" placeholder="Ex: -20.3222">
+      </div>
+      <div class="field">
+        <label>Longitude</label>
+        <input type="text" id="loc-lng" placeholder="Ex: -40.2938">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <div></div>
+      <div class="modal-actions-right">
+        <button class="btn" id="location-modal-cancel">Cancelar</button>
+        <button class="btn-primary" id="location-modal-save">Salvar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox-overlay" id="lightbox">
+  <button type="button" class="lightbox-close" id="lightbox-close" title="Fechar (Esc)">&times;</button>
+  <button type="button" class="lightbox-nav prev" id="lightbox-prev" style="display:none;">&#10094;</button>
+  <img id="lightbox-img">
+  <button type="button" class="lightbox-nav next" id="lightbox-next" style="display:none;">&#10095;</button>
+  <div class="lightbox-counter" id="lightbox-counter" style="display:none;"></div>
+  <div class="lightbox-zoom-bar">
+    <button type="button" id="lightbox-zoom-out" title="Diminuir zoom">&#8722;</button>
+    <span class="lightbox-zoom-level" id="lightbox-zoom-level">100%</span>
+    <button type="button" id="lightbox-zoom-in" title="Aumentar zoom">&#43;</button>
+    <button type="button" id="lightbox-zoom-reset" title="Restaurar zoom (100%)">&#128269;</button>
+  </div>
+</div>
+
+<script>
+
+let inventarioData = {sites: []};
+let editingEquipId = null;
+let editingSiteId = null;
+let selectedSiteFilter = '';
+let selectedCategoryFilter = '';
+let pendingPhotos = [];
+const MAX_PHOTOS = 10;
+
+async function loadInventario(){
+  const content = document.getElementById('content');
+  content.innerHTML = '<div class="loading">carregando...</div>';
+  try{
+    const res = await fetch('/api/inventario', {cache:'no-store'});
+    if(!res.ok) throw new Error('status ' + res.status);
+    inventarioData = await res.json();
+    render();
+  }catch(err){
+    content.innerHTML = '<div class="loading">erro ao carregar: ' + err.message + '</div>';
+  }
+}
+
+function render(){
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  const intro = document.createElement('p');
+  intro.className = 'page-intro';
+  intro.textContent = 'Cadastro de equipamentos por município: modelo, patrimônio, número de série, fabricante, status e fotos.';
+  content.appendChild(intro);
+
+  const totalEquip = inventarioData.sites.reduce((sum, s) => sum + s.equipamentos.length, 0);
+
+  const summary = document.createElement('div');
+  summary.className = 'summary-bar';
+  summary.innerHTML = `
+    <div class="counts">
+      <div class="count-box"><div class="v">${inventarioData.sites.length}</div><div class="l">municípios</div></div>
+      <div class="count-box"><div class="v">${totalEquip}</div><div class="l">equipamentos cadastrados</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+      <select id="site-filter-select" class="site-filter-select">
+        <option value="">Ver todos os municípios</option>
+        ${[...inventarioData.sites].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR')).map(s =>
+          '<option value="' + escapeAttr(s.nome) + '" ' + (selectedSiteFilter === s.nome ? 'selected' : '') + '>' + escapeHtml(s.nome) + ' (' + s.equipamentos.length + ')</option>'
+        ).join('')}
+      </select>
+    </div>`;
+  content.appendChild(summary);
+  summary.querySelector('#site-filter-select').addEventListener('change', (e) => {
+    selectedSiteFilter = e.target.value;
+    render();
+  });
+
+  // resumo por categoria - agrupa ignorando maiusculas/minusculas e espacos
+  // nas pontas (ex: "CABO" e "Cabo" contam juntos), mas mostra um rotulo
+  // "bonito" (title case) pra exibicao
+  const categoriaCounts = {};
+  inventarioData.sites.forEach(s => {
+    s.equipamentos.forEach(e => {
+      const raw = (e.categoria || '').trim();
+      const key = raw.toLowerCase() || '(sem categoria)';
+      if(!categoriaCounts[key]) categoriaCounts[key] = {count: 0, label: raw || 'Sem categoria'};
+      categoriaCounts[key].count++;
+    });
+  });
+  const categoriasOrdenadas = Object.entries(categoriaCounts).sort((a,b) => b[1].count - a[1].count);
+
+  if(categoriasOrdenadas.length){
+    const catSummary = document.createElement('div');
+    catSummary.className = 'category-summary';
+    catSummary.innerHTML = categoriasOrdenadas.map(([key, info]) => `
+      <div class="category-chip ${selectedCategoryFilter === key ? 'active' : ''}" data-cat-key="${escapeAttr(key)}">
+        <span>${escapeHtml(info.label)}</span><span class="n">${info.count}</span>
+      </div>
+    `).join('');
+    content.appendChild(catSummary);
+    catSummary.querySelectorAll('.category-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const key = chip.dataset.catKey;
+        selectedCategoryFilter = (selectedCategoryFilter === key) ? '' : key;
+        render();
+      });
+    });
+  }
+
+  const sorted = [...inventarioData.sites].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+  let visible = selectedSiteFilter ? sorted.filter(s => s.nome === selectedSiteFilter) : sorted;
+  if(selectedCategoryFilter){
+    visible = visible
+      .map(s => ({...s, equipamentos: s.equipamentos.filter(e => ((e.categoria || '').trim().toLowerCase() || '(sem categoria)') === selectedCategoryFilter)}))
+      .filter(s => s.equipamentos.length > 0);
+  }
+
+  if(!visible.length){
+    const empty = document.createElement('div');
+    empty.className = 'loading';
+    empty.textContent = selectedCategoryFilter
+      ? 'nenhum equipamento dessa categoria encontrado' + (selectedSiteFilter ? ' nesse município' : '')
+      : 'nenhum município cadastrado ainda';
+    content.appendChild(empty);
+  }
+
+  visible.forEach(site => content.appendChild(buildSiteCard(site)));
+
+  const addBar = document.createElement('div');
+  addBar.className = 'add-site-bar';
+  addBar.innerHTML = '<button class="btn-primary" id="add-site-btn">+ Novo Município</button>';
+  content.appendChild(addBar);
+  addBar.querySelector('#add-site-btn').addEventListener('click', addSite);
+}
+
+const STATUS_LABELS = {em_uso: 'Em uso', manutencao: 'Manutenção', desativado: 'Desativado', reserva: 'Reserva'};
+
+function buildSiteCard(site){
+  const card = document.createElement('div');
+  card.className = 'site-card';
+
+  const head = document.createElement('div');
+  head.className = 'site-head';
+  const temLocal = site.latitude != null && site.longitude != null;
+  head.innerHTML = `
+    <div class="site-name-row" style="flex-direction:column;align-items:flex-start;">
+      <div style="display:flex;align-items:center;gap:8px;width:100%;">
+        <input class="site-name" value="${escapeAttr(site.nome)}">
+      </div>
+      ${(site.endereco || temLocal) ? `
+        <div class="site-address">
+          ${site.endereco ? '&#128204; ' + escapeHtml(site.endereco) : ''}
+          ${temLocal ? '<a href="https://www.google.com/maps?q=' + site.latitude + ',' + site.longitude + '" target="_blank" rel="noopener">ver no mapa &#8599;</a>' : ''}
+        </div>
+      ` : ''}
+    </div>
+    <div class="site-actions">
+      <button class="icon-btn location ${temLocal ? 'has-location' : ''}" title="Endereço e localização">&#128205;</button>
+      <button class="icon-btn danger" title="Excluir município">&#128465;</button>
+    </div>`;
+  const nameInput = head.querySelector('.site-name');
+  nameInput.addEventListener('change', () => saveSiteName(site.id, nameInput.value));
+  head.querySelector('.icon-btn.location').addEventListener('click', () => openLocationModal(site));
+  head.querySelector('.icon-btn.danger').addEventListener('click', () => deleteSite(site.id));
+  card.appendChild(head);
+
+  const list = document.createElement('div');
+  list.className = 'equip-list';
+  const equipOrdenados = [...site.equipamentos].sort((a, b) => (a.nome || '').localeCompare(b.nome || '', 'pt-BR'));
+  if(!equipOrdenados.length){
+    const empty = document.createElement('div');
+    empty.className = 'no-equip';
+    empty.textContent = 'nenhum equipamento cadastrado ainda';
+    list.appendChild(empty);
+  }
+  equipOrdenados.forEach(eq => list.appendChild(buildEquipCard(site, eq)));
+
+  const addBtn = document.createElement('button');
+  addBtn.className = 'add-equip-btn';
+  addBtn.textContent = '+ novo equipamento';
+  addBtn.addEventListener('click', () => openEquipModal(site.id));
+  list.appendChild(addBtn);
+  card.appendChild(list);
+
+  card.appendChild(buildAnexosSection(site));
+
+  return card;
+}
+
+function formatBytes(n){
+  if(n < 1024) return n + ' B';
+  if(n < 1024*1024) return (n/1024).toFixed(0) + ' KB';
+  return (n/(1024*1024)).toFixed(1) + ' MB';
+}
+
+function iconeParaAnexo(nome){
+  const ext = (nome.split('.').pop() || '').toLowerCase();
+  const map = {
+    pdf: '&#128196;', doc: '&#128196;', docx: '&#128196;',
+    xls: '&#128202;', xlsx: '&#128202;', csv: '&#128202;',
+    ppt: '&#128204;', pptx: '&#128204;',
+    jpg: '&#128247;', jpeg: '&#128247;', png: '&#128247;', gif: '&#128247;', webp: '&#128247;',
+    zip: '&#128230;', rar: '&#128230;', '7z': '&#128230;',
+    txt: '&#128221;', log: '&#128221;',
+  };
+  return map[ext] || '&#128196;';
+}
+
+function buildAnexosSection(site){
+  const section = document.createElement('div');
+  section.className = 'anexos-section';
+  const anexos = site.anexos || [];
+
+  section.innerHTML = `
+    <div class="anexos-title">
+      <span>&#128206; Anexos</span>
+      <span>${anexos.length ? anexos.length + ' arquivo(s)' : ''}</span>
+    </div>
+    <div class="anexos-list">
+      ${anexos.length ? anexos.map(a => `
+        <div class="anexo-item">
+          <a href="/inventario_pdfs/${encodeURIComponent(a.filename)}" target="_blank" rel="noopener" title="${escapeAttr(a.nome_original)}">
+            ${iconeParaAnexo(a.nome_original)} ${escapeHtml(a.nome_original)}
+          </a>
+          <span class="anexo-meta">${formatBytes(a.tamanho || 0)}</span>
+          <button class="icon-btn danger" data-anexo-id="${a.id}" title="Excluir anexo">&#128465;</button>
+        </div>
+      `).join('') : '<div class="anexo-empty">nenhum arquivo anexado ainda</div>'}
+    </div>
+    <input type="file" style="display:none;" class="anexo-file-input">
+    <button class="add-anexo-btn">+ Anexar Arquivo</button>
+  `;
+
+  const fileInput = section.querySelector('.anexo-file-input');
+  const addAnexoBtn = section.querySelector('.add-anexo-btn');
+  addAnexoBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if(!file) return;
+    e.target.value = '';
+    if(file.size > 15 * 1024 * 1024){
+      alert('Arquivo maior que 15MB.');
+      return;
+    }
+    addAnexoBtn.disabled = true;
+    addAnexoBtn.textContent = 'Enviando...';
+    try{
+      const base64 = await fileToBase64(file);
+      const res = await fetch('/api/inventario/anexo', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'add', site_id: site.id, data: base64, nome_original: file.name})
+      });
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.error || 'falha ao enviar');
+      loadInventario();
+    }catch(err){
+      alert('Erro ao anexar arquivo: ' + err.message);
+      addAnexoBtn.disabled = false;
+      addAnexoBtn.textContent = '+ Anexar Arquivo';
+    }
+  });
+
+  section.querySelectorAll('[data-anexo-id]').forEach(btn => {
+    btn.addEventListener('click', () => deleteAnexo(site.id, btn.dataset.anexoId));
+  });
+
+  return section;
+}
+
+function fileToBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('falha ao ler arquivo'));
+    reader.onload = () => resolve(reader.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+async function deleteAnexo(siteId, anexoId){
+  if(!confirm('Excluir este anexo? Ele vai para a lixeira e pode ser restaurado depois.')) return;
+  try{
+    const res = await fetch('/api/inventario/anexo', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'delete', site_id: siteId, id: anexoId})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao excluir');
+    loadInventario();
+  }catch(err){
+    alert('Erro ao excluir: ' + err.message);
+  }
+}
+
+function buildEquipCard(site, eq){
+  const card = document.createElement('div');
+  card.className = 'equip-card';
+  const status = eq.status || 'em_uso';
+  const primeiraFoto = (eq.fotos || [])[0];
+  card.innerHTML = `
+    <div class="equip-top">
+      <div>
+        <div class="equip-nome">${escapeHtml(eq.nome) || '<i style="color:var(--gray);">sem nome</i>'}</div>
+        ${eq.categoria ? '<div class="equip-categoria">' + escapeHtml(eq.categoria) + '</div>' : ''}
+      </div>
+      <span class="status-badge ${status}">${STATUS_LABELS[status] || status}</span>
+    </div>
+    <div class="equip-meta">
+      ${eq.modelo ? '<div><b>Modelo:</b> ' + escapeHtml(eq.modelo) + '</div>' : ''}
+      ${eq.patrimonio ? '<div><b>Patrimônio:</b> ' + escapeHtml(eq.patrimonio) + '</div>' : ''}
+      ${eq.numero_serie ? '<div><b>Nº série:</b> ' + escapeHtml(eq.numero_serie) + '</div>' : ''}
+    </div>
+    ${primeiraFoto ? '<div class="equip-thumb-wrap"><img class="equip-thumb" src="/site_photos/' + encodeURIComponent(primeiraFoto) + '">' + ((eq.fotos||[]).length > 1 ? '<span class="equip-thumb-count">+' + ((eq.fotos.length)-1) + '</span>' : '') + '</div>' : ''}
+  `;
+  card.addEventListener('click', () => openEquipModal(site.id, eq));
+  const thumb = card.querySelector('.equip-thumb');
+  if(thumb){
+    thumb.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const todasFotos = (eq.fotos || []).map(f => '/site_photos/' + encodeURIComponent(f));
+      openLightbox(todasFotos, 0);
+    });
+  }
+  return card;
+}
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+function escapeAttr(s){
+  return (s || '').replace(/"/g, '&quot;');
+}
+
+// ===================== modal de equipamento =====================
+const equipModal = document.getElementById('equip-modal');
+let currentSiteIdForEquip = null;
+
+function setStatusToggle(status){
+  document.querySelectorAll('#status-toggle .status-opt').forEach(el => {
+    el.className = 'status-opt' + (el.dataset.val === status ? ' active-' + status : '');
+  });
+}
+document.querySelectorAll('#status-toggle .status-opt').forEach(el => {
+  el.addEventListener('click', () => setStatusToggle(el.dataset.val));
+});
+
+function collectUniqueValues(fieldName){
+  const seen = new Set();
+  inventarioData.sites.forEach(s => {
+    s.equipamentos.forEach(e => {
+      const v = (e[fieldName] || '').trim();
+      if(v) seen.add(v);
+    });
+  });
+  return [...seen].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+}
+
+function populateAutocompleteLists(){
+  // Categoria: mescla as sugestoes fixas (ja no HTML) com o que ja foi
+  // digitado antes, sem duplicar
+  const catDatalist = document.getElementById('categorias-lista');
+  const catJaListadas = new Set([...catDatalist.options].map(o => o.value.toLowerCase()));
+  collectUniqueValues('categoria').forEach(v => {
+    if(!catJaListadas.has(v.toLowerCase())){
+      const opt = document.createElement('option');
+      opt.value = v;
+      catDatalist.appendChild(opt);
+    }
+  });
+
+  // demais campos: lista 100% dinamica, direto do que ja foi cadastrado
+  const camposDinamicos = {
+    'modelos-lista': 'modelo',
+    'fabricantes-lista': 'fabricante',
+    'numeros-serie-lista': 'numero_serie',
+    'patrimonios-lista': 'patrimonio',
+  };
+  Object.entries(camposDinamicos).forEach(([datalistId, fieldName]) => {
+    const datalist = document.getElementById(datalistId);
+    datalist.innerHTML = collectUniqueValues(fieldName)
+      .map(v => '<option value="' + escapeAttr(v) + '">')
+      .join('');
+  });
+}
+
+function openEquipModal(siteId, equip){
+  currentSiteIdForEquip = siteId;
+  editingEquipId = equip ? equip.id : null;
+  pendingPhotos = (equip && equip.fotos ? equip.fotos : []).map(f => ({filename: f, base64: null}));
+
+  populateAutocompleteLists();
+
+  document.getElementById('equip-modal-title').textContent = equip ? 'Editar Equipamento' : 'Novo Equipamento';
+  document.getElementById('f-nome').value = equip ? (equip.nome || '') : '';
+  document.getElementById('f-categoria').value = equip ? (equip.categoria || '') : '';
+  document.getElementById('f-modelo').value = equip ? (equip.modelo || '') : '';
+  document.getElementById('f-fabricante').value = equip ? (equip.fabricante || '') : '';
+  document.getElementById('f-numero-serie').value = equip ? (equip.numero_serie || '') : '';
+  document.getElementById('f-patrimonio').value = equip ? (equip.patrimonio || '') : '';
+  document.getElementById('f-data-aquisicao').value = equip ? (equip.data_aquisicao || '') : '';
+  document.getElementById('f-observacao').value = equip ? (equip.observacao || '') : '';
+  setStatusToggle(equip && equip.status ? equip.status : 'em_uso');
+  renderPhotoPreviewGrid();
+
+  document.getElementById('equip-modal-delete').style.display = equip ? 'inline-block' : 'none';
+  equipModal.classList.add('open');
+}
+
+function closeEquipModal(){
+  equipModal.classList.remove('open');
+  editingEquipId = null;
+  currentSiteIdForEquip = null;
+  pendingPhotos = [];
+}
+
+document.getElementById('equip-modal-cancel').addEventListener('click', closeEquipModal);
+
+document.getElementById('equip-modal-delete').addEventListener('click', async () => {
+  if(!editingEquipId) return;
+  if(!confirm('Excluir este equipamento? Essa ação não pode ser desfeita.')) return;
+  const btn = document.getElementById('equip-modal-delete');
+  btn.disabled = true;
+  try{
+    const res = await fetch('/api/inventario/equipamento', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'delete', site_id: currentSiteIdForEquip, id: editingEquipId})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao excluir');
+    closeEquipModal();
+    loadInventario();
+  }catch(err){
+    alert('Erro ao excluir: ' + err.message);
+    btn.disabled = false;
+  }
+});
+
+function renderPhotoPreviewGrid(){
+  const grid = document.getElementById('photo-preview-grid');
+  grid.innerHTML = '';
+  pendingPhotos.forEach((p, idx) => {
+    const item = document.createElement('div');
+    item.className = 'photo-preview-item';
+    const src = p.base64 || ('/site_photos/' + encodeURIComponent(p.filename));
+    item.innerHTML = `<img src="${src}"><button type="button" class="remove-photo" title="Remover foto">&times;</button>`;
+    item.querySelector('img').addEventListener('click', (e) => {
+      e.stopPropagation();
+      const todasFotos = pendingPhotos.map(pp => pp.base64 || ('/site_photos/' + encodeURIComponent(pp.filename)));
+      openLightbox(todasFotos, idx);
+    });
+    item.querySelector('.remove-photo').addEventListener('click', () => {
+      pendingPhotos.splice(idx, 1);
+      renderPhotoPreviewGrid();
+    });
+    grid.appendChild(item);
+  });
+  document.getElementById('photo-count-note').textContent = pendingPhotos.length + ' / ' + MAX_PHOTOS + ' fotos';
+}
+
+function compressImage(file, maxDim = 1600, quality = 0.8){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('falha ao ler arquivo'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('falha ao carregar imagem'));
+      img.onload = () => {
+        let w = img.width, h = img.height;
+        if(w > maxDim || h > maxDim){
+          if(w > h){ h = Math.round(h * maxDim / w); w = maxDim; }
+          else { w = Math.round(w * maxDim / h); h = maxDim; }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('f-foto').addEventListener('change', async (e) => {
+  const files = Array.from(e.target.files || []);
+  const espacoLivre = MAX_PHOTOS - pendingPhotos.length;
+  if(files.length > espacoLivre){
+    alert('Você só pode adicionar mais ' + espacoLivre + ' foto(s) (máximo de ' + MAX_PHOTOS + ' no total).');
+  }
+  const aceitas = files.slice(0, espacoLivre);
+  if(!aceitas.length) return;
+  e.target.value = '';
+  for(const file of aceitas){
+    try{
+      const compressed = await compressImage(file);
+      pendingPhotos.push({filename: file.name.replace(/\.\w+$/, '.jpg'), base64: compressed});
+      renderPhotoPreviewGrid();
+    }catch(err){
+      alert('Erro ao processar a foto "' + file.name + '": ' + err.message);
+    }
+  }
+});
+
+document.getElementById('equip-modal-save').addEventListener('click', async () => {
+  const saveBtn = document.getElementById('equip-modal-save');
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Salvando...';
+  try{
+    const fotoFilenames = [];
+    for(const p of pendingPhotos){
+      if(p.base64){
+        const res = await fetch('/api/relatorios-sites/photo', {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({data: p.base64, filename: p.filename})
+        });
+        const data = await res.json();
+        if(!data.ok) throw new Error(data.error || 'falha ao enviar foto');
+        fotoFilenames.push(data.filename);
+      } else {
+        fotoFilenames.push(p.filename);
+      }
+    }
+
+    const statusAtivo = document.querySelector('#status-toggle .status-opt[class*="active-"]');
+    const payload = {
+      action: editingEquipId ? 'edit' : 'add',
+      site_id: currentSiteIdForEquip,
+      nome: document.getElementById('f-nome').value,
+      categoria: document.getElementById('f-categoria').value,
+      modelo: document.getElementById('f-modelo').value,
+      fabricante: document.getElementById('f-fabricante').value,
+      numero_serie: document.getElementById('f-numero-serie').value,
+      patrimonio: document.getElementById('f-patrimonio').value,
+      data_aquisicao: document.getElementById('f-data-aquisicao').value,
+      status: statusAtivo ? statusAtivo.dataset.val : 'em_uso',
+      observacao: document.getElementById('f-observacao').value,
+      fotos: fotoFilenames,
+    };
+    if(editingEquipId) payload.id = editingEquipId;
+
+    const res = await fetch('/api/inventario/equipamento', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    closeEquipModal();
+    loadInventario();
+  }catch(err){
+    alert('Erro ao salvar: ' + err.message);
+  }finally{
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Salvar';
+  }
+});
+
+// ===================== municipio: adicionar / renomear / excluir =====================
+async function saveSiteName(id, nome){
+  nome = (nome || '').trim();
+  if(!nome) return;
+  try{
+    const res = await fetch('/api/inventario/site', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'edit', id, nome})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    loadInventario();
+  }catch(err){
+    alert('Erro ao renomear: ' + err.message);
+    loadInventario();
+  }
+}
+
+async function deleteSite(id){
+  const site = inventarioData.sites.find(s => s.id === id);
+  const qtd = site ? site.equipamentos.length : 0;
+  const aviso = qtd
+    ? `Excluir "${site.nome}" e os ${qtd} equipamento(s) cadastrados nele? Essa ação não pode ser desfeita.`
+    : `Excluir "${site ? site.nome : ''}"? Essa ação não pode ser desfeita.`;
+  if(!confirm(aviso)) return;
+  try{
+    const res = await fetch('/api/inventario/site', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'delete', id})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao excluir');
+    loadInventario();
+  }catch(err){
+    alert('Erro ao excluir: ' + err.message);
+  }
+}
+
+const siteModal = document.getElementById('site-modal');
+function addSite(){
+  document.getElementById('site-search').value = '';
+  siteModal.classList.add('open');
+  document.getElementById('site-search').focus();
+}
+function closeSiteModal(){
+  siteModal.classList.remove('open');
+}
+document.getElementById('site-modal-cancel').addEventListener('click', closeSiteModal);
+document.getElementById('site-modal-add-new').addEventListener('click', async () => {
+  const nome = document.getElementById('site-search').value.trim();
+  if(!nome){
+    alert('Digite o nome do município.');
+    return;
+  }
+  const btn = document.getElementById('site-modal-add-new');
+  btn.disabled = true;
+  try{
+    const res = await fetch('/api/inventario/site', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'add', nome})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao adicionar');
+    closeSiteModal();
+    loadInventario();
+  }catch(err){
+    alert('Erro ao adicionar: ' + err.message);
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+// ===================== endereco e geolocalizacao =====================
+const locationModal = document.getElementById('location-modal');
+let currentSiteIdForLocation = null;
+
+function openLocationModal(site){
+  currentSiteIdForLocation = site.id;
+  document.getElementById('location-modal-title').textContent = 'Endereço e Localização — ' + site.nome;
+  document.getElementById('loc-endereco').value = site.endereco || '';
+  document.getElementById('loc-lat').value = site.latitude != null ? site.latitude : '';
+  document.getElementById('loc-lng').value = site.longitude != null ? site.longitude : '';
+  document.getElementById('loc-status').textContent = '';
+  document.getElementById('loc-status').className = 'geo-status';
+  locationModal.classList.add('open');
+}
+
+function closeLocationModal(){
+  locationModal.classList.remove('open');
+  currentSiteIdForLocation = null;
+}
+
+document.getElementById('location-modal-cancel').addEventListener('click', closeLocationModal);
+
+document.getElementById('loc-obter-btn').addEventListener('click', () => {
+  const btn = document.getElementById('loc-obter-btn');
+  const status = document.getElementById('loc-status');
+  if(!('geolocation' in navigator)){
+    status.textContent = 'Seu navegador não suporta localização.';
+    status.className = 'geo-status err';
+    return;
+  }
+  btn.disabled = true;
+  status.className = 'geo-status';
+  status.textContent = 'Obtendo localização... aceite a permissão do navegador se solicitado.';
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      document.getElementById('loc-lat').value = pos.coords.latitude.toFixed(6);
+      document.getElementById('loc-lng').value = pos.coords.longitude.toFixed(6);
+      status.textContent = 'Localização obtida com sucesso (precisão de ~' + Math.round(pos.coords.accuracy) + 'm).';
+      status.className = 'geo-status ok';
+      btn.disabled = false;
+    },
+    (err) => {
+      let msg = 'Não foi possível obter a localização.';
+      if(err.code === err.PERMISSION_DENIED) msg = 'Permissão de localização negada. Habilite nas configurações do navegador/celular.';
+      else if(err.code === err.POSITION_UNAVAILABLE) msg = 'Localização indisponível no momento.';
+      else if(err.code === err.TIMEOUT) msg = 'Tempo esgotado ao tentar obter a localização.';
+      status.textContent = msg;
+      status.className = 'geo-status err';
+      btn.disabled = false;
+    },
+    {enableHighAccuracy: true, timeout: 15000, maximumAge: 0}
+  );
+});
+
+document.getElementById('location-modal-save').addEventListener('click', async () => {
+  const btn = document.getElementById('location-modal-save');
+  btn.disabled = true;
+  try{
+    const res = await fetch('/api/inventario/site', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        action: 'edit_local',
+        id: currentSiteIdForLocation,
+        endereco: document.getElementById('loc-endereco').value,
+        latitude: document.getElementById('loc-lat').value,
+        longitude: document.getElementById('loc-lng').value,
+      })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    closeLocationModal();
+    loadInventario();
+  }catch(err){
+    alert('Erro ao salvar: ' + err.message);
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+// ===================== lightbox de fotos (reservado p/ uso futuro) =====================
+const lightbox = document.getElementById('lightbox');
+let lightboxPhotos = [];
+let lightboxIndex = 0;
+let lbScale = 1, lbTx = 0, lbTy = 0;
+let lbDragging = false, lbDragStartX = 0, lbDragStartY = 0, lbStartTx = 0, lbStartTy = 0;
+let lbMoved = false;
+const LB_MIN_ZOOM = 1, LB_MAX_ZOOM = 5, LB_STEP = 0.6;
+const lbImg = document.getElementById('lightbox-img');
+
+function openLightbox(photos, startIndex){
+  // aceita tanto uma string unica (compatibilidade) quanto uma lista de fotos
+  lightboxPhotos = Array.isArray(photos) ? photos : [photos];
+  lightboxIndex = startIndex || 0;
+  renderLightbox();
+  lightbox.classList.add('open');
+}
+
+function renderLightbox(){
+  lbImg.src = lightboxPhotos[lightboxIndex];
+  const prevBtn = document.getElementById('lightbox-prev');
+  const nextBtn = document.getElementById('lightbox-next');
+  const counter = document.getElementById('lightbox-counter');
+  const temVarias = lightboxPhotos.length > 1;
+  prevBtn.style.display = temVarias ? 'flex' : 'none';
+  nextBtn.style.display = temVarias ? 'flex' : 'none';
+  counter.style.display = temVarias ? 'block' : 'none';
+  if(temVarias) counter.textContent = (lightboxIndex + 1) + ' / ' + lightboxPhotos.length;
+  resetLightboxZoom();
+}
+
+// ==================== zoom / lupa ====================
+function applyLightboxTransform(){
+  lbImg.style.transform = `translate(${lbTx}px, ${lbTy}px) scale(${lbScale})`;
+  lbImg.classList.toggle('zoomed', lbScale > 1);
+  document.getElementById('lightbox-zoom-level').textContent = Math.round(lbScale * 100) + '%';
+  document.getElementById('lightbox-zoom-out').disabled = lbScale <= LB_MIN_ZOOM;
+  document.getElementById('lightbox-zoom-in').disabled = lbScale >= LB_MAX_ZOOM;
+}
+
+function clampLightboxPan(){
+  // nao deixa arrastar a imagem pra fora da tela quando ampliada
+  const rect = lbImg.getBoundingClientRect();
+  const limX = (rect.width * (lbScale - 1)) / 2;
+  const limY = (rect.height * (lbScale - 1)) / 2;
+  lbTx = Math.max(-limX, Math.min(limX, lbTx));
+  lbTy = Math.max(-limY, Math.min(limY, lbTy));
+}
+
+function setLightboxZoom(newScale){
+  lbScale = Math.max(LB_MIN_ZOOM, Math.min(LB_MAX_ZOOM, newScale));
+  if(lbScale === LB_MIN_ZOOM){ lbTx = 0; lbTy = 0; }
+  else clampLightboxPan();
+  applyLightboxTransform();
+}
+
+function resetLightboxZoom(){
+  lbScale = 1; lbTx = 0; lbTy = 0;
+  applyLightboxTransform();
+}
+
+document.getElementById('lightbox-zoom-in').addEventListener('click', (e) => {
+  e.stopPropagation();
+  setLightboxZoom(lbScale + LB_STEP);
+});
+document.getElementById('lightbox-zoom-out').addEventListener('click', (e) => {
+  e.stopPropagation();
+  setLightboxZoom(lbScale - LB_STEP);
+});
+document.getElementById('lightbox-zoom-reset').addEventListener('click', (e) => {
+  e.stopPropagation();
+  resetLightboxZoom();
+});
+document.getElementById('lightbox-close').addEventListener('click', (e) => {
+  e.stopPropagation();
+  lightbox.classList.remove('open');
+});
+
+// scroll do mouse pra dar zoom, sem precisar clicar em nada
+lbImg.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  setLightboxZoom(lbScale + (e.deltaY < 0 ? LB_STEP : -LB_STEP));
+}, {passive: false});
+
+// duplo-clique alterna entre 100% e ampliado
+lbImg.addEventListener('dblclick', (e) => {
+  e.stopPropagation();
+  setLightboxZoom(lbScale > 1 ? 1 : 2.5);
+});
+
+// arrastar pra mover a imagem quando ampliada
+lbImg.addEventListener('mousedown', (e) => {
+  if(lbScale <= 1) return;
+  e.preventDefault();
+  lbDragging = true;
+  lbMoved = false;
+  lbDragStartX = e.clientX; lbDragStartY = e.clientY;
+  lbStartTx = lbTx; lbStartTy = lbTy;
+  lbImg.classList.add('dragging');
+});
+document.addEventListener('mousemove', (e) => {
+  if(!lbDragging) return;
+  const dx = e.clientX - lbDragStartX, dy = e.clientY - lbDragStartY;
+  if(Math.abs(dx) > 3 || Math.abs(dy) > 3) lbMoved = true;
+  lbTx = lbStartTx + dx; lbTy = lbStartTy + dy;
+  clampLightboxPan();
+  applyLightboxTransform();
+});
+document.addEventListener('mouseup', () => {
+  if(!lbDragging) return;
+  lbDragging = false;
+  lbImg.classList.remove('dragging');
+});
+
+document.getElementById('lightbox-prev').addEventListener('click', (e) => {
+  e.stopPropagation();
+  lightboxIndex = (lightboxIndex - 1 + lightboxPhotos.length) % lightboxPhotos.length;
+  renderLightbox();
+});
+document.getElementById('lightbox-next').addEventListener('click', (e) => {
+  e.stopPropagation();
+  lightboxIndex = (lightboxIndex + 1) % lightboxPhotos.length;
+  renderLightbox();
+});
+document.addEventListener('keydown', (e) => {
+  if(!lightbox.classList.contains('open')) return;
+  if(e.key === 'ArrowLeft' && lbScale <= 1) document.getElementById('lightbox-prev').click();
+  if(e.key === 'ArrowRight' && lbScale <= 1) document.getElementById('lightbox-next').click();
+  if(e.key === 'Escape') lightbox.classList.remove('open');
+  if(e.key === '+' || e.key === '=') setLightboxZoom(lbScale + LB_STEP);
+  if(e.key === '-') setLightboxZoom(lbScale - LB_STEP);
+});
+lightbox.addEventListener('click', (e) => {
+  // fecha so se clicar no fundo (fora da imagem/setas/barra de zoom) - clicar
+  // na propria imagem passou a servir pra arrastar quando ampliada, entao
+  // nao deveria fechar o visualizador sem querer
+  if(e.target.id === 'lightbox') lightbox.classList.remove('open');
+  // clicar na imagem em 100% (sem zoom) ainda fecha, por conveniencia,
+  // desde que nao tenha sido um arraste
+  if(e.target.id === 'lightbox-img' && lbScale <= 1 && !lbMoved) lightbox.classList.remove('open');
+  lbMoved = false;
+});
+
+loadInventario();
+</script>
+</body>
+</html>

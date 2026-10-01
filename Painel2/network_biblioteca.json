@@ -1,0 +1,12 @@
+{
+  "map_name": "Biblioteca de Dispositivos",
+  "categories_order": [
+    "GERAL",
+    "Arquivados"
+  ],
+  "devices": [],
+  "categories": {
+    "GERAL": [],
+    "Arquivados": []
+  }
+}

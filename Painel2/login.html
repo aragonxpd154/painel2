@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Painel — Rede Gazeta</title>
+<style>
+  :root{
+    --bg:#070c18;
+    --bg-1:#0f172a;
+    --line:#232f4b;
+    --teal:#35d0c0;
+    --red:#e5384b;
+    --gray:#8b95ab;
+    --white:#f3f3f3;
+    --mono: 'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+    --sans: 'IBM Plex Sans','Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;height:100%;background:var(--bg);color:var(--white);font-family:var(--sans);
+  }
+  body{
+    display:flex;align-items:center;justify-content:center;
+    background-image: radial-gradient(circle, #111a2e 1px, transparent 1px);
+    background-size:24px 24px;
+  }
+
+  .card{
+    width:100%;max-width:360px;padding:36px 32px;
+    background:#0c1325;border:1px solid var(--line);border-radius:14px;
+    box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  }
+
+  .brand{display:flex;flex-direction:column;align-items:center;margin-bottom:8px;}
+  .brand-badge{
+    background:#fff;border-radius:14px;padding:8px 18px;display:flex;flex-direction:column;
+    align-items:center;line-height:1.05;box-shadow:0 4px 14px rgba(0,0,0,0.4);margin-bottom:16px;
+  }
+  .brand-badge .r1, .brand-badge .r2{color:#0b3d91;font-weight:700;font-size:16px;}
+  .brand-badge .r2 span{color:#e0362e;}
+  .brand-badge .r3{color:#0b3d91;font-weight:700;font-size:14px;margin-top:1px;}
+
+  h1{margin:0 0 2px;font-size:17px;font-weight:700;text-align:center;letter-spacing:.01em;}
+  .subtitle{
+    font-family:var(--mono);font-size:11px;color:var(--gray);text-align:center;
+    text-transform:uppercase;letter-spacing:.1em;margin-bottom:28px;
+  }
+
+  form{display:flex;flex-direction:column;gap:14px;}
+  label{
+    font-family:var(--mono);font-size:10.5px;color:var(--gray);text-transform:uppercase;
+    letter-spacing:.06em;margin-bottom:6px;display:block;
+  }
+  .field input{
+    width:100%;background:var(--bg-1);border:1px solid var(--line);border-radius:8px;
+    padding:11px 13px;color:var(--white);font-size:14px;font-family:var(--sans);outline:none;
+    transition:border-color .15s ease;
+  }
+  .field input:focus{border-color:var(--teal);}
+
+  button{
+    margin-top:8px;padding:12px;border-radius:8px;border:none;
+    background:var(--teal);color:#062521;font-weight:700;font-size:13.5px;
+    cursor:pointer;transition:filter .15s ease;font-family:var(--sans);
+  }
+  button:hover{filter:brightness(1.08);}
+
+  .error-msg{
+    display:none;background:rgba(229,56,75,0.12);border:1px solid rgba(229,56,75,0.4);
+    color:#ff8f9a;font-family:var(--mono);font-size:12px;padding:9px 12px;border-radius:8px;
+    margin-bottom:16px;text-align:center;
+  }
+  .error-msg.show{display:block;}
+
+  .footer-note{
+    margin-top:22px;text-align:center;font-family:var(--mono);font-size:10px;color:#555;
+  }
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+</head>
+<body>
+
+<div class="card">
+  <div class="brand">
+    <div class="brand-badge gz lg"><img src="/static/img/logo-gazeta-azul.png" alt="Rede Gazeta"></div>
+  </div>
+  <h1>Sistema Painel</h1>
+  <div class="subtitle">Acesso restrito</div>
+
+  <div class="error-msg" id="error-msg">Usuário ou senha incorretos.</div>
+
+  <form method="POST" action="/login">
+    <div class="field">
+      <label for="username">Usuário</label>
+      <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+    </div>
+    <div class="field">
+      <label for="password">Senha</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+    </div>
+    <button type="submit">Entrar</button>
+  </form>
+
+  <div class="footer-note">acesso monitorado &middot; uso interno</div>
+</div>
+
+<script>
+  const params = new URLSearchParams(window.location.search);
+  if(params.get('erro')){
+    document.getElementById('error-msg').classList.add('show');
+  }
+</script>
+</body>
+</html>
