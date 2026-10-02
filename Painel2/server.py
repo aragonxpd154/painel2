@@ -5145,10 +5145,15 @@ def notify_status_changes(device, prev, result):
             # Telegram nem contar pra abertura de incidente, mesmo que a
             # leitura SNMP falhe (estado "error") ou o valor pareca fora da
             # faixa - so as metricas realmente visiveis no mapa alarmam.
-            if device_metrics_cfg.get(label, {}).get("hide_on_map"):
-                continue
-
+            cfg_m = device_metrics_cfg.get(label, {})
             curr_state = entry.get("state")
+            if cfg_m.get("hide_on_map"):
+                # escondida da caixinha: so avisa se tiver alarme configurado
+                # de proposito (ex: "Motor ligado" do gerador), e nunca por
+                # simples falta de leitura
+                if cfg_m.get("compare_method") in (None, "") or curr_state == "error":
+                    continue
+
             confirmed_state = _check_transition(dev_id, "metric", curr_state, is_metric=True, metric_label=label)
             if confirmed_state is None:
                 continue
@@ -5319,8 +5324,6 @@ def poll_device(device):
                     scaled = rate
                     display = f"{rate:.2f} Mb/s"
             else:
-                in_range = evaluate_threshold(raw, metric.get("compare_method"), metric.get("compare_value"))
-                state = "ok" if in_range else "alarm"   # fora do limite configurado no Dude
                 scaled = None
                 try:
                     scaled = float(raw)
@@ -5329,6 +5332,11 @@ def poll_device(device):
                         scaled = scaled / float(divisor)
                 except (TypeError, ValueError):
                     scaled = None
+                # o valor de referencia do alarme e comparado com o valor JA
+                # convertido (o mesmo numero que aparece na tela: 108 V, nao 1080)
+                in_range = evaluate_threshold(scaled if scaled is not None else raw,
+                                              metric.get("compare_method"), metric.get("compare_value"))
+                state = "ok" if in_range else "alarm"
                 display = format_value(raw, metric)
 
             entry = {

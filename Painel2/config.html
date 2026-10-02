@@ -2344,7 +2344,7 @@ function renderEditMetricRow(metric){
     </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
-      <div><label style="font-size:11px;">Alarme se o valor for</label>
+      <div><label style="font-size:11px;">Normal (OK) enquanto o valor for</label>
         <select class="em-compare-method" style="width:100%;">
           <option value="">(sem alarme nessa métrica)</option>
           ${Object.entries(COMPARE_METHOD_LABELS).map(([v,l]) => `<option value="${v}" ${metric.compare_method==v?'selected':''}>${l}</option>`).join('')}
@@ -2357,8 +2357,24 @@ function renderEditMetricRow(metric){
       <input type="checkbox" class="em-hide-on-map" ${metric.hide_on_map ? 'checked' : ''}>
       Esconder da caixinha no mapa (continua aparecendo no popup e no gráfico) — use para métricas muito numerosas
     </label>
+    <div class="em-alarm-hint" style="font-size:11px;margin-top:6px;color:var(--amber, #f5c451);"></div>
     ${metric.value_labels ? `<div style="font-size:10.5px;color:var(--teal);margin-top:6px;">&#127991; tradução de valores configurada (${Object.entries(metric.value_labels).map(([k,v])=>k+'='+v).join(', ')}) — preservada automaticamente ao salvar</div>` : ''}`;
   row.querySelector('.em-remove-btn').addEventListener('click', () => row.remove());
+  // frase explicando quando o alerta dispara (o limite e o valor que aparece na tela, ja com divisor)
+  const ALARM_WHEN = {1:'diferente de',2:'igual a',3:'maior ou igual a',4:'maior que',5:'menor ou igual a',6:'menor que'};
+  const updHint = () => {
+    const mth = row.querySelector('.em-compare-method').value, val = row.querySelector('.em-compare-value').value;
+    const unit = row.querySelector('.em-unit').value.trim();
+    const hint = row.querySelector('.em-alarm-hint');
+    if(!mth || val === ''){ hint.textContent = ''; return; }
+    hint.textContent = '⚠ Alerta quando o valor for ' + ALARM_WHEN[mth] + ' ' + val + (unit ? ' ' + unit : '') +
+                       ' · volta ao normal quando for ' + COMPARE_METHOD_LABELS[mth] + ' ' + val + (unit ? ' ' + unit : '');
+  };
+  ['.em-compare-method', '.em-compare-value', '.em-unit'].forEach(sel => {
+    row.querySelector(sel).addEventListener('input', updHint);
+    row.querySelector(sel).addEventListener('change', updHint);
+  });
+  updHint();
   // divisor e o mesmo campo logico nos dois protocolos - mantem sincronizado
   const dSnmp = row.querySelector('.em-divisor'), dMb = row.querySelector('.em-divisor-mb');
   dSnmp.addEventListener('input', () => { dMb.value = dSnmp.value; });
