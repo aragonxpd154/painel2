@@ -353,6 +353,21 @@
   </div>
 </div>
 
+<div class="appearance-panel" id="speed-panel">
+  <div class="appearance-head"><span>&#9201; Velocidade de atualização</span></div>
+  <div class="appearance-body">
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;">
+      <div><label>Abrigo Fonte Grande (mapa, energia, climatização)</label>
+        <select id="speed-fg"><option value="5">a cada 5 s</option><option value="10">a cada 10 s</option><option value="15">a cada 15 s</option><option value="30">a cada 30 s</option></select></div>
+      <div><label>Demais abrigos</label>
+        <select id="speed-ab"><option value="10">a cada 10 s</option><option value="15">a cada 15 s</option><option value="30">a cada 30 s</option><option value="60">a cada 60 s</option></select></div>
+      <button type="button" class="btn-primary" id="speed-save">Salvar</button>
+      <span id="speed-msg" style="font-size:12px;"></span>
+    </div>
+    <div class="appearance-note">Vale na hora, sem reiniciar. O gráfico histórico continua guardando 1 ponto a cada 30 s. Com leitura mais rápida, o alarme confirma mais rápido também (Config → confirmação de alarme conta leituras).</div>
+  </div>
+</div>
+
 <div class="appearance-panel" id="tg-panel">
   <div class="appearance-head">
     <span>&#9993; Telegram — grupo de alertas</span>
@@ -2890,6 +2905,23 @@ loadDevices();
 
   window.abReload = () => loadAll(current());
   loadAll('fg');
+})();
+
+// ==================== Velocidade de atualizacao ====================
+(async function(){
+  const $ = id => document.getElementById(id);
+  try{
+    const c = await (await fetch('/api/polling-config', {cache:'no-store'})).json();
+    $('speed-fg').value = String(c.fg_interval_s); $('speed-ab').value = String(c.abrigos_interval_s);
+  }catch(e){}
+  $('speed-save').addEventListener('click', async () => {
+    try{
+      const r = await fetch('/api/polling-config', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({fg_interval_s: +$('speed-fg').value, abrigos_interval_s: +$('speed-ab').value})});
+      const d = await r.json(); if(!d.ok) throw new Error(d.error);
+      $('speed-msg').textContent = 'salvo ✓'; $('speed-msg').style.color = 'var(--green)';
+    }catch(e){ $('speed-msg').textContent = 'erro: ' + e.message; $('speed-msg').style.color = 'var(--red)'; }
+  });
 })();
 </script>
 </body>

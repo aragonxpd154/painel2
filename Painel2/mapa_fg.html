@@ -1531,6 +1531,13 @@ function renderHistoryChart(series, panelNum){
   }
 }
 
+let statusTimer = null, statusEveryMs = 0;
+function scheduleStatus(ms){
+  if(statusTimer) clearInterval(statusTimer);
+  statusEveryMs = ms;
+  statusTimer = setInterval(pollStatus, ms);
+}
+
 async function pollStatus(){
   try{
     const res = await fetch('/api/status', {cache:'no-store'});
@@ -1540,7 +1547,9 @@ async function pollStatus(){
     liveStatus = data.devices || {};
     document.getElementById('banner').classList.remove('show');
     document.getElementById('conn-dot').className = 'conn-dot live';
-    document.getElementById('conn-label').textContent = 'backend conectado · atualiza a cada ' + Math.round(data.refresh_interval||8) + 's';
+    const everyS = Math.round((ABRIGO_SLUG ? data.abrigos_refresh_interval : data.fg_refresh_interval) || data.refresh_interval || 30);
+    document.getElementById('conn-label').textContent = 'backend conectado · atualiza a cada ' + everyS + 's';
+    if(everyS * 1000 !== statusEveryMs) scheduleStatus(Math.max(3, everyS) * 1000);
     applyStatus();
     if(historyState[1].selectedDevice) refreshHistory(1);
     if(historyState[2].selectedDevice) refreshHistory(2);
@@ -1984,7 +1993,7 @@ async function init(){
   }
   fitToScreen();
   pollStatus();
-  setInterval(pollStatus, POLL_MS);
+  scheduleStatus(POLL_MS);
   updateNobreakBadges();
   setInterval(updateNobreakBadges, 15000);
 }

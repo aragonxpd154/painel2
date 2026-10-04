@@ -2300,8 +2300,15 @@ def _downsample_series(series, now):
     return compacted_older + recent
 
 
+HISTORY_MIN_STEP_S = 30   # leitura pode ser de 5 s; o grafico guarda 1 ponto a cada 30 s
+_HISTORY_LAST_TS = {}
+
+
 def record_history(dev_id, result):
     now = result.get("updated_at", time.time())
+    if now - _HISTORY_LAST_TS.get(dev_id, 0) < HISTORY_MIN_STEP_S:
+        return
+    _HISTORY_LAST_TS[dev_id] = now
     with HISTORY_LOCK:
         h = HISTORY.setdefault(dev_id, {"latency": [], "metrics": {}})
 
@@ -5373,9 +5380,59 @@ def poll_device(device):
 
 
 
-TICK_SECONDS = 5   # granularidade de verificacao; nao eh o intervalo de leitura em si
+TICK_SECONDS = 2   # granularidade de verificacao; nao eh o intervalo de leitura em si
+
+# --------------------------------------------------------------------------
+# Velocidade de leitura por grupo (Config > Velocidade de atualizacao):
+#   fg_interval_s       -> todos os equipamentos do Abrigo Fonte Grande
+#   abrigos_interval_s  -> equipamentos dos demais abrigos (sem intervalo proprio)
+# --------------------------------------------------------------------------
+POLLING_CONFIG_FILE = os.path.join(BASE_DIR, "polling_config.json")
+DEFAULT_POLLING_CONFIG = {"fg_interval_s": 5, "abrigos_interval_s": 30}
+_POLLING_CACHE = {"ts": 0, "cfg": None}
+
+
+def load_polling_config():
+    now = time.time()
+    if _POLLING_CACHE["cfg"] is not None and now - _POLLING_CACHE["ts"] < 5:
+        return _POLLING_CACHE["cfg"]
+    cfg = dict(DEFAULT_POLLING_CONFIG)
+    try:
+        with open(POLLING_CONFIG_FILE, encoding="utf-8") as f:
+            cfg.update({k: v for k, v in json.load(f).items() if k in DEFAULT_POLLING_CONFIG})
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        pass
+    for k in cfg:
+        try:
+            cfg[k] = max(5, min(300, int(cfg[k])))
+        except (TypeError, ValueError):
+            cfg[k] = DEFAULT_POLLING_CONFIG[k]
+    _POLLING_CACHE.update(ts=now, cfg=cfg)
+    return cfg
+
+
+def save_polling_config(data):
+    cfg = dict(load_polling_config())
+    for k in DEFAULT_POLLING_CONFIG:
+        if k in data:
+            cfg[k] = max(5, min(300, int(data[k])))
+    tmp = POLLING_CONFIG_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2)
+    os.replace(tmp, POLLING_CONFIG_FILE)
+    _POLLING_CACHE.update(ts=0, cfg=None)
+    _next_due.clear()   # aplica o novo intervalo ja na proxima volta
+    return load_polling_config()
+
+
+def poll_interval_for(dev):
+    cfg = load_polling_config()
+    if dev.get("map") == "fg":
+        return cfg["fg_interval_s"]
+    return dev.get("poll_interval") or cfg["abrigos_interval_s"]
 _next_due = {}      # dev_id -> timestamp da proxima leitura
 _IN_PROGRESS = set()            # dispositivos com leitura ainda em andamento
+_POLL_SEM = threading.Semaphore(120)   # cada equipamento tem no maximo 1 leitura em andamento
 _IN_PROGRESS_LOCK = threading.Lock()
 
 
@@ -5389,7 +5446,7 @@ def polling_loop():
             due_devices = []
             for dev in devices:
                 dev_id = dev.get("id")
-                interval = dev.get("poll_interval") or REFRESH_INTERVAL
+                interval = poll_interval_for(dev)
                 due_at = _next_due.get(dev_id, 0)
                 if now >= due_at:
                     with _IN_PROGRESS_LOCK:
@@ -5400,25 +5457,24 @@ def polling_loop():
                     _next_due[dev_id] = now + interval
 
             if due_devices:
-                threads = []
-                sem = threading.Semaphore(MAX_WORKERS)
-
+                # dispara cada leitura em paralelo e NAO espera terminar: um
+                # equipamento lento/fora do ar (timeout SNMP) nao atrasa mais
+                # a proxima leitura dos outros - e o que permite ler a Fonte
+                # Grande a cada 5 s mesmo com algum equipamento offline
                 def worker(dev):
-                    with _IN_PROGRESS_LOCK:
-                        _IN_PROGRESS.add(dev.get("id"))
                     try:
-                        with sem:
+                        with _POLL_SEM:
                             poll_device(dev)
+                    except Exception as e:
+                        print("[poll_device] erro:", dev.get("name"), e, file=sys.stderr)
                     finally:
                         with _IN_PROGRESS_LOCK:
                             _IN_PROGRESS.discard(dev.get("id"))
 
                 for dev in due_devices:
-                    t = threading.Thread(target=worker, args=(dev,), daemon=True)
-                    threads.append(t)
-                    t.start()
-                for t in threads:
-                    t.join(timeout=SNMP_TIMEOUT_S * SNMP_RETRY_COUNT * 6 + PING_TIMEOUT_S + 3)
+                    with _IN_PROGRESS_LOCK:
+                        _IN_PROGRESS.add(dev.get("id"))
+                    threading.Thread(target=worker, args=(dev,), daemon=True).start()
 
                 LAST_CYCLE_TS = time.time()
         except Exception as e:
@@ -5623,6 +5679,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(load_network_config())
         elif parsed.path == "/api/alarm-confirm-config":
             self._send_json(load_alarm_confirm_config())
+        elif parsed.path == "/api/polling-config":
+            self._send_json(load_polling_config())
         elif parsed.path == "/api/telegram-config":
             self._send_json(telegram_public_config())
         elif parsed.path == "/api/monthly-report":
@@ -5870,6 +5928,8 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({
                 "updated_at": LAST_CYCLE_TS,
                 "refresh_interval": REFRESH_INTERVAL,
+                "fg_refresh_interval": load_polling_config()["fg_interval_s"],
+                "abrigos_refresh_interval": load_polling_config()["abrigos_interval_s"],
                 "devices": snapshot,
             })
         elif parsed.path == "/api/devices":
@@ -7116,6 +7176,15 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True, "config": cfg})
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)}, status=500)
+        elif parsed.path == "/api/polling-config":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                payload = json.loads((self.rfile.read(length) if length else b"{}").decode("utf-8") or "{}")
+                cfg = save_polling_config(payload)
+                log_event("VELOCIDADE DE LEITURA ALTERADA", f"FG {cfg['fg_interval_s']}s / abrigos {cfg['abrigos_interval_s']}s", None)
+                self._send_json({"ok": True, "config": cfg})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, status=400)
         elif parsed.path in ("/api/abrigos/save", "/api/abrigos/delete", "/api/abrigos/move-device", "/api/devices/delete"):
             try:
                 length = int(self.headers.get("Content-Length", 0))
