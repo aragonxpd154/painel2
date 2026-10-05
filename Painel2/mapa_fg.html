@@ -124,6 +124,9 @@
   .logo-slot img{width:78%;max-width:360px;height:auto;}
   .logo-slot .logo-caption{font-size:13px;color:#b8c3dc;letter-spacing:.02em;text-align:center;line-height:1.5;}
   .logo-slot .logo-caption b{color:#fff;font-weight:700;}
+  .logo-slot.has-site-card{align-items:stretch;justify-content:flex-start;padding:14px 16px;}
+  .logo-slot.has-site-card .sc-host{width:100%;height:100%;min-height:330px;display:flex;}
+  .logo-slot.has-site-card img{width:auto;max-width:none;}
 
   /* agenda: abre por cima do mapa pelo botao "Agenda" do topo */
   .agenda-modal{position:fixed;inset:0;z-index:150;display:none;align-items:center;justify-content:center;
@@ -411,6 +414,9 @@
   ::-webkit-scrollbar-thumb{background:#232f4b;border-radius:8px;}
 </style>
 <link rel="stylesheet" href="/static/theme.css">
+<link rel="stylesheet" href="/static/leaflet/leaflet.css">
+<script src="/static/leaflet/leaflet.js"></script>
+<script src="/static/js/site-card.js"></script>
 </head>
 <body>
 
@@ -601,9 +607,16 @@ function buildBoard(){
 
   const logoSlot = document.createElement('div');
   logoSlot.className = 'logo-slot';
-  logoSlot.innerHTML = `<img src="/static/img/logo-gazeta-branco.png" alt="Rede Gazeta">
-    <div class="logo-caption"><b>Transmissão</b><br>${(NET && NET.caption) || 'Fonte Grande'}</div>`;
+  logoSlot.classList.add('has-site-card');
+  logoSlot.innerHTML = '<div class="sc-host"></div>';
   rest.appendChild(logoSlot);
+  // tempo agora + previsao, mapa do local e codigo EDP (static/js/site-card.js)
+  if(window.SiteCard && NET && NET.local){
+    SiteCard.mount(logoSlot.querySelector('.sc-host'), NET.local, (NET && NET.caption) || 'Fonte Grande');
+  } else {
+    logoSlot.innerHTML = '<img src="/static/img/logo-gazeta-branco.png" alt="Rede Gazeta"><div class="logo-caption"><b>Transmissão</b><br>' +
+      ((NET && NET.caption) || 'Fonte Grande') + '</div>';
+  }
 
   document.getElementById('stat-total').textContent = NET.devices.length;
 

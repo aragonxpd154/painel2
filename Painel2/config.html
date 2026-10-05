@@ -601,8 +601,11 @@
       <div><label>Nome exibido</label><input type="text" id="ab-nome" style="width:260px;"></div>
       <div><label>Nome no alerta do Telegram</label><input type="text" id="ab-alerta" style="width:200px;" placeholder="ex: SERRA"></div>
       <div><label>Subtítulo</label><input type="text" id="ab-sub" style="width:160px;" placeholder="ex: Morro do Céu"></div>
+      <div><label>Latitude</label><input type="text" id="ab-lat" style="width:110px;" placeholder="-20.3053"></div>
+      <div><label>Longitude</label><input type="text" id="ab-lon" style="width:110px;" placeholder="-40.3381"></div>
+      <div><label>Código do cliente EDP</label><input type="text" id="ab-edp" style="width:120px;"></div>
       <div class="ab-top-btns">
-        <button type="button" class="btn-primary" id="ab-save">Salvar nomes</button>
+        <button type="button" class="btn-primary" id="ab-save">Salvar</button>
         <button type="button" class="btn-secondary" id="ab-new">&#10133; Novo abrigo</button>
         <button type="button" class="btn-secondary" id="ab-del" title="Só exclui abrigo sem dispositivos">Excluir abrigo</button>
         <a class="btn-secondary" id="ab-open" target="_blank" rel="noopener" style="text-decoration:none;">Abrir mapa &#8599;</a>
@@ -2797,6 +2800,7 @@ loadDevices();
     $('ab-nome').value = info.nome || '';
     $('ab-alerta').value = info.alerta || '';
     $('ab-sub').value = info.sub || '';
+    $('ab-lat').value = info.lat ?? ''; $('ab-lon').value = info.lon ?? ''; $('ab-edp').value = info.edp || '';
     $('ab-del').style.display = isFg ? 'none' : '';
     $('ab-open').href = isFg ? '/mapa-fg' : '/mapa-abrigo/' + slug;
     const url = isFg ? '/api/devices-fg' : '/api/devices-abrigo/' + slug;
@@ -2852,8 +2856,10 @@ loadDevices();
   $('ab-save').addEventListener('click', async () => {
     const slug = current();
     const body = slug === 'fg'
-      ? {fg: {nome: $('ab-nome').value, alerta: $('ab-alerta').value}}
-      : {abrigos: [{slug, nome: $('ab-nome').value, alerta: $('ab-alerta').value, sub: $('ab-sub').value}]};
+      ? {fg: {nome: $('ab-nome').value, alerta: $('ab-alerta').value, sub: $('ab-sub').value,
+              lat: $('ab-lat').value, lon: $('ab-lon').value, edp: $('ab-edp').value}}
+      : {abrigos: [{slug, nome: $('ab-nome').value, alerta: $('ab-alerta').value, sub: $('ab-sub').value,
+                    lat: $('ab-lat').value, lon: $('ab-lon').value, edp: $('ab-edp').value}]};
     try{ await post('/api/abrigos/save', body); msg('nomes salvos', true); loadAll(slug); }
     catch(e){ msg('erro: ' + e.message, false); }
   });

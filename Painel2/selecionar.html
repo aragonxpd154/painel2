@@ -98,6 +98,14 @@
   .cards.abrigos .card h3{font-size:16px;}
   .cards.abrigos .card .desc{margin-bottom:10px;min-height:18px;}
   .card.abrigo.has-off{border-color:rgba(229,56,75,0.55);}
+  .edp-code{font-size:11px;color:#9aa6c0;margin:-4px 0 10px;letter-spacing:.02em;}
+  .edp-box{width:100%;margin-top:30px;}
+  .edp-head{display:flex;align-items:baseline;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:12px;}
+  .edp-head b{font-size:14px;color:#fff;} .edp-head span{font-size:12px;color:var(--gray);}
+  .edp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;}
+  .edp-item{display:flex;justify-content:space-between;gap:10px;background:rgba(14,22,40,0.7);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:12px;color:#b8c3dc;cursor:pointer;}
+  .edp-item b{color:#fff;letter-spacing:.03em;} .edp-item:hover{border-color:#3d7ff0;}
+  .edp-item.copied{border-color:#2ecc55;} .edp-item.copied b::after{content:' ✓';color:#2ecc55;}
   .card.energia .icon{background:linear-gradient(135deg,#b7791f,#f5c451);}
   .card.fg .icon{background:linear-gradient(135deg,#1c3fae,#274bc9);}
   .card h3{margin:0 0 6px;font-size:17px;font-weight:700;}
@@ -192,6 +200,7 @@
 
   <div class="group-head" style="margin-top:34px;"><span class="group-title">Abrigos</span><span class="group-sub">um mapa por abrigo, em ordem de importância</span></div>
   <div class="cards abrigos" id="abrigos-cards"><div class="st-label">carregando abrigos...</div></div>
+  <div class="edp-box" id="edp-list"></div>
 
   <div class="cards" id="custom-maps-cards" style="margin-top:18px;"></div>
 
@@ -255,6 +264,19 @@ async function loadAbrigos(){
     const abData = await abRes.json();
     const abrigos = abData.abrigos || [];
     if(abData.fg && abData.fg.nome) document.getElementById('fg-title').textContent = abData.fg.nome;
+    const edpBox = document.getElementById('edp-list');
+    if(edpBox){
+      const all = [{local: (abData.fg && abData.fg.nome) || 'Abrigo Fonte Grande', codigo: abData.fg && abData.fg.edp}]
+        .concat(abrigos.map(a => ({local: a.nome, codigo: a.edp})))
+        .concat((abData.edp_extras || []).map(x => ({local: x.local, codigo: x.codigo})))
+        .filter(x => x.codigo);
+      edpBox.innerHTML = '<div class="edp-head"><b>&#9889; Medidores EDP (ESCELSA)</b><span>para abrir chamado: ' + (abData.edp_tel || '') + '</span></div>' +
+        '<div class="edp-grid">' + all.map(x => '<div class="edp-item" title="clique para copiar" data-c="' + x.codigo + '"><span>' + x.local + '</span><b>' + x.codigo + '</b></div>').join('') + '</div>';
+      edpBox.querySelectorAll('.edp-item').forEach(el => el.onclick = () => {
+        if(navigator.clipboard) navigator.clipboard.writeText(el.dataset.c);
+        el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1200);
+      });
+    }
     const live = (await stRes.json()).devices || {};
     box.innerHTML = abrigos.map((ab, i) => {
       let on = 0, off = 0;
@@ -264,6 +286,7 @@ async function loadAbrigos(){
         '<div class="icon">' + (i === 0 ? '&#127963;' : '&#128225;') + '</div>' +
         '<h3>' + ab.nome + '</h3>' +
         '<div class="desc">' + (ab.sub || '&nbsp;') + '</div>' +
+        (ab.edp ? '<div class="edp-code" title="código do cliente EDP">&#9889; EDP ' + ab.edp + '</div>' : '') +
         '<span class="count">' + n + ' dispositivo' + (n === 1 ? '' : 's') + '</span>' +
         '<div class="status-breakdown"><span><span class="st-online">' + on + '</span><span class="st-label">online</span></span>' +
         '<span><span class="st-offline">' + off + '</span><span class="st-label">offline</span></span></div></a>';

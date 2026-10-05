@@ -104,6 +104,35 @@ DEFAULT_ABRIGOS = [
 ]
 ABRIGOS = DEFAULT_ABRIGOS   # compatibilidade; use get_abrigos()
 
+# Posicao (aproximada - ajuste na tela, arrastando o marcador) e codigo do
+# cliente EDP (ESCELSA) de cada abrigo, para abrir chamado.
+DEFAULT_LOCAIS = {
+    "fg":               {"lat": -20.3053, "lon": -40.3381, "edp": "9502658"},
+    "sede":             {"lat": -20.3069, "lon": -40.3128, "edp": "9500015"},
+    "serra":            {"lat": -20.1633, "lon": -40.2962, "edp": "1281544"},
+    "guarapari":        {"lat": -20.6578, "lon": -40.5023, "edp": "1033487"},
+    "morro-do-moreno":  {"lat": -20.3303, "lon": -40.2771, "edp": "160152467"},
+    "viana":            {"lat": -20.3895, "lon": -40.4960, "edp": "160569344"},
+    "domingos-martins": {"lat": -20.4130, "lon": -40.6880, "edp": "160684274"},
+    "pedra-azul":       {"lat": -20.4040, "lon": -40.9650, "edp": "152862"},
+}
+DEFAULT_EDP_EXTRAS = [
+    {"local": "JABURUNA", "codigo": "1287211"},
+    {"local": "ITANHENGA", "codigo": "150708"},
+]
+EDP_TELEFONE = "0800 721 0707"
+
+
+def _fill_local(item, slug):
+    d = DEFAULT_LOCAIS.get(slug) or {}
+    if item.get("lat") in (None, "") or item.get("lon") in (None, ""):
+        if d:
+            item["lat"], item["lon"] = d["lat"], d["lon"]
+            item.setdefault("coord_aprox", True)
+    if not item.get("edp") and d.get("edp"):
+        item["edp"] = d["edp"]
+    return item
+
 
 def load_abrigos_config():
     """abrigos.json: nomes exibidos (editaveis na Configuracao), nome usado
@@ -125,7 +154,12 @@ def load_abrigos_config():
     for ab in abrigos:   # nome antigo padrao da Sede -> "Abrigo Sede"
         if ab.get("slug") == "sede" and ab.get("nome") == "Abrigo Sede Rede Gazeta":
             ab["nome"] = "Abrigo Sede"
-    return {"fg": fg, "abrigos": abrigos}
+        _fill_local(ab, ab.get("slug"))
+    _fill_local(fg, "fg")
+    extras = data.get("edp_extras")
+    if not isinstance(extras, list):
+        extras = [dict(x) for x in DEFAULT_EDP_EXTRAS]
+    return {"fg": fg, "abrigos": abrigos, "edp_extras": extras}
 
 
 def save_abrigos_config(cfg):
@@ -214,6 +248,8 @@ def build_abrigo_network(slug):
         "categories_order": cats_order,
         "categories": {c: cats[c] for c in cats_order},
         "devices": [d for c in cats_order for d in cats[c]],
+        "local": dict(slug=slug, nome=ab["nome"], lat=ab.get("lat"), lon=ab.get("lon"), edp=ab.get("edp"),
+                      coord_aprox=ab.get("coord_aprox", False), edp_tel=EDP_TELEFONE),
     }
 
 
@@ -5627,7 +5663,8 @@ class Handler(BaseHTTPRequestHandler):
                 out.append(dict(ab, device_ids=ids, url="/mapa-abrigo/" + ab["slug"]))
             fg_info = dict(load_abrigos_config()["fg"])
             fg_info["device_ids"] = [d.get("id") for d in load_devices_fg().get("devices", [])]
-            self._send_json({"abrigos": out, "fg": fg_info})
+            self._send_json({"abrigos": out, "fg": fg_info, "edp_extras": load_abrigos_config().get("edp_extras", []),
+                             "edp_tel": EDP_TELEFONE})
         elif parsed.path.startswith("/api/devices-abrigo/"):
             slug = parsed.path.rstrip("/").rsplit("/", 1)[-1]
             net = build_abrigo_network(slug)
@@ -5637,6 +5674,15 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json(net)
         elif parsed.path in ("/incendio", "/incendio.html", "/alarme-incendio"):
             self._send_file(INCENDIO_HTML_FILE, "text/html; charset=utf-8")
+        elif parsed.path == "/api/weather":
+            qs = parse_qs(parsed.query)
+            slug = (qs.get("slug") or ["fg"])[0]
+            cfg = load_abrigos_config()
+            loc = cfg["fg"] if slug == "fg" else next((a for a in cfg["abrigos"] if a["slug"] == slug), None)
+            if not loc or loc.get("lat") is None:
+                self._send_json({"error": "abrigo sem coordenadas"}, status=404)
+                return
+            self._send_json(get_weather(loc["lat"], loc["lon"]))
         elif parsed.path == "/api/knx/status":
             if KNX_MONITOR is None:
                 self._send_json({"connected": False, "error": "modulo KNX nao iniciado", "points": []})
@@ -5669,7 +5715,10 @@ class Handler(BaseHTTPRequestHandler):
         elif parsed.path == "/api/devices-fg":
             _fgnet = load_devices_fg()
             _fgi = load_abrigos_config()["fg"]
-            _fgnet = dict(_fgnet, map_name=_fgi.get("nome"), caption=_fgi.get("sub") or re.sub(r"^Abrigo\s+", "", _fgi.get("nome") or "Fonte Grande"))
+            _fgnet = dict(_fgnet, map_name=_fgi.get("nome"), caption=_fgi.get("sub") or re.sub(r"^Abrigo\s+", "", _fgi.get("nome") or "Fonte Grande"),
+                          local=dict(slug="fg", nome=_fgi.get("nome"), lat=_fgi.get("lat"), lon=_fgi.get("lon"),
+                                     edp=_fgi.get("edp"), coord_aprox=_fgi.get("coord_aprox", False),
+                                     edp_tel=EDP_TELEFONE))
             self._send_json(_fgnet)
         elif parsed.path == "/api/maps":
             self._send_json(load_maps_registry())
@@ -7210,7 +7259,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True, "config": cfg})
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)}, status=400)
-        elif parsed.path in ("/api/abrigos/save", "/api/abrigos/delete", "/api/abrigos/move-device", "/api/devices/delete"):
+        elif parsed.path in ("/api/abrigos/save", "/api/abrigos/delete", "/api/abrigos/move-device", "/api/devices/delete",
+                             "/api/abrigos/location"):
             try:
                 length = int(self.headers.get("Content-Length", 0))
                 payload = json.loads((self.rfile.read(length) if length else b"{}").decode("utf-8") or "{}")
@@ -7387,6 +7437,19 @@ class Handler(BaseHTTPRequestHandler):
             self.send_error(404, "Nao encontrado")
 
 
+def _set_local_fields(target, item):
+    """lat/lon/edp vindos da tela (Config ou mapa do abrigo)."""
+    for k in ("lat", "lon"):
+        if k in item and item[k] not in (None, ""):
+            v = float(str(item[k]).replace(",", "."))
+            if k == "lat" and not -90 <= v <= 90 or k == "lon" and not -180 <= v <= 180:
+                raise ValueError("coordenada invalida")
+            target[k] = round(v, 6)
+            target["coord_aprox"] = False
+    if "edp" in item:
+        target["edp"] = re.sub(r"[^0-9A-Za-z.-]", "", str(item.get("edp") or ""))[:20]
+
+
 def handle_abrigos_api(path, payload):
     """Gerenciamento feito pela tela Configuracao > Abrigos e dispositivos."""
     if path == "/api/abrigos/save":
@@ -7396,6 +7459,7 @@ def handle_abrigos_api(path, payload):
             cfg["fg"]["nome"] = str(fg_in["nome"]).strip()[:80]
         if fg_in.get("alerta"):
             cfg["fg"]["alerta"] = str(fg_in["alerta"]).strip().upper()[:60]
+        _set_local_fields(cfg["fg"], fg_in)
         by_slug = {a["slug"]: a for a in cfg["abrigos"]}
         for item in payload.get("abrigos") or []:
             nome = str(item.get("nome") or "").strip()[:80]
@@ -7409,6 +7473,7 @@ def handle_abrigos_api(path, payload):
                     ab["alerta"] = str(item["alerta"]).strip().upper()[:60]
                 if "sub" in item:
                     ab["sub"] = str(item.get("sub") or "").strip()[:60]
+                _set_local_fields(ab, item)
             else:
                 # abrigo novo
                 site = _norm_site(re.sub(r"^\s*abrigo\s+", "", nome, flags=re.I))
@@ -7431,6 +7496,18 @@ def handle_abrigos_api(path, payload):
         save_abrigos_config(cfg)
         log_event("ABRIGOS ATUALIZADOS", "Configuracao", None)
         return {"ok": True, "config": cfg}
+
+    if path == "/api/abrigos/location":
+        slug = payload.get("slug")
+        cfg = load_abrigos_config()
+        target = cfg["fg"] if slug == "fg" else next((a for a in cfg["abrigos"] if a["slug"] == slug), None)
+        if target is None:
+            return {"ok": False, "error": "abrigo nao encontrado"}
+        _set_local_fields(target, payload)
+        save_abrigos_config(cfg)
+        log_event("LOCALIZACAO DO ABRIGO", target.get("nome"), None,
+                  detail=f"{target.get('lat')}, {target.get('lon')}")
+        return {"ok": True, "local": {k: target.get(k) for k in ("lat", "lon", "edp", "coord_aprox")}}
 
     if path == "/api/abrigos/delete":
         slug = payload.get("slug")
@@ -7483,6 +7560,45 @@ def handle_abrigos_api(path, payload):
         return {"ok": True}
 
     return {"ok": False, "error": "acao desconhecida"}
+
+
+# --------------------------------------------------------------------------
+# Previsao do tempo por abrigo - Open-Meteo (gratuito, sem cadastro).
+# O servidor busca (ele tem internet pela placa da internet) e guarda por
+# 15 min, entao os PCs que so abrem o painel nao precisam de internet.
+# --------------------------------------------------------------------------
+WEATHER_CACHE = {}
+WEATHER_TTL_S = 15 * 60
+WEATHER_LOCK = threading.Lock()
+
+
+def get_weather(lat, lon):
+    key = (round(float(lat), 3), round(float(lon), 3))
+    now = time.time()
+    with WEATHER_LOCK:
+        hit = WEATHER_CACHE.get(key)
+        if hit and now - hit["fetched_at"] < WEATHER_TTL_S:
+            return hit
+    params = urllib.parse.urlencode({
+        "latitude": key[0], "longitude": key[1],
+        "current": "temperature_2m,relative_humidity_2m,apparent_temperature,is_day,weather_code,wind_speed_10m",
+        "daily": "weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max",
+        "timezone": "America/Sao_Paulo", "forecast_days": 6,
+    })
+    try:
+        req = urllib.request.Request("https://api.open-meteo.com/v1/forecast?" + params,
+                                     headers={"User-Agent": "SistemaPainel-RedeGazeta"})
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        out = {"fetched_at": now, "current": data.get("current") or {}, "daily": data.get("daily") or {},
+               "source": "Open-Meteo"}
+        with WEATHER_LOCK:
+            WEATHER_CACHE[key] = out
+        return out
+    except Exception as e:
+        if hit:   # sem internet agora: devolve o ultimo que tinha, marcado como antigo
+            return dict(hit, stale=True, error=str(e))
+        return {"error": "previsao indisponivel (" + str(e)[:80] + ")"}
 
 
 # --------------------------------------------------------------------------
