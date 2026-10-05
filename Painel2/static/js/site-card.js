@@ -80,9 +80,10 @@
   function addCss(){ if(cssDone) return; cssDone = true; const st = document.createElement('style'); st.textContent = CSS; document.head.appendChild(st); }
 
   const LAYERS = {
-    mapa: () => L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '© OpenStreetMap'}),
-    satelite: () => L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-                               {maxZoom: 19, attribution: 'Imagens © Esri'}),
+    // os tiles vem do proprio painel (/tiles/...), que busca na internet e
+    // guarda em cache - os PCs da rede interna nao precisam de internet
+    mapa: () => L.tileLayer('/tiles/osm/{z}/{x}/{y}.png', {maxZoom: 19, attribution: '© OpenStreetMap'}),
+    satelite: () => L.tileLayer('/tiles/sat/{z}/{x}/{y}.jpg', {maxZoom: 19, attribution: 'Imagens © Esri'}),
   };
   const pinIcon = () => L.divIcon({className: '', html: '<div class="sc-pin"></div>', iconSize: [22, 22], iconAnchor: [11, 22]});
 

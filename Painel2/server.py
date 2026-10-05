@@ -5690,6 +5690,19 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json(KNX_MONITOR.snapshot())
         elif parsed.path in ("/climatizacao", "/climatizacao.html", "/climatizacao-fg"):
             self._send_file(CLIMATIZACAO_HTML_FILE, "text/html; charset=utf-8")
+        elif parsed.path.startswith("/tiles/"):
+            m = re.match(r"^/tiles/(osm|sat)/(\d+)/(\d+)/(\d+)\.(png|jpg)$", parsed.path)
+            tile = get_tile(m.group(1), int(m.group(2)), int(m.group(3)), int(m.group(4))) if m else None
+            if not tile:
+                self.send_error(404, "tile indisponivel")
+                return
+            data, ctype = tile
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(data)))
+            self.send_header("Cache-Control", "private, max-age=604800")
+            self.end_headers()
+            self.wfile.write(data)
         elif parsed.path in ("/energia", "/energia.html"):
             self._send_file(ENERGIA_HTML_FILE, "text/html; charset=utf-8")
         elif parsed.path == "/api/modbus/test":
@@ -7505,6 +7518,7 @@ def handle_abrigos_api(path, payload):
             return {"ok": False, "error": "abrigo nao encontrado"}
         _set_local_fields(target, payload)
         save_abrigos_config(cfg)
+        threading.Thread(target=prewarm_abrigo_tiles, daemon=True).start()
         log_event("LOCALIZACAO DO ABRIGO", target.get("nome"), None,
                   detail=f"{target.get('lat')}, {target.get('lon')}")
         return {"ok": True, "local": {k: target.get(k) for k in ("lat", "lon", "edp", "coord_aprox")}}
@@ -7602,6 +7616,83 @@ def get_weather(lat, lon):
 
 
 # --------------------------------------------------------------------------
+# Mapas sem internet nos PCs: o Debian (que tem internet) busca os "tiles"
+# do mapa e guarda em disco (tile_cache/). Os PCs pedem tudo para o painel
+# (/tiles/...), entao funcionam so com a rede interna. Tile que ja foi visto
+# uma vez continua aparecendo mesmo se a internet do Debian cair.
+# --------------------------------------------------------------------------
+TILE_CACHE_DIR = os.path.join(BASE_DIR, "tile_cache")
+TILE_SOURCES = {
+    "osm": ("https://tile.openstreetmap.org/{z}/{x}/{y}.png", "image/png", "png"),
+    "sat": ("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+            "image/jpeg", "jpg"),
+}
+TILE_UA = "SistemaPainel-RedeGazeta/1.0 (monitoramento interno da transmissao)"
+TILE_SEM = threading.Semaphore(6)
+TILE_MAX_AGE_S = 90 * 24 * 3600
+
+
+def get_tile(layer, z, x, y):
+    """Retorna (bytes, content_type) do cache ou da internet; None se nao tiver."""
+    src = TILE_SOURCES.get(layer)
+    if not src or not (0 <= z <= 19) or not (0 <= x < 2 ** z) or not (0 <= y < 2 ** z):
+        return None
+    url_tpl, ctype, ext = src
+    path = os.path.join(TILE_CACHE_DIR, layer, str(z), str(x), f"{y}.{ext}")
+    cached = None
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            cached = f.read()
+        if time.time() - os.path.getmtime(path) < TILE_MAX_AGE_S:
+            return cached, ctype
+    try:
+        with TILE_SEM:
+            req = urllib.request.Request(url_tpl.format(z=z, x=x, y=y), headers={"User-Agent": TILE_UA})
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = resp.read()
+        if data:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            tmp = path + ".tmp"
+            with open(tmp, "wb") as f:
+                f.write(data)
+            os.replace(tmp, path)
+            return data, ctype
+    except Exception:
+        pass
+    return (cached, ctype) if cached else None
+
+
+def _deg2tile(lat, lon, z):
+    import math
+    n = 2 ** z
+    x = int((lon + 180.0) / 360.0 * n)
+    y = int((1.0 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2.0 * n)
+    return x, y
+
+
+def prewarm_abrigo_tiles():
+    """Na partida, guarda as imagens de satelite em volta de cada abrigo (so as
+    que ainda nao estao no cache), para o quadro do abrigo aparecer mesmo que
+    a internet do Debian esteja fora quando alguem abrir o mapa."""
+    try:
+        cfg = load_abrigos_config()
+        locais = [cfg["fg"]] + cfg["abrigos"]
+        for loc in locais:
+            if loc.get("lat") is None:
+                continue
+            for z, r in ((14, 1), (16, 2)):
+                cx, cy = _deg2tile(float(loc["lat"]), float(loc["lon"]), z)
+                for dx in range(-r, r + 1):
+                    for dy in range(-r, r + 1):
+                        path = os.path.join(TILE_CACHE_DIR, "sat", str(z), str(cx + dx), f"{cy + dy}.jpg")
+                        if not os.path.exists(path):
+                            get_tile("sat", z, cx + dx, cy + dy)
+                            time.sleep(0.2)
+    except Exception as e:
+        print("[tiles] pre-carga falhou:", e)
+
+
+# --------------------------------------------------------------------------
 # Ajustes automaticos de unidade/escala (rodam UMA vez, na partida).
 # So mexem em medidas que ainda estao com o valor que veio da importacao -
 # se voce ja ajustou alguma no editor, ela nao e tocada.
@@ -7696,6 +7787,9 @@ def main():
 
     t = threading.Thread(target=polling_loop, daemon=True)
     t.start()
+
+    # imagens do mapa de cada abrigo guardadas no proprio servidor
+    threading.Thread(target=prewarm_abrigo_tiles, daemon=True).start()
 
     # alarme de incendio / intrusao / presenca da Fonte Grande (KNX)
     global KNX_MONITOR
