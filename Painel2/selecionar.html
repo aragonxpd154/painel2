@@ -54,7 +54,7 @@
   .planning-menu .pm-icon{font-size:15px;width:18px;text-align:center;}
 
   .wrap{
-    max-width:1120px;margin:0 auto;padding:60px 26px;
+    max-width:1240px;margin:0 auto;padding:60px 26px;
     display:flex;flex-direction:column;align-items:center;
   }
   .wrap h2{font-size:22px;margin:0 0 6px;text-align:center;}
@@ -79,6 +79,11 @@
   }
   .card.interior .icon{background:linear-gradient(135deg,#1c7a34,#2ecc55);}
   .card.clima .icon{background:linear-gradient(135deg,#0b7a96,#39c6e8);}
+  .card.fogo .icon{background:linear-gradient(135deg,#a3172a,#ff6a3d);}
+  .cards.featured{grid-template-columns:repeat(4,1fr);gap:18px;}
+  @media (max-width:1100px){.cards.featured{grid-template-columns:1fr 1fr;}}
+  .card.fogo.em-alarme{border-color:#e5384b !important;animation:fogoPulse 1.2s ease-in-out infinite;}
+  @keyframes fogoPulse{0%,100%{box-shadow:0 0 0 0 rgba(229,56,75,0.6);}50%{box-shadow:0 0 0 12px rgba(229,56,75,0);}}
   .card.abrigo .icon{background:linear-gradient(135deg,#1c7a34,#2ecc55);width:44px;height:44px;font-size:20px;}
   .group-head{width:100%;display:flex;align-items:baseline;gap:12px;margin:6px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line);}
   .group-title{font-size:16px;font-weight:800;color:#fff;letter-spacing:.01em;}
@@ -174,6 +179,15 @@
       <div class="status-breakdown" id="status-clima"><span class="st-label">carregando status...</span></div>
       <div class="open-note">abre em nova aba</div>
     </a>
+
+    <a class="card fogo" href="/incendio" target="_blank" rel="noopener" id="card-fogo">
+      <div class="icon">&#128293;</div>
+      <h3>Alarme de Incêndio</h3>
+      <div class="desc">Detectores de fumaça e calor, intrusão<br>e presença das centrais KNX</div>
+      <span class="count" id="count-fogo">– zonas</span>
+      <div class="status-breakdown" id="status-fogo"><span class="st-label">carregando status...</span></div>
+      <div class="open-note">abre em nova aba</div>
+    </a>
   </div>
 
   <div class="group-head" style="margin-top:34px;"><span class="group-title">Abrigos</span><span class="group-sub">um mapa por abrigo, em ordem de importância</span></div>
@@ -260,6 +274,24 @@ async function loadAbrigos(){
 }
 loadAbrigos();
 setInterval(loadAbrigos, 30000);
+
+async function loadFogoStatus(){
+  try{
+    const d = await fetch('/api/knx/status', {cache:'no-store'}).then(r => r.json());
+    const fire = (d.points || []).filter(p => p.tipo === 'incendio');
+    const on = fire.filter(p => p.alarme).length;
+    document.getElementById('count-fogo').textContent = fire.length + ' detectores';
+    document.getElementById('card-fogo').classList.toggle('em-alarme', on > 0);
+    document.getElementById('status-fogo').innerHTML = on
+      ? '<span><span class="st-offline">' + on + '</span><span class="st-label">em alarme</span></span>'
+      : (d.connected ? '<span><span class="st-online">KNX</span><span class="st-label">conectado · sem alarme</span></span>'
+                     : '<span><span class="st-offline">KNX</span><span class="st-label">sem conexão</span></span>');
+  }catch(e){
+    document.getElementById('status-fogo').innerHTML = '<span class="st-label">status indisponível</span>';
+  }
+}
+loadFogoStatus();
+setInterval(loadFogoStatus, 5000);
 
 (async function loadClimaStatus(){
   try{

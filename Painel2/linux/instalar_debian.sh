@@ -34,6 +34,12 @@ else
   echo ">> Atualizacao: copiando so o codigo (dados preservados)"
   cp -a "$ORIGEM"/*.py "$ORIGEM"/*.html "$DEST"/
   cp -a "$ORIGEM"/static "$ORIGEM"/linux "$DEST"/
+  # arquivos de configuracao NOVOS (so se ainda nao existirem - nao sobrescreve ajustes)
+  for f in knx_fg.json; do
+    [ -f "$ORIGEM/$f" ] && [ ! -f "$DEST/$f" ] && cp -a "$ORIGEM/$f" "$DEST/$f" && echo "   + $f"
+  done
+  mkdir -p "$DEST/planilhas"
+  cp -an "$ORIGEM"/planilhas/*.xlsx "$DEST/planilhas/" 2>/dev/null || true
   [ -f "$ORIGEM/LEIA-ME.txt" ] && cp -a "$ORIGEM/LEIA-ME.txt" "$DEST"/
 fi
 rm -f "$DEST"/*.bat

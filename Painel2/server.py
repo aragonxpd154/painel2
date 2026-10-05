@@ -81,6 +81,8 @@ MAPA_FG_HTML_FILE = os.path.join(BASE_DIR, "mapa_fg.html")
 MAPA_GENERICO_HTML_FILE = os.path.join(BASE_DIR, "mapa_generico.html")
 ENERGIA_HTML_FILE = os.path.join(BASE_DIR, "energia.html")
 CLIMATIZACAO_HTML_FILE = os.path.join(BASE_DIR, "climatizacao.html")
+INCENDIO_HTML_FILE = os.path.join(BASE_DIR, "incendio.html")
+KNX_MONITOR = None   # iniciado no main() (alarme de incendio da Fonte Grande via KNX)
 
 # --------------------------------------------------------------------------
 # ABRIGOS - cada um tem o seu proprio mapa (/mapa-abrigo/<slug>), no mesmo
@@ -5388,7 +5390,7 @@ TICK_SECONDS = 2   # granularidade de verificacao; nao eh o intervalo de leitura
 #   abrigos_interval_s  -> equipamentos dos demais abrigos (sem intervalo proprio)
 # --------------------------------------------------------------------------
 POLLING_CONFIG_FILE = os.path.join(BASE_DIR, "polling_config.json")
-DEFAULT_POLLING_CONFIG = {"fg_interval_s": 5, "abrigos_interval_s": 30}
+DEFAULT_POLLING_CONFIG = {"fg_interval_s": 5, "abrigos_interval_s": 5}
 _POLLING_CACHE = {"ts": 0, "cfg": None}
 
 
@@ -5429,7 +5431,7 @@ def poll_interval_for(dev):
     cfg = load_polling_config()
     if dev.get("map") == "fg":
         return cfg["fg_interval_s"]
-    return dev.get("poll_interval") or cfg["abrigos_interval_s"]
+    return cfg["abrigos_interval_s"]
 _next_due = {}      # dev_id -> timestamp da proxima leitura
 _IN_PROGRESS = set()            # dispositivos com leitura ainda em andamento
 _POLL_SEM = threading.Semaphore(120)   # cada equipamento tem no maximo 1 leitura em andamento
@@ -5633,6 +5635,13 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"error": "abrigo nao encontrado"}, status=404)
                 return
             self._send_json(net)
+        elif parsed.path in ("/incendio", "/incendio.html", "/alarme-incendio"):
+            self._send_file(INCENDIO_HTML_FILE, "text/html; charset=utf-8")
+        elif parsed.path == "/api/knx/status":
+            if KNX_MONITOR is None:
+                self._send_json({"connected": False, "error": "modulo KNX nao iniciado", "points": []})
+            else:
+                self._send_json(KNX_MONITOR.snapshot())
         elif parsed.path in ("/climatizacao", "/climatizacao.html", "/climatizacao-fg"):
             self._send_file(CLIMATIZACAO_HTML_FILE, "text/html; charset=utf-8")
         elif parsed.path in ("/energia", "/energia.html"):
@@ -7176,6 +7185,22 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True, "config": cfg})
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)}, status=500)
+        elif parsed.path in ("/api/knx/point", "/api/knx/request-status"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                payload = json.loads((self.rfile.read(length) if length else b"{}").decode("utf-8") or "{}")
+                if KNX_MONITOR is None:
+                    raise RuntimeError("modulo KNX nao iniciado")
+                if parsed.path == "/api/knx/point":
+                    pt = KNX_MONITOR.update_point(str(payload.get("ga")), payload)
+                    if pt is None:
+                        raise RuntimeError("endereco de grupo nao encontrado")
+                    self._send_json({"ok": True, "point": pt})
+                else:
+                    n = KNX_MONITOR.request_status()
+                    self._send_json({"ok": True, "enviados": n})
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, status=400)
         elif parsed.path == "/api/polling-config":
             try:
                 length = int(self.headers.get("Content-Length", 0))
@@ -7555,6 +7580,15 @@ def main():
 
     t = threading.Thread(target=polling_loop, daemon=True)
     t.start()
+
+    # alarme de incendio / intrusao / presenca da Fonte Grande (KNX)
+    global KNX_MONITOR
+    try:
+        import knx_fg
+        KNX_MONITOR = knx_fg.KnxFireMonitor(BASE_DIR, notify=lambda text: send_telegram_message(text), log=log_event)
+        KNX_MONITOR.start()
+    except Exception as e:
+        print("[knx] nao iniciado:", e)
 
     t2 = threading.Thread(target=sunday_summary_loop, daemon=True)
     t2.start()
