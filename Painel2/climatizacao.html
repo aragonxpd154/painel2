@@ -40,6 +40,10 @@
   .kpi.hot .v{color:#ff8f9a;} .kpi.hot .bar{background:var(--red);}
   .kpi.warm .v{color:var(--amber);} .kpi.warm .bar{background:var(--amber);}
   .kpi.main{background:linear-gradient(135deg,#0a2a5c,#0e1628);border-color:#1d4a9a;}
+  .kpi.suspect{border-color:rgba(245,196,81,0.6);} .kpi.suspect .v{color:#8b95ab;text-decoration:line-through;text-decoration-thickness:2px;}
+  .kpi.suspect .bar{background:var(--amber);}
+  .kwarn{font-size:11.5px;color:var(--amber);margin-top:6px;line-height:1.4;} .kwarn b{color:#fff;}
+  .kwarn.ok{color:#6fe38e;}
   .facts{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
   .fact{background:var(--bg-2);border:1px solid #1f2d4d;border-radius:10px;padding:8px 14px;font-size:12.5px;color:#b8c3dc;}
   .fact b{color:#fff;font-size:15px;margin-left:6px;}
@@ -52,6 +56,7 @@
   .sonda .v{font-size:26px;font-weight:800;margin:4px 0 2px;}
   .sonda .s{font-size:11.5px;font-weight:700;}
   .sonda.ok .s{color:#6fe38e;} .sonda.fail .s{color:#ff8f9a;}
+  .sonda .pf{font-size:10.5px;color:var(--gray);margin-top:4px;}
 
   /* splits */
   .splits{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:16px;}
@@ -148,6 +153,10 @@ function getter(dev){
 }
 const fmt = (n, d) => n == null ? '—' : n.toLocaleString('pt-BR', {minimumFractionDigits: d, maximumFractionDigits: d});
 
+// -50 e 150 C sao o fim de escala das sondas: o CLP mostra isso quando a
+// sonda esta desconectada, em curto ou com defeito
+const SONDA_MIN = -40, SONDA_MAX = 120;
+const sondaInvalida = t => t != null && (t <= SONDA_MIN || t >= SONDA_MAX);
 function tempClass(t){ if(t == null) return ''; if(t >= 30) return 'hot'; if(t >= 26) return 'warm'; return ''; }
 
 function renderClp(dev){
@@ -158,30 +167,72 @@ function renderClp(dev){
 
   // ---- temperaturas balanceadas ----
   const tGeral = take(g.find(/balanceada - geral/i)), tTx = take(g.find(/balanceada - transmiss/i)), tUps = take(g.find(/balanceada - ups/i));
-  const kpi = (label, m, main) => { const v = g.num(m); const pct = v == null ? 0 : Math.max(4, Math.min(100, v / 40 * 100));
-    return '<div class="kpi ' + (main ? 'main ' : '') + tempClass(v) + '"><div class="k">' + label + '</div><div class="v">' + fmt(v, 1) +
-      '<small>' + esc((m && m.unit) || '°C') + '</small></div><div class="bar" style="width:' + pct + '%"></div></div>'; };
+  // sondas por sala, para saber se a media do CLP esta "contaminada"
+  const probes = g.metrics.filter(m => /^Sonda\s*\d+.*temperatura/i.test(m.label));
+  const roomOf = m => /ups/i.test(m.label) ? 'ups' : (/transmiss/i.test(m.label) ? 'tx' : 'outra');
+  const probeInfo = probes.map(m => ({m, room: roomOf(m), t: g.num(m)}));
+  const kpi = (label, m, main, room) => {
+    const v = g.num(m);
+    const mine = probeInfo.filter(p => room === 'geral' || p.room === room);
+    const bad = mine.filter(p => sondaInvalida(p.t));
+    const good = mine.filter(p => p.t != null && !sondaInvalida(p.t));
+    const real = good.length ? good.reduce((a, p) => a + p.t, 0) / good.length : null;
+    const pct = v == null ? 0 : Math.max(4, Math.min(100, v / 40 * 100));
+    let warn = '', suspect = false;
+    if(bad.length){
+      // se o valor do CLP ja bate com a media das sondas boas, o CLP esta
+      // ignorando a sonda com defeito - o numero vale, so fica o aviso
+      const ok = real != null && v != null && Math.abs(v - real) <= 0.6;
+      suspect = !ok;
+      warn = ok
+        ? '<div class="kwarn ok">&#10003; o CLP já está ignorando ' + bad.length + ' sonda(s) com defeito</div>'
+        : '<div class="kwarn">&#9888; média do CLP com ' + bad.length + ' sonda(s) com defeito' +
+          (real != null ? ' · sondas boas: <b>' + fmt(real, 1) + ' °C</b>' : ' · nenhuma sonda válida — valor não é medição real') + '</div>';
+    }
+    return '<div class="kpi ' + (main ? 'main ' : '') + (suspect ? 'suspect ' : tempClass(v)) + '"><div class="k">' + label + '</div><div class="v">' + fmt(v, 1) +
+      '<small>' + esc((m && m.unit) || '°C') + '</small></div>' + warn + '<div class="bar" style="width:' + pct + '%"></div></div>'; };
   const setp = take(g.find(/^setpoint.*leitura/i)), hist = take(g.find(/^delta histerese.*leitura/i));
   const comp = take(g.find(/compressores ativos/i)), evap = take(g.find(/evaporadoras ativos/i)), evapReq = take(g.find(/evaporadoras requeridas.*leitura/i));
   const facts = [['Setpoint', setp], ['Histerese', hist], ['Compressores ativos', comp], ['Evaporadoras ativas', evap], ['Evaporadoras requeridas', evapReq]]
     .filter(x => x[1]).map(x => '<div class="fact">' + x[0] + '<b>' + esc((g.e(x[1]) && g.e(x[1]).display) || '—') + '</b></div>').join('');
   html += '<section><div class="section-head"><h2>' + esc(dev.name) + '</h2><span class="hint">' + esc(dev.ip || '') +
           (dev.modbus ? ' · Slave ID ' + dev.modbus.unit_id : '') + (g.st.reachable === false ? ' · <span style="color:#ff8f9a">sem comunicação</span>' : '') + '</span></div>' +
-          '<div class="kpis">' + kpi('Temperatura geral', tGeral, true) + kpi('Sala de transmissão', tTx) + kpi('Sala de UPS', tUps) + '</div>' +
+          '<div class="kpis">' + kpi('Temperatura geral', tGeral, true, 'geral') + kpi('Sala de transmissão', tTx, false, 'tx') + kpi('Sala de UPS', tUps, false, 'ups') + '</div>' +
           (facts ? '<div class="facts">' + facts + '</div>' : '') + '</section>';
 
   // ---- sondas ----
+  // No CLP os avisos de "Problema" sao numerados por SALA (Sonda 1 e 2 =
+  // retorno Transmissores, Sonda 3 e 4 = retorno UPS), enquanto as
+  // temperaturas sao numeradas ao contrario (1 e 2 = UPS, 3 e 4 =
+  // Transmissao). Entao o aviso e casado com a temperatura pela SALA e pela
+  // ordem dentro da sala - e nao pelo numero.
   const sondas = {};
+  const roomKey = lbl => /ups/i.test(lbl) ? 'ups' : (/transmiss/i.test(lbl) ? 'tx' : null);
+  const temps = [], probs = [];
   g.metrics.forEach(m => { const k = m.label.match(/^Sonda\s*(\d+)/i); if(!k) return;
-    sondas[k[1]] = sondas[k[1]] || {}; if(/problema|falha/i.test(m.label)) sondas[k[1]].prob = take(m); else if(/temperatura/i.test(m.label)) sondas[k[1]].temp = take(m); });
+    if(/problema|falha/i.test(m.label)) probs.push({n: +k[1], room: roomKey(m.label), m: take(m)});
+    else if(/temperatura/i.test(m.label)) temps.push({n: +k[1], room: roomKey(m.label), m: take(m)}); });
+  temps.forEach(t => { sondas[t.n] = {temp: t.m}; });
+  const byRoom = (list, room) => list.filter(x => x.room === room).sort((a, b) => a.n - b.n);
+  const pairedByRoom = ['tx', 'ups'].every(r => byRoom(temps, r).length === byRoom(probs, r).length && byRoom(temps, r).length);
+  if(pairedByRoom){
+    ['tx', 'ups'].forEach(r => { const tl = byRoom(temps, r), pl = byRoom(probs, r);
+      tl.forEach((t, i) => { sondas[t.n].prob = pl[i].m; }); });
+  } else {
+    probs.forEach(p => { sondas[p.n] = sondas[p.n] || {}; sondas[p.n].prob = p.m; });
+  }
   const sondaKeys = Object.keys(sondas).sort((a, b) => a - b);
   if(sondaKeys.length){
     html += '<section><div class="section-head"><h2>Sondas de temperatura</h2></div><div class="sondas">' + sondaKeys.map(k => {
-      const s = sondas[k]; const fail = g.bool(s.prob); const t = g.num(s.temp);
+      const s = sondas[k]; const t = g.num(s.temp);
+      const fora = sondaInvalida(t);
+      const fail = fora ? true : g.bool(s.prob);
       const local = s.temp ? s.temp.label.replace(/^Sonda\s*\d+\s*-\s*Temperatura\s*-\s*/i, '') : '';
       return '<div class="sonda ' + (fail === true ? 'fail' : (fail === false ? 'ok' : '')) + '"><div class="t">Sonda ' + k + (local ? ' · ' + esc(local) : '') + '</div>' +
         '<div class="v">' + fmt(t, 1) + ' <small style="font-size:13px;color:var(--gray)">' + esc((s.temp && s.temp.unit) || '°C') + '</small></div>' +
-        '<div class="s">' + (fail === true ? 'SONDA COM PROBLEMA' : (fail === false ? 'sonda OK' : '—')) + '</div></div>';
+        '<div class="s">' + (fora ? 'FORA DE FAIXA — desconectada ou com defeito' : (fail === true ? 'SONDA COM PROBLEMA' : (fail === false ? 'sonda OK' : '—'))) + '</div>' +
+        (s.prob ? '<div class="pf" title="aviso de problema que o CLP associa a esta sonda">aviso do CLP: ' + esc(s.prob.label.replace(/\s*-\s*Problema$/i, '')) +
+                  ' = ' + (g.bool(s.prob) === true ? 'problema' : (g.bool(s.prob) === false ? 'ok' : '—')) + '</div>' : '') + '</div>';
     }).join('') + '</div></section>';
   }
 

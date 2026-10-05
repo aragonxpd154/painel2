@@ -7706,7 +7706,9 @@ def apply_data_migrations():
             done = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         done = {}
-    if done.get("unidades-2026-10"):
+    todo_units = not done.get("unidades-2026-10")
+    todo_clima = not done.get("clima-setpoint-2026-10")
+    if not todo_units and not todo_clima:
         return
     changes = 0
     for path in (DEVICES_FILE, os.path.join(BASE_DIR, "network_fg.json")):
@@ -7726,6 +7728,13 @@ def apply_data_migrations():
                     label = (m.get("label") or "").lower()
                     unit = m.get("unit") or ""
                     div = m.get("divisor")
+                    # CLP de refrigeracao: setpoint (2400 = 24,00 C) e histerese (50 = 0,50 C)
+                    if todo_clima and netx == "FG_PLC_REFRIGERACAO" and re.match(r"^(setpoint|delta histerese)", label) \
+                            and unit == "" and not div:
+                        m["unit"] = "°C"; m["divisor"] = 100; changes += 1
+                        continue
+                    if not todo_units:
+                        continue
                     # CLP de refrigeracao: temperatura vem em centesimos (2466 = 24,66 C)
                     if netx == "FG_PLC_REFRIGERACAO" and unit == "°C" and div == 10:
                         m["divisor"] = 100; changes += 1
@@ -7745,7 +7754,8 @@ def apply_data_migrations():
             with open(tmp, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
             os.replace(tmp, path)
-    done["unidades-2026-10"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    done.setdefault("unidades-2026-10", time.strftime("%Y-%m-%d %H:%M:%S"))
+    done.setdefault("clima-setpoint-2026-10", time.strftime("%Y-%m-%d %H:%M:%S"))
     with open(MIGRATIONS_FILE, "w", encoding="utf-8") as f:
         json.dump(done, f, ensure_ascii=False, indent=2)
     if changes:
