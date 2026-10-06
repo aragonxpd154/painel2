@@ -7314,7 +7314,7 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True, "config": cfg})
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)}, status=500)
-        elif parsed.path in ("/api/knx/point", "/api/knx/request-status"):
+        elif parsed.path in ("/api/knx/point", "/api/knx/request-status", "/api/knx/reset"):
             try:
                 length = int(self.headers.get("Content-Length", 0))
                 payload = json.loads((self.rfile.read(length) if length else b"{}").decode("utf-8") or "{}")
@@ -7325,6 +7325,11 @@ class Handler(BaseHTTPRequestHandler):
                     if pt is None:
                         raise RuntimeError("endereco de grupo nao encontrado")
                     self._send_json({"ok": True, "point": pt})
+                elif parsed.path == "/api/knx/reset":
+                    if payload.get("confirmar") != "RESET":
+                        raise RuntimeError("confirmacao ausente")
+                    ga = KNX_MONITOR.reset_central(str(payload.get("grupo") or ""), origem=self.client_address[0])
+                    self._send_json({"ok": True, "ga": ga})
                 else:
                     n = KNX_MONITOR.request_status()
                     self._send_json({"ok": True, "enviados": n})

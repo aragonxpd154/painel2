@@ -89,6 +89,16 @@
   .modal-card input[type=text],.modal-card select{width:100%;background:var(--bg-2);color:var(--white);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;}
   .modal-card .chk{display:flex;align-items:center;gap:8px;color:var(--white);font-size:13px;margin-top:12px;}
   .modal-card .btns{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+  .rst{margin-top:12px;padding:12px;border:1px solid #2b3856;border-radius:10px;background:#0b1326;display:none;}
+  .rst.show{display:block;}
+  .rst-line{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:#b8c3dc;}
+  .rst-btn{border-color:#a3172a;color:#ffb3bb;}
+  .rst-btn:hover{background:#3a0f18;}
+  .rst-confirm{display:none;margin-top:10px;font-size:12.5px;color:#dbe3f5;}
+  .rst-confirm p{color:#b8c3dc;margin:6px 0 0;line-height:1.5;}
+  .rst-confirm .btns{margin-top:10px;}
+  .rst-go{background:#c0283c;border-color:#c0283c;color:#fff;}
+  .rst-msg{font-size:12px;margin-top:8px;}
 </style>
 </head>
 <body>
@@ -136,13 +146,23 @@
     <button class="btn" id="req-btn">&#128260; Solicitar status às centrais</button>
     <span class="note" id="req-msg">Manda o comando "Request Status" para as 7 centrais MT/S — elas reenviam o estado de todas as zonas. Use se algum ponto ficar "aguardando".</span>
   </div>
-  <p class="note" style="margin-top:14px;">Clique em qualquer ponto para renomear, inverter a lógica (se aparecer ALARME estando normal) ou ligar/desligar o aviso no Telegram.</p>
+  <p class="note" style="margin-top:14px;">Clique em qualquer ponto para <b>resetar a central</b> dele, renomear, inverter a lógica (se aparecer ALARME estando normal) ou ligar/desligar o aviso no Telegram.</p>
 </main>
 
 <div class="modal" id="modal">
   <div class="modal-card">
     <h3 id="m-title">Ponto KNX</h3>
     <div class="note" id="m-sub"></div>
+    <div class="rst" id="m-reset">
+      <div class="rst-line"><span id="m-reset-txt"></span><button class="btn rst-btn" id="m-reset-btn">&#128260; Resetar central</button></div>
+      <div class="rst-confirm" id="m-reset-confirm">
+        <b>Confirmar reset da central <span id="m-reset-grp"></span>?</b>
+        <p>Reseta os alarmes e a memória de alarme de <b>todas as zonas</b> desta central (o KNX não reseta zona por zona).
+        Antes, confira no local se não há fumaça ou fogo real — se a causa continuar, o detector volta a disparar.</p>
+        <div class="btns"><button class="btn" id="m-reset-no">Cancelar</button><button class="btn rst-go" id="m-reset-yes">Sim, resetar agora</button></div>
+      </div>
+      <div class="rst-msg" id="m-reset-msg"></div>
+    </div>
     <label>Nome</label><input type="text" id="m-nome">
     <label>Em alarme / ativo quando o valor for</label>
     <select id="m-val"><option value="1">1 (padrão)</option><option value="0">0 (lógica invertida)</option></select>
@@ -318,8 +338,42 @@ function openEdit(ga){
   document.getElementById('m-nome').value = p.nome;
   document.getElementById('m-val').value = String(p.alarme_valor === 0 ? 0 : 1);
   document.getElementById('m-tg').checked = !!p.alerta_telegram;
+  // reset: a MT/S reseta a central inteira (todas as zonas dela)
+  const canReset = (DATA.reset_groups || []).includes(p.grupo);
+  const rb = document.getElementById('m-reset');
+  rb.classList.toggle('show', canReset);
+  document.getElementById('m-reset-confirm').style.display = 'none';
+  document.getElementById('m-reset-msg').textContent = '';
+  document.getElementById('m-reset-btn').style.display = '';
+  if(canReset){
+    const emAlarme = (DATA.points || []).filter(x => x.grupo === p.grupo && (x.tipo === 'incendio' || x.tipo === 'alarme_geral') && x.alarme).length;
+    document.getElementById('m-reset-txt').innerHTML = 'Central <b>' + esc(p.grupo) + '</b>' + (emAlarme ? ' · <span style="color:#ff8f9a">' + emAlarme + ' zona(s) em alarme</span>' : ' · sem alarme');
+    document.getElementById('m-reset-grp').textContent = p.grupo;
+  }
   document.getElementById('modal').classList.add('open');
 }
+document.getElementById('m-reset-btn').onclick = () => {
+  document.getElementById('m-reset-confirm').style.display = 'block';
+  document.getElementById('m-reset-btn').style.display = 'none';
+};
+document.getElementById('m-reset-no').onclick = () => {
+  document.getElementById('m-reset-confirm').style.display = 'none';
+  document.getElementById('m-reset-btn').style.display = '';
+};
+document.getElementById('m-reset-yes').onclick = async () => {
+  const msg = document.getElementById('m-reset-msg');
+  msg.textContent = 'enviando…'; msg.style.color = 'var(--gray)';
+  try{
+    const r = await fetch('/api/knx/reset', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({grupo: editing.grupo, confirmar: 'RESET'})});
+    const d = await r.json(); if(!d.ok) throw new Error(d.error);
+    document.getElementById('m-reset-confirm').style.display = 'none';
+    document.getElementById('m-reset-btn').style.display = '';
+    msg.textContent = '✓ reset enviado (' + d.ga + '). Acompanhe se as zonas voltam a "Normal" nos próximos segundos.';
+    msg.style.color = 'var(--green)';
+    setTimeout(poll, 4000);
+  }catch(e){ msg.textContent = 'erro: ' + e.message; msg.style.color = 'var(--red)'; }
+};
 document.getElementById('m-cancel').onclick = () => document.getElementById('modal').classList.remove('open');
 document.getElementById('modal').onclick = e => { if(e.target.id === 'modal') e.target.classList.remove('open'); };
 document.getElementById('m-save').onclick = async () => {

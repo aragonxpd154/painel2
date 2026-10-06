@@ -286,6 +286,7 @@ class KnxFireMonitor:
         self.notify = notify or (lambda text: None)
         self.log = log or (lambda *a, **k: None)
         self.lock = threading.Lock()
+        self._last_reset = {}
         self.cfg = self._load()
         self._migrar()
         self.state = {}       # ga -> {"value", "ts", "src", "kind"}
@@ -481,6 +482,7 @@ class KnxFireMonitor:
             "rx_count": t.rx_count if t else 0,
             "tunnel_address": t.individual if t else None,
             "points": pts,
+            "reset_groups": self.reset_groups(),
         }
 
     def update_point(self, ga, changes):
@@ -504,6 +506,56 @@ class KnxFireMonitor:
                     self._save()
                     return dict(p)
         return None
+
+    def reset_groups(self):
+        """centrais que tem objeto 'Reset' (a MT/S reseta a central inteira)."""
+        return sorted({p.get("grupo") for p in self.cfg.get("points", [])
+                       if p.get("tipo") == "comando" and str(p.get("nome", "")).strip().lower().startswith("reset")})
+
+    def reset_central(self, grupo, origem=""):
+        """Comando MANUAL (botao na tela, com confirmacao): manda 1 no objeto
+        'Reset' da central. Fica registrado no log e avisa no Telegram."""
+        if not (self.tunnel and self.tunnel.connected):
+            raise ConnectionError("tunel KNX desconectado")
+        now = time.time()
+        if now - self._last_reset.get(grupo, 0) < 15:
+            raise RuntimeError("reset desta central enviado ha menos de 15 s - aguarde")
+        pts = self.cfg.get("points", [])
+        reset = next((p for p in pts if p.get("grupo") == grupo and p.get("tipo") == "comando"
+                      and str(p.get("nome", "")).strip().lower().startswith("reset")), None)
+        if not reset:
+            raise RuntimeError("esta central nao tem objeto de Reset no KNX")
+        self.tunnel.group_write_bit(reset["ga"], 1)
+        self._last_reset[grupo] = now
+        ativos = [p.get("nome") for p in pts if p.get("grupo") == grupo and p.get("tipo") in ("incendio", "alarme_geral")
+                  and self.is_alarm(p, (self.state.get(p["ga"]) or {}).get("value"))]
+        self.log("KNX RESET", grupo, reset["ga"], detail=("pelo PC " + origem if origem else "") +
+                 (" - zonas em alarme: " + ", ".join(ativos) if ativos else ""))
+        try:
+            self.notify(f"🔄 ALERTA FONTE GRANDE\n\nRESET DA CENTRAL {grupo}\nenviado pelo painel"
+                        + (f" (PC {origem})" if origem else "")
+                        + (f"\nzonas em alarme no momento: {', '.join(ativos)}" if ativos else ""))
+        except Exception:
+            pass
+
+        def depois():
+            # pede o estado de novo para a tela mostrar se a zona voltou ao normal
+            time.sleep(3)
+            req = next((p for p in pts if p.get("grupo") == grupo and p.get("tipo") == "solicitar_status"), None)
+            try:
+                if req and self.tunnel and self.tunnel.connected:
+                    self.tunnel.group_write_bit(req["ga"], 1)
+            except Exception:
+                pass
+            for p in pts:
+                if p.get("grupo") == grupo and p.get("legivel") and p.get("tipo") not in ("comando", "solicitar_status"):
+                    try:
+                        self.tunnel.group_read(p["ga"])
+                    except Exception:
+                        pass
+                    time.sleep(0.08)
+        threading.Thread(target=depois, daemon=True).start()
+        return reset["ga"]
 
     def request_status(self):
         """Comando manual: manda 1 nos objetos 'Request Status' das centrais MT/S
