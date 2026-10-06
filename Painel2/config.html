@@ -361,6 +361,8 @@
         <select id="speed-fg"><option value="5">a cada 5 s</option><option value="10">a cada 10 s</option><option value="15">a cada 15 s</option><option value="30">a cada 30 s</option></select></div>
       <div><label>Demais abrigos (Sede, Serra, Guarapari...)</label>
         <select id="speed-ab"><option value="5">a cada 5 s</option><option value="10">a cada 10 s</option><option value="15">a cada 15 s</option><option value="30">a cada 30 s</option><option value="60">a cada 60 s</option></select></div>
+      <div><label>Avisar perda de comunicação só depois de</label>
+        <select id="speed-comm"><option value="5">5 min seguidos</option><option value="10">10 min seguidos</option><option value="15">15 min seguidos</option><option value="30">30 min seguidos</option><option value="60">60 min seguidos</option></select></div>
       <button type="button" class="btn-primary" id="speed-save">Salvar</button>
       <span id="speed-msg" style="font-size:12px;"></span>
     </div>
@@ -2331,7 +2333,7 @@ function renderEditMetricRow(metric){
       <div><label style="font-size:11px;">Unidade</label><input type="text" class="em-unit" value="${metric.unit || ''}" style="width:100%;"></div>
     </div>
     <div class="em-modbus">
-      <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px;">
+      <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px;">
         <div><label style="font-size:11px;">Registrador</label>
           <select class="em-rtype" style="width:100%;">
             ${opt('holding', rt, 'Holding (FC3)')}${opt('input', rt, 'Input (FC4)')}${opt('coil', rt, 'Coil (FC1)')}${opt('discrete', rt, 'Discrete (FC2)')}
@@ -2344,13 +2346,14 @@ function renderEditMetricRow(metric){
         <div><label style="font-size:11px;">Word swap</label>
           <select class="em-wordswap" style="width:100%;">${opt('', wsv, 'do disp.')}${opt('T', wsv, 'T')}${opt('F', wsv, 'F')}</select></div>
         <div><label style="font-size:11px;">Divisor</label><input type="number" step="any" class="em-divisor-mb" value="${metric.divisor ?? ''}" style="width:100%;"></div>
+        <div><label style="font-size:11px;" title="Somado ao valor depois do divisor. Ex: sonda marca 27,5 e o termômetro 26,0 → -1,5">Ajuste (±)</label><input type="number" step="any" class="em-offset-mb" value="${metric.offset ?? ''}" placeholder="0" style="width:100%;"></div>
       </div>
       <button type="button" class="btn-secondary em-test-btn" style="padding:4px 10px;font-size:11px;margin-bottom:6px;">Testar leitura</button><span class="em-test-result"></span>
     </div>
     <div class="em-snmp">
     <label style="font-size:11px;">OID</label>
     <input type="text" class="em-oid" value="${metric.oid || ''}" style="width:100%;margin-bottom:6px;font-family:var(--mono);">
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:6px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px;">
       <div><label style="font-size:11px;">Comunidade</label><input type="text" class="em-community" value="${metric.community || 'public'}" style="width:100%;"></div>
       <div><label style="font-size:11px;">Versão SNMP</label>
         <select class="em-version" style="width:100%;">
@@ -2359,6 +2362,7 @@ function renderEditMetricRow(metric){
         </select>
       </div>
       <div><label style="font-size:11px;">Divisor</label><input type="number" step="any" class="em-divisor" value="${metric.divisor ?? ''}" style="width:100%;"></div>
+      <div><label style="font-size:11px;" title="Somado ao valor depois do divisor. Ex: sonda marca 27,5 e o termômetro 26,0 → -1,5">Ajuste (±)</label><input type="number" step="any" class="em-offset" value="${metric.offset ?? ''}" placeholder="0" style="width:100%;"></div>
     </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
@@ -2496,6 +2500,8 @@ document.getElementById('edit-device-save-btn').addEventListener('click', async 
     community: row.querySelector('.em-community').value.trim() || 'public',
     version: row.querySelector('.em-version').value,
     divisor: row.querySelector('.em-divisor').value || null,
+    offset: (document.getElementById('edit-device-protocol').value === 'modbus'
+             ? row.querySelector('.em-offset-mb').value : row.querySelector('.em-offset').value) || null,
     compare_method: row.querySelector('.em-compare-method').value || null,
     compare_value: row.querySelector('.em-compare-value').value || null,
     hide_on_map: row.querySelector('.em-hide-on-map').checked,
@@ -2919,11 +2925,12 @@ loadDevices();
   try{
     const c = await (await fetch('/api/polling-config', {cache:'no-store'})).json();
     $('speed-fg').value = String(c.fg_interval_s); $('speed-ab').value = String(c.abrigos_interval_s);
+    $('speed-comm').value = String(c.comm_loss_min || 15);
   }catch(e){}
   $('speed-save').addEventListener('click', async () => {
     try{
       const r = await fetch('/api/polling-config', {method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({fg_interval_s: +$('speed-fg').value, abrigos_interval_s: +$('speed-ab').value})});
+        body: JSON.stringify({fg_interval_s: +$('speed-fg').value, abrigos_interval_s: +$('speed-ab').value, comm_loss_min: +$('speed-comm').value})});
       const d = await r.json(); if(!d.ok) throw new Error(d.error);
       $('speed-msg').textContent = 'salvo ✓'; $('speed-msg').style.color = 'var(--green)';
     }catch(e){ $('speed-msg').textContent = 'erro: ' + e.message; $('speed-msg').style.color = 'var(--red)'; }

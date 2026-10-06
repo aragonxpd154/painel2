@@ -1875,7 +1875,8 @@ def archive_month_if_needed(year, month):
         "archived_at": time.strftime("%Y-%m-%d %H:%M:%S"),
     }
     save_annual_archive(archive)
-    log_event("MES ARQUIVADO PERMANENTEMENTE", key, None, detail=f"{total} ocorrencias")
+    if total:
+        log_event("MES ARQUIVADO PERMANENTEMENTE", key, None, detail=f"{total} ocorrencias")
     return True
 
 
@@ -2372,7 +2373,7 @@ def load_history_from_disk():
             raw = json.load(f)
         # as chaves de dev_id sao salvas como string no JSON - converte de volta pra int
         HISTORY = {int(k): v for k, v in raw.items()}
-        log_event("HISTORICO CARREGADO DO DISCO", f"{len(HISTORY)} dispositivos", None)
+        print(f"[historico] carregado do disco: {len(HISTORY)} dispositivos")
     except (FileNotFoundError, json.JSONDecodeError, ValueError):
         HISTORY = {}
 
@@ -4576,6 +4577,12 @@ def _build_metric_entry(m, protocol="snmp"):
             entry["compare_value"] = float(cv)
         except (TypeError, ValueError):
             pass
+    try:
+        off = float(str(m.get("offset")).replace(",", ".")) if m.get("offset") not in (None, "") else 0.0
+    except (TypeError, ValueError):
+        off = 0.0
+    if off:
+        entry["offset"] = round(off, 4)
     if "enabled" in m and m.get("enabled") is not None:
         entry["enabled"] = bool(m.get("enabled"))
     if m.get("hide_on_map"):
@@ -4927,6 +4934,8 @@ def format_value(raw_value, metric):
     divisor = metric.get("divisor")
     if divisor:
         num = num / float(divisor)
+    if metric.get("offset"):
+        num = num + float(metric["offset"])   # ajuste de calibracao (ex: sonda marcando 1,5 C a mais -> -1,5)
     unit = metric.get("unit") or ""
     # potencias grandes em W/VA/var aparecem em k (29148 W -> 29,15 kW)
     if unit in ("W", "VA", "var") and abs(num) >= 10000:
@@ -5165,24 +5174,43 @@ def notify_status_changes(device, prev, result):
     templates = get_message_template_for_map(map_name)
 
     with NOTIFY_LOCK:
-        # 1) mudanca de conectividade (equivalente ao probe "ping" do Dude)
-        confirmed = _check_transition(dev_id, "reachable", result.get("reachable"), confirm_count=load_alarm_confirm_config()["ping_confirm_count"])
-        if confirmed is not None:
-            status_txt = "UP" if confirmed else "DOWN"
-            text = render_message_template(
-                templates.get("ping", DEFAULT_PING_TEMPLATE),
-                equipamento=name, status=status_txt, ip=ip, abrigo=abrigo_alert_name(device),
-            )
-            if telegram_allowed:
-                _notify_async(text)
-            log_event("PING " + status_txt, name, ip)
-            if confirmed:
+        # 1) PERDA DE COMUNICACAO (ping / conexao Modbus): so avisa, grava no
+        #    log e abre incidente depois de N minutos SEGUIDOS sem resposta
+        #    (padrao 15 min). Quedas curtas nao geram mensagem nem log.
+        hold_s = load_polling_config()["comm_loss_min"] * 60
+        now = time.time()
+        cs = _COMM_STATE.setdefault(dev_id, {"down_since": None, "down_alerted": False,
+                                            "err_since": None, "err_alerted": False, "err_labels": []})
+        reachable = result.get("reachable")
+        if reachable is False:
+            if cs["down_since"] is None:
+                cs["down_since"] = now
+            if not cs["down_alerted"] and now - cs["down_since"] >= hold_s:
+                cs["down_alerted"] = True
+                mins = int((now - cs["down_since"]) // 60)
+                status_txt = f"DOWN (sem comunicação há {mins} min)"
+                text = render_message_template(templates.get("ping", DEFAULT_PING_TEMPLATE),
+                                               equipamento=name, status=status_txt, ip=ip, abrigo=abrigo_alert_name(device))
+                if telegram_allowed:
+                    _notify_async(text)
+                log_event("SEM COMUNICACAO", name, ip, detail=f"sem resposta ha {mins} min")
+                open_or_update_incident(device, "ping", "Ping", f"Sem comunicacao ha {mins} min (equipamento offline)", None)
+        elif reachable:
+            if cs["down_alerted"]:
+                mins = int((now - (cs["down_since"] or now)) // 60)
+                text = render_message_template(templates.get("ping", DEFAULT_PING_TEMPLATE),
+                                               equipamento=name, status=f"UP (voltou após {mins} min)", ip=ip,
+                                               abrigo=abrigo_alert_name(device))
+                if telegram_allowed:
+                    _notify_async(text)
+                log_event("COMUNICACAO NORMALIZADA", name, ip, detail=f"ficou {mins} min sem comunicacao")
                 close_incident(dev_id, "ping", "Ping")
-            else:
-                open_or_update_incident(device, "ping", "Ping", "Sem resposta de ping (equipamento offline)", None)
+            cs["down_since"] = None
+            cs["down_alerted"] = False
 
         # 2) mudanca de estado em cada metrica SNMP (ok <-> alarm <-> error)
         device_metrics_cfg = {m["label"]: m for m in device.get("metrics", [])}
+        error_labels = []
         for label, entry in (result.get("metrics") or {}).items():
             # metricas marcadas "hide_on_map" sao so pra diagnostico interno
             # do painel (ex: leituras detalhadas de PA/excitador que nao tem
@@ -5199,16 +5227,19 @@ def notify_status_changes(device, prev, result):
                 if cfg_m.get("compare_method") in (None, "") or curr_state == "error":
                     continue
 
+            # "sem leitura" nao vira alerta por medida: e tratado junto, por
+            # equipamento, com a regra dos N minutos (logo abaixo)
+            if curr_state == "error":
+                error_labels.append(label)
+                continue
             confirmed_state = _check_transition(dev_id, "metric", curr_state, is_metric=True, metric_label=label)
-            if confirmed_state is None:
+            if confirmed_state is None or confirmed_state == "error":
                 continue
 
             if confirmed_state == "alarm":
                 status_txt = "ALARME"
-            elif confirmed_state == "ok":
-                status_txt = "OK"
             else:
-                status_txt = "SEM LEITURA MODBUS" if is_modbus_device(device) else "SEM LEITURA SNMP"
+                status_txt = "OK"
 
             value_txt = entry.get("display") or "sem leitura"
             text = render_message_template(
@@ -5230,6 +5261,38 @@ def notify_status_changes(device, prev, result):
                     metric_cfg.get("unit"),
                 )
                 open_or_update_incident(device, "metric", label, reason, value_txt)
+
+        # 3) SEM LEITURA (equipamento responde, mas SNMP/Modbus nao): UMA
+        #    mensagem por equipamento, so depois de N minutos seguidos
+        proto = "MODBUS" if is_modbus_device(device) else "SNMP"
+        if error_labels and reachable:
+            if cs["err_since"] is None:
+                cs["err_since"] = now
+            cs["err_labels"] = error_labels
+            if not cs["err_alerted"] and now - cs["err_since"] >= hold_s:
+                cs["err_alerted"] = True
+                mins = int((now - cs["err_since"]) // 60)
+                lista = ", ".join(error_labels[:8]) + (f" (+{len(error_labels) - 8})" if len(error_labels) > 8 else "")
+                text = (f"🟠 ALERTA {abrigo_alert_name(device)}\n\nSEM LEITURA {proto} há {mins} min\n"
+                        f"EQUIPAMENTO: {name}\nIP={ip}\nMEDIDAS: {lista}")
+                if telegram_allowed:
+                    _notify_async(text)
+                log_event(f"SEM LEITURA {proto}", name, ip, detail=f"{len(error_labels)} medida(s) ha {mins} min: {lista}")
+                open_or_update_incident(device, "metric", "Sem leitura", f"Sem leitura {proto} ha {mins} min ({lista})", None)
+        elif not error_labels:
+            if cs["err_alerted"]:
+                mins = int((now - (cs["err_since"] or now)) // 60)
+                text = (f"✅ ALERTA {abrigo_alert_name(device)}\n\nLEITURA {proto} NORMALIZADA (após {mins} min)\n"
+                        f"EQUIPAMENTO: {name}\nIP={ip}")
+                if telegram_allowed:
+                    _notify_async(text)
+                log_event(f"LEITURA {proto} NORMALIZADA", name, ip, detail=f"ficou {mins} min sem leitura")
+                close_incident(dev_id, "metric", "Sem leitura")
+            cs["err_since"] = None
+            cs["err_alerted"] = False
+
+
+_COMM_STATE = {}   # dev_id -> controle da regra "N minutos sem comunicacao"
 
 
 # --------------------------------------------------------------------------
@@ -5375,6 +5438,8 @@ def poll_device(device):
                     divisor = metric.get("divisor")
                     if divisor:
                         scaled = scaled / float(divisor)
+                    if metric.get("offset"):
+                        scaled = scaled + float(metric["offset"])
                 except (TypeError, ValueError):
                     scaled = None
                 # o valor de referencia do alarme e comparado com o valor JA
@@ -5426,7 +5491,7 @@ TICK_SECONDS = 2   # granularidade de verificacao; nao eh o intervalo de leitura
 #   abrigos_interval_s  -> equipamentos dos demais abrigos (sem intervalo proprio)
 # --------------------------------------------------------------------------
 POLLING_CONFIG_FILE = os.path.join(BASE_DIR, "polling_config.json")
-DEFAULT_POLLING_CONFIG = {"fg_interval_s": 5, "abrigos_interval_s": 5}
+DEFAULT_POLLING_CONFIG = {"fg_interval_s": 5, "abrigos_interval_s": 5, "comm_loss_min": 15}
 _POLLING_CACHE = {"ts": 0, "cfg": None}
 
 
@@ -5441,8 +5506,9 @@ def load_polling_config():
     except (FileNotFoundError, json.JSONDecodeError, OSError):
         pass
     for k in cfg:
+        lo, hi = (1, 240) if k == "comm_loss_min" else (5, 300)
         try:
-            cfg[k] = max(5, min(300, int(cfg[k])))
+            cfg[k] = max(lo, min(hi, int(cfg[k])))
         except (TypeError, ValueError):
             cfg[k] = DEFAULT_POLLING_CONFIG[k]
     _POLLING_CACHE.update(ts=now, cfg=cfg)
@@ -5453,7 +5519,8 @@ def save_polling_config(data):
     cfg = dict(load_polling_config())
     for k in DEFAULT_POLLING_CONFIG:
         if k in data:
-            cfg[k] = max(5, min(300, int(data[k])))
+            lo, hi = (1, 240) if k == "comm_loss_min" else (5, 300)
+            cfg[k] = max(lo, min(hi, int(data[k])))
     tmp = POLLING_CONFIG_FILE + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)
@@ -7700,12 +7767,40 @@ def prewarm_abrigo_tiles():
 MIGRATIONS_FILE = os.path.join(BASE_DIR, "migrations.json")
 
 
+def _limpar_logs_uma_vez():
+    """Zera log de eventos, incidentes/falhas e exclusoes - comeca do zero
+    so com os alarmes novos. Agenda (planning), dispositivos, configuracoes
+    e historico dos graficos NAO sao tocados. Copia de seguranca em backups/."""
+    import shutil
+    alvos = {
+        "eventos.log": "",
+        "incidentes.json": "[]",
+        "excluded_incidents.json": "[]",
+        "downtime_excluded_incidents.json": "[]",
+        "annual_archive.json": "{}",
+    }
+    pasta = os.path.join(BASE_DIR, "backups", "antes_limpeza_" + time.strftime("%Y%m%d_%H%M%S"))
+    os.makedirs(pasta, exist_ok=True)
+    for nome, vazio in alvos.items():
+        path = os.path.join(BASE_DIR, nome)
+        if os.path.exists(path):
+            shutil.copy2(path, os.path.join(pasta, nome))
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(vazio)
+    print("[limpeza] logs e incidentes zerados (copia em " + pasta + ")")
+
+
 def apply_data_migrations():
     try:
         with open(MIGRATIONS_FILE, encoding="utf-8") as f:
             done = json.load(f)
     except (FileNotFoundError, json.JSONDecodeError):
         done = {}
+    if not done.get("limpeza-logs-2026-10"):
+        _limpar_logs_uma_vez()
+        done["limpeza-logs-2026-10"] = time.strftime("%Y-%m-%d %H:%M:%S")
+        with open(MIGRATIONS_FILE, "w", encoding="utf-8") as f:
+            json.dump(done, f, ensure_ascii=False, indent=2)
     todo_units = not done.get("unidades-2026-10")
     todo_clima = not done.get("clima-setpoint-2026-10")
     if not todo_units and not todo_clima:

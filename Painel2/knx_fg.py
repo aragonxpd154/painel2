@@ -93,6 +93,9 @@ class KnxTunnel:
         self._ack_seq = None
         self._connstate_ok = None
         self._stop = False
+        self._down_since = None
+        self._logged_up = False
+        self._logged_down = False
 
     # ---------------- quadros ----------------
     @staticmethod
@@ -133,9 +136,13 @@ class KnxTunnel:
         self.connected = True
         self.error = None
         self.connected_since = time.time()
+        self._down_since = None
         self.sock.settimeout(1)
-        self.log("KNX CONECTADO", f"{self.gateway} canal {channel}", self.gateway,
-                 detail=f"endereco do tunel {self.individual or '?'}")
+        if not getattr(self, "_logged_up", False):
+            self.log("KNX CONECTADO", f"{self.gateway} canal {channel}", self.gateway,
+                     detail=f"endereco do tunel {self.individual or '?'}")
+            self._logged_up = True
+            self._logged_down = False
 
     def _disconnect(self):
         if self.sock and self.channel is not None:
@@ -257,7 +264,14 @@ class KnxTunnel:
                 self.connected = False
                 self.error = str(e) or e.__class__.__name__
             if not self._stop:
-                self.log("KNX DESCONECTADO", self.gateway, self.gateway, detail=self.error or "")
+                # reconexao rapida (ex: interface reiniciou) nao vira log; so
+                # registra se ficar fora por mais de 5 min
+                if self._down_since is None:
+                    self._down_since = time.time()
+                if not getattr(self, "_logged_down", False) and time.time() - self._down_since > 300:
+                    self.log("KNX DESCONECTADO", self.gateway, self.gateway, detail=self.error or "")
+                    self._logged_down = True
+                    self._logged_up = False
                 time.sleep(RECONNECT_WAIT_S)
         self._disconnect()
 
