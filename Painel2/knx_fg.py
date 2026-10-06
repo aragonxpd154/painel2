@@ -289,6 +289,7 @@ class KnxFireMonitor:
         self._last_reset = {}
         self.cfg = self._load()
         self._migrar()
+        self._guardar_nome_original()
         self.state = {}       # ga -> {"value", "ts", "src", "kind"}
         self.tunnel = None
         self.thread = None
@@ -322,6 +323,20 @@ class KnxFireMonitor:
             except OSError:
                 pass
         return cfg
+
+    def _guardar_nome_original(self):
+        """O nome original (do NETx/ETS) fica guardado a parte: renomear um
+        ponto na tela nao desfaz a ligacao detector de presenca <-> temperatura."""
+        mudou = False
+        for p in self.cfg.get("points", []):
+            if not p.get("nome_original"):
+                p["nome_original"] = p.get("nome")
+                mudou = True
+        if mudou:
+            try:
+                self._save()
+            except OSError:
+                pass
 
     def _migrar(self):
         """"Status da Alimentacao Auxiliar 12V" e o objeto "em operacao" da

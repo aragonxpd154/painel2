@@ -132,6 +132,7 @@ def main():
         p = {
             "ga": ga,
             "nome": desc,
+            "nome_original": desc,
             "grupo": aliases.get((m, mid)) or aliases.get((m, "")) or NOMES_GRUPO_PADRAO.get(m, "Grupo " + m),
             "secao": aliases.get((m, "")) or NOMES_GRUPO_PADRAO.get(m, ""),
             "tipo": tipo,

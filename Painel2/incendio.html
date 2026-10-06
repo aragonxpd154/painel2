@@ -278,10 +278,11 @@ function render(){
   }).join('') : '<div class="empty">Nenhum detector cadastrado (rode importar_knx.py).</div>';
 
   // ---- presenca + temperatura ----
-  const temps = {}; pts.filter(p => p.tipo === 'temperatura').forEach(p => temps[p.nome] = p);
+  const chave = p => p.nome_original || p.nome;   // nome do NETx/ETS - nao muda quando voce renomeia
+  const temps = {}; (DATA.points || []).filter(p => p.tipo === 'temperatura').forEach(p => temps[chave(p)] = p);
   const dps = pts.filter(p => p.tipo === 'presenca');
   document.getElementById('dps').innerHTML = dps.map(p => {
-    const t = temps[p.nome];
+    const t = temps[chave(p)];
     const mv = p.value === undefined ? 'aguardando' : (p.value ? 'MOVIMENTO' : 'sem movimento');
     return '<div class="dp' + (p.value ? ' move' : '') + '" data-ga="' + p.ga + '"><div class="nm">' + esc(p.nome) + '</div>' +
       '<div class="tp">' + (t && t.value !== undefined ? Number(t.value).toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '<small>°C</small>' : '—') + '</div>' +
