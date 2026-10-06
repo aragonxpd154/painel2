@@ -301,6 +301,26 @@
   .ab-add{margin-top:14px;padding:12px 14px;border:1px dashed var(--line);border-radius:10px;}
   .ab-add-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
   .ab-add-row input[type=text]{min-width:200px;}
+
+  /* ---------- Configuracao organizada em abas (menu lateral) ---------- */
+  .cfg-layout{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:calc(100vh - 70px);}
+  .cfg-nav{position:sticky;top:66px;align-self:start;height:calc(100vh - 70px);overflow:auto;
+    padding:18px 12px;border-right:1px solid var(--line);background:rgba(7,12,24,0.6);}
+  .cfg-nav .ttl{font-size:10.5px;letter-spacing:.12em;color:var(--gray);font-weight:800;margin:6px 10px 10px;text-transform:uppercase;}
+  .cfg-nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;font-size:13.5px;font-weight:600;
+    color:#b8c3dc;background:none;border:1px solid transparent;border-radius:10px;padding:10px 12px;margin-bottom:4px;cursor:pointer;}
+  .cfg-nav button .ic{width:22px;text-align:center;font-size:16px;}
+  .cfg-nav button small{display:block;font-size:11px;font-weight:500;color:var(--gray);margin-top:1px;}
+  .cfg-nav button:hover{background:#111b33;color:#fff;}
+  .cfg-nav button.active{background:linear-gradient(135deg,rgba(10,75,181,0.35),rgba(10,75,181,0.12));border-color:#1d4a9a;color:#fff;}
+  .cfg-main{padding:6px 28px 60px;min-width:0;}
+  .cfg-tab{display:none;} .cfg-tab.active{display:block;}
+  .cfg-tab-head{max-width:1180px;margin:22px 0 4px;}
+  .cfg-tab-head h2{margin:0;font-size:20px;font-weight:800;color:#fff;}
+  .cfg-tab-head p{margin:4px 0 0;font-size:13px;color:var(--gray);}
+  .cfg-main .appearance-panel{max-width:1180px !important;margin:18px 0 0 !important;padding:0 !important;}
+  .cfg-main .map-tabs,.cfg-main .toolbar,.cfg-main .content{max-width:1180px;margin-left:0 !important;margin-right:0 !important;padding-left:0 !important;padding-right:0 !important;}
+  @media (max-width:900px){.cfg-layout{grid-template-columns:1fr;} .cfg-nav{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);}}
 </style>
 <link rel="stylesheet" href="/static/theme.css">
 </head>
@@ -409,7 +429,7 @@
       (mapa, histórico, logs, dashboard de falhas) — só a notificação no Telegram fica em silêncio.
     </div>
 
-    <label>Mapa Abrigos</label>
+    <label>Demais abrigos</label>
     <div class="font-scale-row">
       <input type="time" id="alarm-start-interior" value="00:00">
       <span style="color:var(--gray);font-family:var(--mono);font-size:12px;">até</span>
@@ -853,7 +873,7 @@
 </div>
 
 <div class="map-tabs">
-  <button class="map-tab active" id="tab-interior" data-map="interior">Mapa Abrigos</button>
+  <button class="map-tab active" id="tab-interior" data-map="interior">Demais abrigos</button>
   <button class="map-tab" id="tab-fg" data-map="fg">Abrigo Fonte Grande</button>
 </div>
 
@@ -2935,6 +2955,84 @@ loadDevices();
       $('speed-msg').textContent = 'salvo ✓'; $('speed-msg').style.color = 'var(--green)';
     }catch(e){ $('speed-msg').textContent = 'erro: ' + e.message; $('speed-msg').style.color = 'var(--red)'; }
   });
+})();
+
+// ==================== Configuracao em abas ====================
+// Reorganiza os paineis que ja existem em seções no menu lateral (nao muda
+// nenhuma funcao - so onde cada painel aparece).
+(function(){
+  const TABS = [
+    {id: 'abrigos', ic: '&#127968;', t: 'Abrigos e dispositivos', d: 'abrigos, equipamentos, medidas, OIDs e registradores',
+     match: [/abrigos e dispositivos/i]},
+    {id: 'alertas', ic: '&#128276;', t: 'Alertas e Telegram', d: 'grupo, horário, confirmação e texto das mensagens',
+     match: [/telegram/i, /hor[aá]rio de disparo/i, /confirma[cç][aã]o de alarme/i, /mensagem do telegram/i]},
+    {id: 'monitorar', ic: '&#9989;', t: 'Ligar / desligar monitoramento', d: 'ativar ou desativar cada equipamento',
+     match: []},
+    {id: 'agenda', ic: '&#128197;', t: 'Resumos e agenda', d: 'resumo de domingo e avisos do Planning',
+     match: [/resumo/i, /aviso da agenda/i]},
+    {id: 'sistema', ic: '&#9881;&#65039;', t: 'Sistema', d: 'velocidade, rede/acesso e aparência dos mapas',
+     match: [/velocidade/i, /configura[cç][oõ]es de rede/i, /apar[eê]ncia/i]},
+    {id: 'avancado', ic: '&#129520;', t: 'Avançado', d: 'editor de mapa, biblioteca e busca SNMP',
+     match: [/editor de mapa/i]},
+  ];
+  const topbar = document.querySelector('.topbar');
+  const toast = document.getElementById('toast');
+  if(!topbar) return;
+
+  // modais precisam ficar fora das abas (senao somem junto com a aba escondida)
+  ['edit-device-modal'].forEach(id => { const m = document.getElementById(id); if(m) document.body.appendChild(m); });
+
+  // tudo que esta entre o topo e o toast
+  const blocks = [];
+  let el = topbar.nextElementSibling;
+  while(el && el !== toast){
+    const next = el.nextElementSibling;
+    if(el.tagName !== 'SCRIPT') blocks.push(el);
+    el = next;
+  }
+  const layout = document.createElement('div'); layout.className = 'cfg-layout';
+  const nav = document.createElement('nav'); nav.className = 'cfg-nav';
+  nav.innerHTML = '<div class="ttl">Configuração</div>';
+  const main = document.createElement('div'); main.className = 'cfg-main';
+  layout.appendChild(nav); layout.appendChild(main);
+  topbar.after(layout);
+
+  const sections = {};
+  TABS.forEach(tb => {
+    const sec = document.createElement('section'); sec.className = 'cfg-tab'; sec.dataset.tab = tb.id;
+    sec.innerHTML = '<div class="cfg-tab-head"><h2>' + tb.ic + ' ' + tb.t + '</h2><p>' + tb.d + '</p></div>';
+    main.appendChild(sec); sections[tb.id] = sec;
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.tab = tb.id;
+    b.innerHTML = '<span class="ic">' + tb.ic + '</span><span>' + tb.t + '<small>' + tb.d + '</small></span>';
+    b.onclick = () => show(tb.id);
+    nav.appendChild(b);
+  });
+
+  let last = 'sistema';
+  blocks.forEach(blk => {
+    let dest = null;
+    if(blk.matches('.map-tabs, .toolbar, .content, #content')) dest = 'monitorar';
+    else {
+      const head = blk.querySelector('.appearance-head');
+      const txt = head ? head.textContent : '';
+      const tb = TABS.find(t => t.match.some(re => re.test(txt)));
+      dest = tb ? tb.id : last;   // painel sem titulo = continuacao do anterior
+    }
+    sections[dest].appendChild(blk);
+    last = dest;
+  });
+
+  function show(id){
+    if(!sections[id]) id = 'abrigos';
+    Object.values(sections).forEach(s => s.classList.toggle('active', s.dataset.tab === id));
+    nav.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+    try{ localStorage.setItem('cfg_tab', id); }catch(e){}
+    if(location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+    window.scrollTo(0, 0);
+    if(id === 'avancado' && typeof editorLoadMap === 'function'){ try{ editorLoadMap(); }catch(e){} }
+  }
+  const start = (location.hash || '').slice(1) || (function(){ try{ return localStorage.getItem('cfg_tab'); }catch(e){ return null; } })() || 'abrigos';
+  show(start);
 })();
 </script>
 </body>

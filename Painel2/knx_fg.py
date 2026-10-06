@@ -23,6 +23,8 @@ import time
 KNX_PORT = 3671
 HEARTBEAT_S = 55            # CONNECTIONSTATE_REQUEST (o padrao manda < 60 s)
 RECONNECT_WAIT_S = 10
+CONFIRM_S = 20           # estado novo precisa ficar 20 s para virar alerta (pulso/teste nao avisa)
+BATCH_S = 10             # alertas que chegam juntos viram UMA mensagem
 
 # servicos KNXnet/IP
 CONNECT_REQ, CONNECT_RES = 0x0205, 0x0206
@@ -285,16 +287,55 @@ class KnxFireMonitor:
         self.log = log or (lambda *a, **k: None)
         self.lock = threading.Lock()
         self.cfg = self._load()
+        self._migrar()
         self.state = {}       # ga -> {"value", "ts", "src", "kind"}
         self.tunnel = None
         self.thread = None
+        self.notified = {}    # ga -> ultimo estado avisado (True = alarme)
+        self.pending = {}     # ga -> (alarme?, desde)
+        self.batch = []       # (linha, alarme?, tipo)
+        self.batch_since = None
 
     def _load(self):
         try:
             with open(self.path, encoding="utf-8") as f:
-                return json.load(f)
+                cfg = json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return {"gateway": "192.168.205.161", "port": KNX_PORT, "enabled": False, "points": []}
+        if int(cfg.get("versao", 1)) < 2:
+            for p in cfg.get("points", []):
+                if p.get("editado"):
+                    continue
+                # "Status da Alimentacao Auxiliar 12V" (MT/S): 1 = em operacao, 0 = falha
+                if p.get("tipo") == "alimentacao":
+                    p["alarme_valor"] = 0
+                # "Zona D - OFF / Zona H - ON Alarme Geral" e estado do sistema, nao alarme
+                if p.get("tipo") == "alarme_geral":
+                    p["alerta_telegram"] = False
+            cfg["versao"] = 2
+            try:
+                tmp = self.path + ".tmp"
+                with open(tmp, "w", encoding="utf-8") as f:
+                    json.dump(cfg, f, ensure_ascii=False, indent=2)
+                os.replace(tmp, self.path)
+            except OSError:
+                pass
+        return cfg
+
+    def _migrar(self):
+        """"Status da Alimentacao Auxiliar 12V" e o objeto "em operacao" da
+        MT/S: 1 = alimentacao OK. Estava como 1 = falha e gerava alerta falso
+        de 12 V - corrige uma vez (so os pontos que ainda estao no padrao)."""
+        if self.cfg.get("migr_alim_12v"):
+            return
+        for p in self.cfg.get("points", []):
+            if p.get("tipo") == "alimentacao" and p.get("alarme_valor", 1) == 1:
+                p["alarme_valor"] = 0
+        self.cfg["migr_alim_12v"] = True
+        try:
+            self._save()
+        except OSError:
+            pass
 
     def _save(self):
         tmp = self.path + ".tmp"
@@ -319,23 +360,59 @@ class KnxFireMonitor:
             self.state[ga] = {"value": value, "ts": time.time(),
                               "since": time.time() if changed else prev.get("since", time.time()),
                               "src": src, "kind": kind}
-        if not changed or not point.get("alerta_telegram"):
+        if not point.get("alerta_telegram"):
             return
         alarm_now = self.is_alarm(point, value)
-        alarm_before = self.is_alarm(point, prev_value) if prev_value is not None else False
-        if alarm_now == alarm_before and prev_value is not None:
-            return
-        if prev_value is None and not alarm_now:
-            return      # primeira leitura ja normal: nao avisa
-        titulo = TIPOS_ALARME.get(point.get("tipo"), "KNX")
-        icone = "🔥" if point.get("tipo") == "incendio" else ("🚨" if alarm_now else "✅")
-        if not alarm_now:
-            icone = "✅"
-        texto = (f"{icone} ALERTA FONTE GRANDE\n\n{titulo}\n"
-                 f"PONTO: {point.get('nome')}\nCENTRAL: {point.get('grupo')}\n"
-                 f"STATUS: {'ALARME' if alarm_now else 'NORMALIZADO'}\nKNX: {ga}")
-        self.log("KNX " + ("ALARME" if alarm_now else "NORMAL"), point.get("nome"), ga,
-                 detail=f"{titulo} - {point.get('grupo')}")
+        with self.lock:
+            if ga not in self.notified:
+                # primeira leitura depois de (re)iniciar o painel: so registra o
+                # estado atual, NAO avisa (evita a rajada de alertas a cada
+                # atualizacao/reinicio - o estado aparece na tela normalmente)
+                self.notified[ga] = alarm_now
+                self.pending.pop(ga, None)
+                return
+            if alarm_now == self.notified[ga]:
+                self.pending.pop(ga, None)          # voltou antes de confirmar: ignora
+            elif ga not in self.pending or self.pending[ga][0] != alarm_now:
+                self.pending[ga] = (alarm_now, time.time())
+
+    def _alert_loop(self):
+        """Confirma estados que ficaram CONFIRM_S segundos e manda os alertas
+        agrupados (uma mensagem para varios pontos que mudaram juntos)."""
+        while True:
+            time.sleep(2)
+            now = time.time()
+            pts = self.points_by_ga()
+            with self.lock:
+                for ga, (alarm_now, since) in list(self.pending.items()):
+                    if now - since < CONFIRM_S:
+                        continue
+                    del self.pending[ga]
+                    p = pts.get(ga)
+                    if not p or self.notified.get(ga) == alarm_now:
+                        continue
+                    self.notified[ga] = alarm_now
+                    self.batch.append((p, alarm_now))
+                    if self.batch_since is None:
+                        self.batch_since = now
+                ready = self.batch and now - self.batch_since >= BATCH_S
+                batch = self.batch if ready else []
+                if ready:
+                    self.batch, self.batch_since = [], None
+            if batch:
+                self._send_batch(batch)
+
+    def _send_batch(self, batch):
+        alarms = [b for b in batch if b[1]]
+        fire = any(p.get("tipo") == "incendio" for p, a in alarms)
+        icon = "🔥" if fire else ("🚨" if alarms else "✅")
+        tipos = sorted({TIPOS_ALARME.get(p.get("tipo"), "KNX") for p, a in batch})
+        lines = []
+        for p, a in batch:
+            lines.append(f"{'⚠️' if a else '✅'} {p.get('grupo')} · {p.get('nome')} → {'ALARME' if a else 'NORMAL'}")
+            self.log("KNX " + ("ALARME" if a else "NORMAL"), p.get("nome"), p.get("ga"),
+                     detail=f"{TIPOS_ALARME.get(p.get('tipo'), 'KNX')} - {p.get('grupo')}")
+        texto = f"{icon} ALERTA FONTE GRANDE\n\n{' / '.join(tipos)}\n\n" + "\n".join(lines)
         try:
             self.notify(texto)
         except Exception:
@@ -372,6 +449,7 @@ class KnxFireMonitor:
         self.thread = threading.Thread(target=self.tunnel.run, kwargs={"after_connect": self._initial_reads},
                                        daemon=True)
         self.thread.start()
+        threading.Thread(target=self._alert_loop, daemon=True).start()
 
     def stop(self):
         if self.tunnel:
@@ -417,6 +495,12 @@ class KnxFireMonitor:
                         p["alerta_telegram"] = bool(changes["alerta_telegram"])
                     if "oculto" in changes:
                         p["oculto"] = bool(changes["oculto"])
+                    p["editado"] = True
+                    # mudou a logica: o estado atual vira a nova referencia (sem alerta)
+                    st = self.state.get(ga)
+                    if st:
+                        self.notified[ga] = self.is_alarm(p, st["value"])
+                    self.pending.pop(ga, None)
                     self._save()
                     return dict(p)
         return None

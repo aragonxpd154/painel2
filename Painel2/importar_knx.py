@@ -86,7 +86,7 @@ def classify(desc, ga):
 
 
 # o que dispara alerta no Telegram (por padrao)
-ALERTA_PADRAO = {"incendio", "intrusao_alarme", "alimentacao", "alarme_geral"}
+ALERTA_PADRAO = {"incendio", "intrusao_alarme", "alimentacao"}
 NOMES_GRUPO_PADRAO = {"0": "Alarme Geral", "1": "Temperatura", "2": "Iluminação Externa", "3": "Status dos Disjuntores"}
 
 
@@ -138,12 +138,12 @@ def main():
             "dpt": str(col(t, "Data Type") or "DPT_1.001").replace("DPT_", ""),
             # le na partida se o ETS diz que aceita leitura OU se o NETx ja le na reconexao
             "legivel": readable.get(ga, False) or str(col(t, "Read on reconnect") or "").upper().startswith("T"),
-            "alarme_valor": 1,
+            "alarme_valor": 0 if tipo == "alimentacao" else 1,   # 12 V: 1 = em operacao
             "alerta_telegram": tipo in ALERTA_PADRAO,
         }
         old = previous.get(ga)
         if old:   # preserva o que foi ajustado na tela
-            for k in ("nome", "alarme_valor", "alerta_telegram", "oculto"):
+            for k in ("nome", "alarme_valor", "alerta_telegram", "oculto", "editado"):
                 if k in old:
                     p[k] = old[k]
         points.append(p)
@@ -152,11 +152,13 @@ def main():
         return tuple(int(x) for x in p["ga"].split("/"))
     points.sort(key=ga_key)
     data = {
+        "versao": 2,
         "gateway": gw_ip,
         "port": gw_port,
         "enabled": True,
         "nome_interface": GATEWAY_NAME,
         "points": points,
+        "migr_alim_12v": True,
     }
     tmp = OUT + ".tmp"
     with open(tmp, "w", encoding="utf-8") as f:

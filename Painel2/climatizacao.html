@@ -40,10 +40,14 @@
   .kpi.hot .v{color:#ff8f9a;} .kpi.hot .bar{background:var(--red);}
   .kpi.warm .v{color:var(--amber);} .kpi.warm .bar{background:var(--amber);}
   .kpi.main{background:linear-gradient(135deg,#0a2a5c,#0e1628);border-color:#1d4a9a;}
-  .kpi.suspect{border-color:rgba(245,196,81,0.6);} .kpi.suspect .v{color:#8b95ab;text-decoration:line-through;text-decoration-thickness:2px;}
-  .kpi.suspect .bar{background:var(--amber);}
-  .kwarn{font-size:11.5px;color:var(--amber);margin-top:6px;line-height:1.4;} .kwarn b{color:#fff;}
-  .kwarn.ok{color:#6fe38e;}
+  .kpi.suspect{border-color:rgba(245,196,81,0.45);} .kpi.suspect .v{color:#6b7690;}
+  .kpi.suspect .bar{background:#6b7690;}
+  .kchips{display:flex;align-items:center;gap:8px;margin-top:8px;}
+  .kchip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;border:1px solid;}
+  .kchip.ok{color:#6fe38e;border-color:rgba(46,204,85,0.4);background:rgba(46,204,85,0.08);}
+  .kchip.warn{color:var(--amber);border-color:rgba(245,196,81,0.45);background:rgba(245,196,81,0.08);}
+  .kchip.bad{color:#ff8f9a;border-color:rgba(229,56,75,0.45);background:rgba(229,56,75,0.08);}
+  .kreal{font-size:13px;font-weight:800;color:#fff;}
   .facts{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px;}
   .fact{background:var(--bg-2);border:1px solid #1f2d4d;border-radius:10px;padding:8px 14px;font-size:12.5px;color:#b8c3dc;}
   .fact b{color:#fff;font-size:15px;margin-left:6px;}
@@ -184,10 +188,12 @@ function renderClp(dev){
       // ignorando a sonda com defeito - o numero vale, so fica o aviso
       const ok = real != null && v != null && Math.abs(v - real) <= 0.6;
       suspect = !ok;
-      warn = ok
-        ? '<div class="kwarn ok">&#10003; o CLP já está ignorando ' + bad.length + ' sonda(s) com defeito</div>'
-        : '<div class="kwarn">&#9888; média do CLP com ' + bad.length + ' sonda(s) com defeito' +
-          (real != null ? ' · sondas boas: <b>' + fmt(real, 1) + ' °C</b>' : ' · nenhuma sonda válida — valor não é medição real') + '</div>';
+      const total = good.length + bad.length;
+      warn = '<div class="kchips">' + (ok
+        ? '<span class="kchip ok">usando ' + good.length + ' de ' + total + ' sondas</span>'
+        : (real != null
+            ? '<span class="kchip warn">média afetada</span><span class="kreal">real ' + fmt(real, 1) + ' °C</span>'
+            : '<span class="kchip bad">sem sonda funcionando</span>')) + '</div>';
     }
     return '<div class="kpi ' + (main ? 'main ' : '') + (suspect ? 'suspect ' : tempClass(v)) + '"><div class="k">' + label + '</div><div class="v">' + fmt(v, 1) +
       '<small>' + esc((m && m.unit) || '°C') + '</small></div>' + warn + '<div class="bar" style="width:' + pct + '%"></div></div>'; };
@@ -230,9 +236,8 @@ function renderClp(dev){
       const local = s.temp ? s.temp.label.replace(/^Sonda\s*\d+\s*-\s*Temperatura\s*-\s*/i, '') : '';
       return '<div class="sonda ' + (fail === true ? 'fail' : (fail === false ? 'ok' : '')) + '"><div class="t">Sonda ' + k + (local ? ' · ' + esc(local) : '') + '</div>' +
         '<div class="v">' + fmt(t, 1) + ' <small style="font-size:13px;color:var(--gray)">' + esc((s.temp && s.temp.unit) || '°C') + '</small></div>' +
-        '<div class="s">' + (fora ? 'FORA DE FAIXA — desconectada ou com defeito' : (fail === true ? 'SONDA COM PROBLEMA' : (fail === false ? 'sonda OK' : '—'))) + '</div>' +
-        (s.prob ? '<div class="pf" title="aviso de problema que o CLP associa a esta sonda">aviso do CLP: ' + esc(s.prob.label.replace(/\s*-\s*Problema$/i, '')) +
-                  ' = ' + (g.bool(s.prob) === true ? 'problema' : (g.bool(s.prob) === false ? 'ok' : '—')) + '</div>' : '') + '</div>';
+        '<div class="s">' + (fora ? 'Desconectada / com defeito' : (fail === true ? 'Com problema' : (fail === false ? 'OK' : '—'))) + '</div>' +
+        '</div>';
     }).join('') + '</div></section>';
   }
 
@@ -282,7 +287,7 @@ function render(){
     return;
   }
   main.innerHTML = CLPS.map(renderClp).join('') +
-    '<div class="note">Temperaturas fora da faixa? Ajuste o divisor da medida em Config → Editor de Mapa (o CLP costuma enviar em décimos ou centésimos de °C).</div>';
+    '';
 }
 
 (async function init(){
