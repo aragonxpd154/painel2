@@ -180,7 +180,14 @@ function renderClp(dev){
     const mine = probeInfo.filter(p => room === 'geral' || p.room === room);
     const bad = mine.filter(p => sondaInvalida(p.t));
     const good = mine.filter(p => p.t != null && !sondaInvalida(p.t));
-    const real = good.length ? good.reduce((a, p) => a + p.t, 0) / good.length : null;
+    let real = good.length ? good.reduce((a, p) => a + p.t, 0) / good.length : null;
+    if(room === 'geral'){
+      // a geral do CLP e ponderada pelas "Proporcao Temp UPS/Transmissores"
+      const avg = r => { const l = good.filter(p => p.room === r); return l.length ? l.reduce((a, p) => a + p.t, 0) / l.length : null; };
+      const wU = g.num(g.find(/propor[cç][aã]o temp ups.*leitura/i)), wT = g.num(g.find(/propor[cç][aã]o temp transmiss.*leitura/i));
+      const aU = avg('ups'), aT = avg('tx');
+      if(aU != null && aT != null && wU != null && wT != null && (wU + wT) > 0) real = (aU * wU + aT * wT) / (wU + wT);
+    }
     const pct = v == null ? 0 : Math.max(4, Math.min(100, v / 40 * 100));
     let warn = '', suspect = false;
     if(bad.length){

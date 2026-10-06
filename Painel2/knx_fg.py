@@ -324,11 +324,20 @@ class KnxFireMonitor:
                 pass
         return cfg
 
+    # nome original (do NETx/ETS) dos detectores de presenca e temperaturas,
+    # por endereco de grupo - corrige instalacoes onde o ponto ja tinha sido
+    # renomeado antes de existir o "nome_original"
+    NOMES_ORIGINAIS = {"0/7/0": "DP-RS", "0/7/1": "DP-TV1", "0/7/2": "DP-TV2", "0/7/3": "DP-RD", "0/7/4": "DP-AT", "0/7/5": "DP-NB", "0/7/6": "DP-BT", "0/7/7": "DP-MO", "0/7/8": "DP-GE", "0/7/9": "DP-BA", "0/7/10": "DP-ME", "1/0/0": "DP-RS", "1/0/1": "DP-TV1", "1/0/2": "DP-TV2", "1/0/3": "DP-RD", "1/0/4": "DP-AT", "1/0/5": "DP-NB", "1/0/6": "DP-BT", "1/1/0": "DP-GE", "1/1/1": "DP-BA", "1/1/2": "DP-ME", "1/1/3": "DP-MO"}
+
     def _guardar_nome_original(self):
         """O nome original (do NETx/ETS) fica guardado a parte: renomear um
         ponto na tela nao desfaz a ligacao detector de presenca <-> temperatura."""
         mudou = False
         for p in self.cfg.get("points", []):
+            certo = self.NOMES_ORIGINAIS.get(p.get("ga"))
+            if certo and p.get("nome_original") != certo:
+                p["nome_original"] = certo
+                mudou = True
             if not p.get("nome_original"):
                 p["nome_original"] = p.get("nome")
                 mudou = True

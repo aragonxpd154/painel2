@@ -5739,6 +5739,23 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"error": "abrigo nao encontrado"}, status=404)
                 return
             self._send_json(net)
+        elif parsed.path in ("/comandos", "/comandos.html"):
+            self._send_file(os.path.join(BASE_DIR, "comandos.html"), "text/html; charset=utf-8")
+        elif parsed.path == "/api/comandos/estado":
+            tok = self.headers.get("X-Cmd-Token")
+            self._send_json({"senha_definida": bool(_cmd_cfg().get("senha_hash")), "liberado": cmd_token_ok(tok)})
+        elif parsed.path in ("/api/comandos/lista", "/api/comandos/historico"):
+            if not cmd_token_ok(self.headers.get("X-Cmd-Token")):
+                self._send_json({"error": "senha de comandos necessaria"}, status=401)
+                return
+            if parsed.path.endswith("/lista"):
+                self._send_json({"comandos": build_commands()})
+            else:
+                try:
+                    with open(COMANDOS_LOG_FILE, encoding="utf-8") as f:
+                        self._send_json({"historico": json.load(f)[:50]})
+                except (FileNotFoundError, json.JSONDecodeError):
+                    self._send_json({"historico": []})
         elif parsed.path in ("/incendio", "/incendio.html", "/alarme-incendio"):
             self._send_file(INCENDIO_HTML_FILE, "text/html; charset=utf-8")
         elif parsed.path == "/api/weather":
@@ -7314,6 +7331,29 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"ok": True, "config": cfg})
             except Exception as e:
                 self._send_json({"ok": False, "error": str(e)}, status=500)
+        elif parsed.path in ("/api/comandos/login", "/api/comandos/senha", "/api/comandos/executar", "/api/comandos/sair"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                payload = json.loads((self.rfile.read(length) if length else b"{}").decode("utf-8") or "{}")
+                if parsed.path == "/api/comandos/login":
+                    self._send_json({"ok": True, "token": cmd_login(payload.get("senha"))})
+                elif parsed.path == "/api/comandos/senha":
+                    cmd_set_password(payload.get("nova"), payload.get("atual"))
+                    log_event("SENHA DE COMANDOS ALTERADA", "Comandos", self.client_address[0])
+                    self._send_json({"ok": True, "token": cmd_login(payload.get("nova"))})
+                elif parsed.path == "/api/comandos/sair":
+                    CMD_TOKENS.pop(self.headers.get("X-Cmd-Token") or "", None)
+                    self._send_json({"ok": True})
+                else:
+                    if not cmd_token_ok(self.headers.get("X-Cmd-Token")):
+                        self._send_json({"ok": False, "error": "senha de comandos necessaria"}, status=401)
+                        return
+                    entry = execute_command(payload.get("id"), payload.get("valor"), self.client_address[0])
+                    self._send_json({"ok": True, "entry": entry})
+            except PermissionError as e:
+                self._send_json({"ok": False, "error": str(e)}, status=403)
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, status=400)
         elif parsed.path in ("/api/knx/point", "/api/knx/request-status", "/api/knx/reset"):
             try:
                 length = int(self.headers.get("Content-Length", 0))
@@ -7762,6 +7802,228 @@ def prewarm_abrigo_tiles():
                             time.sleep(0.2)
     except Exception as e:
         print("[tiles] pre-carga falhou:", e)
+
+
+# ==========================================================================
+# COMANDOS (tela /comandos, protegida por SENHA PROPRIA)
+# --------------------------------------------------------------------------
+# Junta numa tela so os comandos que os equipamentos aceitam:
+#   - SNMP  : medidas "Comando ... - Envia 1" (FLEX: ligar/desligar TX)  -> SET
+#   - Modbus: registradores "( Somente Escrita )" do CLP de climatizacao -> FC6/FC5
+#   - KNX   : Reset, armar/desarmar intrusao, desativar zona, iluminacao
+# Todo comando pede confirmacao, fica no log e avisa no Telegram.
+# ==========================================================================
+COMANDOS_FILE = os.path.join(BASE_DIR, "comandos_config.json")
+COMANDOS_LOG_FILE = os.path.join(BASE_DIR, "comandos_log.json")
+CMD_TOKENS = {}                 # token -> expira_em
+CMD_TOKEN_TTL_S = 15 * 60       # sessao de comandos: 15 min sem uso
+CMD_LOCK = threading.Lock()
+
+
+def _cmd_cfg():
+    try:
+        with open(COMANDOS_FILE, encoding="utf-8") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _cmd_hash(senha, salt):
+    return hashlib.sha256((salt + ":" + senha).encode("utf-8")).hexdigest()
+
+
+def cmd_set_password(nova, atual=None):
+    cfg = _cmd_cfg()
+    if cfg.get("senha_hash"):
+        if not atual or _cmd_hash(atual, cfg["salt"]) != cfg["senha_hash"]:
+            raise PermissionError("senha atual incorreta")
+    if not nova or len(nova) < 4:
+        raise ValueError("a senha de comandos precisa ter pelo menos 4 caracteres")
+    salt = secrets.token_hex(8)
+    cfg.update(salt=salt, senha_hash=_cmd_hash(nova, salt))
+    with open(COMANDOS_FILE, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, indent=2)
+    CMD_TOKENS.clear()
+
+
+def cmd_login(senha):
+    cfg = _cmd_cfg()
+    if not cfg.get("senha_hash"):
+        raise PermissionError("senha de comandos ainda nao foi criada")
+    if _cmd_hash(senha or "", cfg["salt"]) != cfg["senha_hash"]:
+        time.sleep(1.0)   # dificulta tentativa e erro
+        raise PermissionError("senha incorreta")
+    token = secrets.token_hex(16)
+    CMD_TOKENS[token] = time.time() + CMD_TOKEN_TTL_S
+    return token
+
+
+def cmd_token_ok(token):
+    exp = CMD_TOKENS.get(token or "")
+    if not exp or exp < time.time():
+        CMD_TOKENS.pop(token or "", None)
+        return False
+    CMD_TOKENS[token] = time.time() + CMD_TOKEN_TTL_S   # renova enquanto usa
+    return True
+
+
+def snmp_set_integer(ip, community, oid, value, version="1", port=161, timeout_s=3):
+    ver_num = 1 if str(version) in ("2", "2c") else 0
+    oid = (oid or "").strip().strip(".")
+    req_id = int(time.time() * 1000) & 0x7FFFFFFF
+    varbind = _ber_tlv(0x30, _ber_oid(oid) + _ber_int(int(value)))
+    pdu = _ber_tlv(0xA3, _ber_int(req_id) + _ber_int(0) + _ber_int(0) + _ber_tlv(0x30, varbind))  # SetRequest
+    packet = _ber_tlv(0x30, _ber_int(ver_num) + _ber_tlv(0x04, community.encode("utf-8")) + pdu)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.settimeout(timeout_s)
+    try:
+        sock.sendto(packet, (ip, port))
+        data, _ = sock.recvfrom(4096)
+    finally:
+        sock.close()
+    r = _BerReader(data)
+    _, seq = r.read_tlv()
+    inner = _BerReader(seq)
+    inner.read_tlv(); inner.read_tlv()
+    _, pdu_body = inner.read_tlv()
+    p = _BerReader(pdu_body)
+    p.read_tlv()
+    _, err = p.read_tlv()
+    code = int.from_bytes(err, "big") if err else 0
+    if code:
+        raise RuntimeError({2: "OID nao existe", 3: "valor invalido", 4: "somente leitura",
+                            5: "erro no equipamento", 6: "sem permissao (community de escrita?)",
+                            17: "somente leitura"}.get(code, f"erro SNMP {code}"))
+    return True
+
+
+def modbus_write(device, metric, raw_value):
+    cfg = device.get("modbus") or {}
+    ip, port = device.get("ip"), int(cfg.get("port") or MODBUS_DEFAULT_PORT)
+    unit = int(cfg.get("unit_id") or 1)
+    rtype = normalize_register_type(metric.get("register_type"))
+    addr = int(metric.get("address"))
+    with _modbus_endpoint_lock(ip, port):
+        c = ModbusTCPClient(ip, port, 5)
+        try:
+            c.connect()
+            c._tid = (c._tid + 1) & 0xFFFF
+            if rtype == "coil":
+                pdu = struct.pack(">BHH", 5, addr, 0xFF00 if raw_value else 0x0000)
+            else:
+                v = int(raw_value)
+                pdu = struct.pack(">BHH", 6, addr, v & 0xFFFF)
+            c.sock.sendall(struct.pack(">HHHB", c._tid, 0, len(pdu) + 1, unit) + pdu)
+            hdr = c._recv_exact(7)
+            body = c._recv_exact(struct.unpack(">H", hdr[4:6])[0] - 1)
+            if body[0] & 0x80:
+                raise ModbusError("equipamento recusou (excecao %s)" % body[1], body[1])
+        finally:
+            c.close()
+    return True
+
+
+def _scale_for_write(label):
+    # setpoint/histerese/temperaturas do CLP sao em centesimos de grau
+    return 100 if re.search(r"setpoint|histerese", label, re.I) else 1
+
+
+def build_commands():
+    """Lista de comandos disponiveis, agrupada por equipamento."""
+    cmds = []
+    with STATUS_LOCK:
+        snap = dict(STATUS)
+    for dev in load_all_devices_for_polling():
+        abrigo = abrigo_alert_name(dev)
+        st = snap.get(dev.get("id")) or snap.get(str(dev.get("id"))) or {}
+        for m in dev.get("metrics", []):
+            label = m.get("label") or ""
+            if dev.get("protocol") != "modbus" and m.get("oid") and re.search(r"^comando|envia 1", label, re.I):
+                nome = re.sub(r"\s*-\s*envia 1\s*$", "", label, flags=re.I)
+                cmds.append({"id": f"snmp|{dev['id']}|{label}", "abrigo": abrigo, "equipamento": dev.get("name"),
+                             "nome": nome, "tipo": "pulso", "rotulo": "Enviar",
+                             "detalhe": f"SNMP SET {m['oid']} = 1"})
+            elif dev.get("protocol") == "modbus" and re.search(r"somente escrita|netx prote", label, re.I):
+                nome = re.sub(r"\s*\(\s*somente escrita\s*\)\s*", "", label, flags=re.I).strip()
+                leitura = re.sub(r"somente escrita", "somente leitura", label, flags=re.I).lower()
+                atual = next((v.get("display") for k, v in (st.get("metrics") or {}).items()
+                              if k.lower() == leitura), None)
+                if normalize_register_type(m.get("register_type")) == "coil":
+                    cmds.append({"id": f"modbus|{dev['id']}|{label}", "abrigo": abrigo, "equipamento": dev.get("name"),
+                                 "nome": nome, "tipo": "liga_desliga", "on": "Ligar", "off": "Desligar",
+                                 "detalhe": f"Modbus coil {m.get('address')}"})
+                else:
+                    esc = _scale_for_write(label)
+                    cmds.append({"id": f"modbus|{dev['id']}|{label}", "abrigo": abrigo, "equipamento": dev.get("name"),
+                                 "nome": nome, "tipo": "valor", "atual": atual, "unidade": "°C" if esc == 100 else "",
+                                 "detalhe": f"Modbus holding {m.get('address')}" + (" (x100)" if esc != 1 else "")})
+    if KNX_MONITOR is not None:
+        for p in KNX_MONITOR.cfg.get("points", []):
+            n = str(p.get("nome", ""))
+            base = {"id": f"knx|{p['ga']}", "abrigo": "FONTE GRANDE", "equipamento": "KNX " + str(p.get("grupo")),
+                    "detalhe": f"KNX {p['ga']}"}
+            if p.get("tipo") == "comando" and n.lower().startswith("reset"):
+                cmds.append(dict(base, nome="Resetar central (todas as zonas)", tipo="pulso", rotulo="Resetar"))
+            elif p.get("tipo") == "comando" and n.lower().startswith("on/off"):
+                cmds.append(dict(base, nome=re.sub(r"^ON/OFF\s*", "", n), tipo="liga_desliga", on="Armar", off="Desarmar"))
+            elif p.get("tipo") == "comando" and n.lower().startswith("desativar"):
+                cmds.append(dict(base, nome=re.sub(r"^Desativar\s*", "", n), tipo="liga_desliga", on="Desativar zona", off="Reativar zona"))
+            elif p.get("tipo") == "iluminacao":
+                cmds.append(dict(base, nome=n, tipo="liga_desliga", on="Ligar", off="Desligar"))
+    return cmds
+
+
+def _cmd_log(entry):
+    try:
+        with open(COMANDOS_LOG_FILE, encoding="utf-8") as f:
+            hist = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        hist = []
+    hist.insert(0, entry)
+    with open(COMANDOS_LOG_FILE, "w", encoding="utf-8") as f:
+        json.dump(hist[:300], f, ensure_ascii=False, indent=1)
+
+
+def execute_command(cmd_id, valor, origem):
+    cmd = next((c for c in build_commands() if c["id"] == cmd_id), None)
+    if not cmd:
+        raise RuntimeError("comando nao encontrado")
+    kind = cmd_id.split("|", 1)[0]
+    if cmd["tipo"] == "pulso":
+        valor = 1
+    elif cmd["tipo"] == "liga_desliga":
+        valor = 1 if valor in (1, "1", True, "on") else 0
+    else:
+        valor = float(str(valor).replace(",", "."))
+    if kind == "snmp":
+        _, dev_id, label = cmd_id.split("|", 2)
+        _, dev = find_device_anywhere(int(dev_id))
+        m = next(x for x in dev["metrics"] if x["label"] == label)
+        snmp_set_integer(dev["ip"], m.get("community") or "public", m["oid"], 1, version=m.get("version") or "1")
+    elif kind == "modbus":
+        _, dev_id, label = cmd_id.split("|", 2)
+        _, dev = find_device_anywhere(int(dev_id))
+        m = next(x for x in dev["metrics"] if x["label"] == label)
+        raw = valor if cmd["tipo"] != "valor" else round(valor * _scale_for_write(label))
+        modbus_write(dev, m, raw)
+    elif kind == "knx":
+        if KNX_MONITOR is None or not (KNX_MONITOR.tunnel and KNX_MONITOR.tunnel.connected):
+            raise ConnectionError("tunel KNX desconectado")
+        KNX_MONITOR.tunnel.group_write_bit(cmd_id.split("|", 1)[1], int(valor))
+    else:
+        raise RuntimeError("tipo de comando desconhecido")
+    acao = cmd.get("rotulo") if cmd["tipo"] == "pulso" else (
+        (cmd.get("on") if valor else cmd.get("off")) if cmd["tipo"] == "liga_desliga" else f"= {valor:g} {cmd.get('unidade', '')}".strip())
+    entry = {"ts": time.time(), "equipamento": cmd["equipamento"], "comando": cmd["nome"], "acao": acao,
+             "origem": origem, "abrigo": cmd["abrigo"]}
+    _cmd_log(entry)
+    log_event("COMANDO ENVIADO", cmd["equipamento"], None, detail=f"{cmd['nome']}: {acao} (PC {origem})")
+    try:
+        send_telegram_message(f"⚙️ COMANDO - {cmd['abrigo']}\n\nEQUIPAMENTO: {cmd['equipamento']}\n"
+                              f"COMANDO: {cmd['nome']}\nAÇÃO: {acao}\nPC: {origem}")
+    except Exception:
+        pass
+    return entry
 
 
 # --------------------------------------------------------------------------
