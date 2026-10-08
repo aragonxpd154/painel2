@@ -5191,8 +5191,7 @@ def notify_status_changes(device, prev, result):
                 status_txt = f"DOWN (sem comunicação há {mins} min)"
                 text = render_message_template(templates.get("ping", DEFAULT_PING_TEMPLATE),
                                                equipamento=name, status=status_txt, ip=ip, abrigo=abrigo_alert_name(device))
-                if telegram_allowed:
-                    _notify_async(text)
+                publish_alert(text, telegram=telegram_allowed)
                 log_event("SEM COMUNICACAO", name, ip, detail=f"sem resposta ha {mins} min")
                 open_or_update_incident(device, "ping", "Ping", f"Sem comunicacao ha {mins} min (equipamento offline)", None)
         elif reachable:
@@ -5201,8 +5200,7 @@ def notify_status_changes(device, prev, result):
                 text = render_message_template(templates.get("ping", DEFAULT_PING_TEMPLATE),
                                                equipamento=name, status=f"UP (voltou após {mins} min)", ip=ip,
                                                abrigo=abrigo_alert_name(device))
-                if telegram_allowed:
-                    _notify_async(text)
+                publish_alert(text, telegram=telegram_allowed)
                 log_event("COMUNICACAO NORMALIZADA", name, ip, detail=f"ficou {mins} min sem comunicacao")
                 close_incident(dev_id, "ping", "Ping")
             cs["down_since"] = None
@@ -5247,8 +5245,7 @@ def notify_status_changes(device, prev, result):
                 equipamento=name, status=status_txt, ip=ip, metrica=label, valor=value_txt,
                 abrigo=abrigo_alert_name(device),
             )
-            if telegram_allowed:
-                _notify_async(text)
+            publish_alert(text, telegram=telegram_allowed)
             log_event(status_txt, name, ip, detail=f"{label}: {value_txt}")
 
             if confirmed_state == "ok":
@@ -5275,8 +5272,7 @@ def notify_status_changes(device, prev, result):
                 lista = ", ".join(error_labels[:8]) + (f" (+{len(error_labels) - 8})" if len(error_labels) > 8 else "")
                 text = (f"🟠 ALERTA {abrigo_alert_name(device)}\n\nSEM LEITURA {proto} há {mins} min\n"
                         f"EQUIPAMENTO: {name}\nIP={ip}\nMEDIDAS: {lista}")
-                if telegram_allowed:
-                    _notify_async(text)
+                publish_alert(text, telegram=telegram_allowed)
                 log_event(f"SEM LEITURA {proto}", name, ip, detail=f"{len(error_labels)} medida(s) ha {mins} min: {lista}")
                 open_or_update_incident(device, "metric", "Sem leitura", f"Sem leitura {proto} ha {mins} min ({lista})", None)
         elif not error_labels:
@@ -5284,8 +5280,7 @@ def notify_status_changes(device, prev, result):
                 mins = int((now - (cs["err_since"] or now)) // 60)
                 text = (f"✅ ALERTA {abrigo_alert_name(device)}\n\nLEITURA {proto} NORMALIZADA (após {mins} min)\n"
                         f"EQUIPAMENTO: {name}\nIP={ip}")
-                if telegram_allowed:
-                    _notify_async(text)
+                publish_alert(text, telegram=telegram_allowed)
                 log_event(f"LEITURA {proto} NORMALIZADA", name, ip, detail=f"ficou {mins} min sem leitura")
                 close_incident(dev_id, "metric", "Sem leitura")
             cs["err_since"] = None
@@ -5662,6 +5657,25 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path in ("/login", "/login.html"):
             self._send_file(LOGIN_HTML_FILE, "text/html; charset=utf-8")
             return
+        if parsed.path in ("/manifest.webmanifest", "/sw.js"):
+            fname = "manifest.webmanifest" if parsed.path.endswith("manifest") else "sw.js"
+            path = os.path.join(STATIC_DIR, "app", fname)
+            ctype = "application/manifest+json" if fname.endswith("manifest") else "application/javascript; charset=utf-8"
+            try:
+                with open(path, "rb") as f:
+                    body = f.read()
+            except FileNotFoundError:
+                self.send_error(404)
+                return
+            self.send_response(200)
+            self.send_header("Content-Type", ctype)
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("Cache-Control", "no-cache")
+            if fname == "sw.js":
+                self.send_header("Service-Worker-Allowed", "/")
+            self.end_headers()
+            self.wfile.write(body)
+            return
         if parsed.path.startswith("/static/"):
             # fontes, logo e tema - publicos (a tela de login tambem usa)
             rel = urllib.parse.unquote(parsed.path[len("/static/"):])
@@ -5739,6 +5753,16 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"error": "abrigo nao encontrado"}, status=404)
                 return
             self._send_json(net)
+        elif parsed.path in ("/app", "/app/", "/alertas", "/m"):
+            self._send_file(os.path.join(BASE_DIR, "app.html"), "text/html; charset=utf-8")
+        elif parsed.path == "/api/alertas":
+            qs = parse_qs(parsed.query)
+            try:
+                limit = max(1, min(2000, int((qs.get("limit") or ["500"])[0])))
+                desde = int((qs.get("desde_id") or ["0"])[0])
+            except ValueError:
+                limit, desde = 500, 0
+            self._send_json(alertas_snapshot(limit, desde))
         elif parsed.path in ("/comandos", "/comandos.html"):
             self._send_file(os.path.join(BASE_DIR, "comandos.html"), "text/html; charset=utf-8")
         elif parsed.path == "/api/comandos/estado":
@@ -8019,11 +8043,141 @@ def execute_command(cmd_id, valor, origem):
     _cmd_log(entry)
     log_event("COMANDO ENVIADO", cmd["equipamento"], None, detail=f"{cmd['nome']}: {acao} (PC {origem})")
     try:
-        send_telegram_message(f"⚙️ COMANDO - {cmd['abrigo']}\n\nEQUIPAMENTO: {cmd['equipamento']}\n"
+        publish_alert(f"⚙️ COMANDO - {cmd['abrigo']}\n\nEQUIPAMENTO: {cmd['equipamento']}\n"
                               f"COMANDO: {cmd['nome']}\nAÇÃO: {acao}\nPC: {origem}")
     except Exception:
         pass
     return entry
+
+
+# ==========================================================================
+# CENTRAL DE ALERTAS (app de celular /app)
+# --------------------------------------------------------------------------
+# Todo alerta que o painel gera (o mesmo texto que vai pro Telegram) e
+# guardado aqui ja separado em campos (abrigo, equipamento, tipo, status),
+# para o app mostrar com filtros. Guarda mesmo quando o Telegram esta fora
+# do horario de disparo. Bot do Telegram nao consegue ler o historico do
+# grupo - por isso a fonte e o proprio painel.
+# ==========================================================================
+ALERTAS_FILE = os.path.join(BASE_DIR, "alertas.json")
+ALERTAS_MAX = 3000
+ALERTAS_DIAS = 30
+ALERTAS = []
+ALERTAS_LOCK = threading.Lock()
+_ALERTA_SEQ = [0]
+
+
+def _load_alertas():
+    global ALERTAS
+    try:
+        with open(ALERTAS_FILE, encoding="utf-8") as f:
+            ALERTAS = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        ALERTAS = []
+    _ALERTA_SEQ[0] = max([a.get("id", 0) for a in ALERTAS] + [0])
+
+
+def _save_alertas():
+    corte = time.time() - ALERTAS_DIAS * 86400
+    with ALERTAS_LOCK:
+        ALERTAS[:] = [a for a in ALERTAS if a.get("ts", 0) >= corte][-ALERTAS_MAX:]
+        data = list(ALERTAS)
+    tmp = ALERTAS_FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False)
+    os.replace(tmp, ALERTAS_FILE)
+
+
+def _categoria(texto):
+    t = texto.upper()
+    if "COMANDO" in t or "RESET DA CENTRAL" in t or "🔄" in texto or "⚙" in texto:
+        return "comando"
+    if "INCÊNDIO" in t or "TSDA" in t or re.search(r"\b(DF\d?|DC|A/D)[-\s]", t) or "🔥" in texto:
+        return "incendio"
+    if "INTRUS" in t or "ALIMENTAÇÃO 12" in t or "ALARME GERAL" in t or "PRESENÇA" in t:
+        return "seguranca"
+    if re.search(r"SEM LEITURA|LEITURA (SNMP|MODBUS) NORMALIZADA|SEM COMUNICA|\bDOWN\b|\bUP \(|\bPING\b", t):
+        return "comunicacao"
+    return "medida"
+
+
+def parse_alert_text(texto):
+    """Quebra o texto do alerta em itens com campos (um por ponto no caso
+    das mensagens do KNX que juntam varios pontos)."""
+    linhas = [l.strip() for l in texto.split("\n")]
+    cab = next((l for l in linhas if l), "")
+    icone = cab.split(" ", 1)[0] if cab else ""
+    m = re.search(r"ALERTA\s+(.+)$", cab) or re.search(r"COMANDO\s*-\s*(.+)$", cab)
+    abrigo = (m.group(1).strip() if m else "").upper()
+    corpo = [l for l in linhas[linhas.index(cab) + 1:] if l] if cab in linhas else []
+    campos = {}
+    soltas = []
+    for l in corpo:
+        mm = re.match(r"^([A-ZÇÃÁÉÍÓÚÊÔ ]{2,20})\s*[:=]\s*(.*)$", l)
+        if mm:
+            campos[mm.group(1).strip().upper()] = mm.group(2).strip()
+        else:
+            soltas.append(l)
+    base_nivel = "normal" if icone == "✅" else ("info" if icone in ("⚙️", "⚙", "🔄") else "alarme")
+    # mensagem do KNX com varios pontos: "⚠️ MT/S - 02 · Zona A - DF1-AR → ALARME"
+    pontos = [l for l in soltas if "→" in l]
+    itens = []
+    if pontos:
+        for l in pontos:
+            mm = re.match(r"^(\S+)\s+(.+?)\s+·\s+(.+?)\s+→\s+(\S+)", l)
+            if not mm:
+                continue
+            ic, central, ponto, st = mm.groups()
+            itens.append({"icone": "🔥" if _categoria(ponto) == "incendio" and st != "NORMAL" else ic,
+                          "abrigo": abrigo or "FONTE GRANDE", "equipamento": central, "titulo": ponto,
+                          "status": st, "nivel": "normal" if st == "NORMAL" else "alarme",
+                          "categoria": _categoria(ponto) if _categoria(ponto) != "medida" else "seguranca"})
+    else:
+        titulo = soltas[0] if soltas else (campos.get("COMANDO") or "")
+        status = campos.get("STATUS") or campos.get("AÇÃO") or ""
+        nivel = base_nivel
+        if re.match(r"^(OK|UP|NORMAL)", status.upper()) or "NORMALIZADA" in titulo.upper():
+            nivel = "normal"
+        itens.append({"icone": icone, "abrigo": abrigo, "titulo": titulo,
+                      "equipamento": campos.get("EQUIPAMENTO") or campos.get("CENTRAL") or "",
+                      "ponto": campos.get("PONTO", ""), "status": status,
+                      "valor": campos.get("VALOR ATUAL") or campos.get("MEDIDAS") or "",
+                      "ip": campos.get("IP", ""), "nivel": nivel, "categoria": _categoria(texto)})
+    for it in itens:
+        cat = it["categoria"]
+        alvo = it.get("ponto") or it.get("titulo") or ""
+        if cat == "comunicacao":
+            alvo = "ping" if re.search(r"\bping\b", it.get("titulo", ""), re.I) else "leitura"
+        it["chave"] = "|".join([it.get("abrigo", ""), it.get("equipamento", ""), cat, alvo]).upper()
+    return itens
+
+
+def publish_alert(texto, telegram=True):
+    """Ponto unico de saida dos alertas: guarda para o app e manda pro Telegram."""
+    try:
+        itens = parse_alert_text(texto)
+        now = time.time()
+        with ALERTAS_LOCK:
+            for it in itens:
+                _ALERTA_SEQ[0] += 1
+                it.update(id=_ALERTA_SEQ[0], ts=now, texto=texto, telegram=bool(telegram))
+                ALERTAS.append(it)
+        threading.Thread(target=_save_alertas, daemon=True).start()
+    except Exception as e:
+        print("[alertas] nao consegui guardar:", e)
+    if telegram:
+        _notify_async(texto)
+
+
+def alertas_snapshot(limit=500, desde_id=0):
+    with ALERTAS_LOCK:
+        todos = list(ALERTAS)
+    ultimo = {}
+    for a in todos:
+        ultimo[a.get("chave")] = a
+    ativos = sorted([a for a in ultimo.values() if a.get("nivel") == "alarme"], key=lambda a: -a["ts"])
+    lista = [a for a in todos if a.get("id", 0) > desde_id][-limit:][::-1]
+    return {"alertas": lista, "ativos": ativos, "ultimo_id": _ALERTA_SEQ[0], "agora": time.time()}
 
 
 # --------------------------------------------------------------------------
@@ -8153,6 +8307,7 @@ def main():
         apply_data_migrations()
     except Exception as e:
         print("[ajustes] falhou:", e)
+    _load_alertas()
     load_incidents()
     load_sessions()
     load_history_from_disk()
@@ -8167,7 +8322,7 @@ def main():
     global KNX_MONITOR
     try:
         import knx_fg
-        KNX_MONITOR = knx_fg.KnxFireMonitor(BASE_DIR, notify=lambda text: send_telegram_message(text), log=log_event)
+        KNX_MONITOR = knx_fg.KnxFireMonitor(BASE_DIR, notify=lambda text: publish_alert(text), log=log_event)
         KNX_MONITOR.start()
     except Exception as e:
         print("[knx] nao iniciado:", e)

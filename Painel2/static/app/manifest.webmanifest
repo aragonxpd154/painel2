@@ -1,0 +1,17 @@
+{
+  "name": "Painel2 · Alertas Rede Gazeta",
+  "short_name": "Painel2",
+  "description": "Alertas da transmissão da Rede Gazeta em tempo real",
+  "start_url": "/app",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#070c18",
+  "theme_color": "#0a1a40",
+  "lang": "pt-BR",
+  "icons": [
+    {"src": "/static/app/icon-192.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "/static/app/icon-512.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "/static/app/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}

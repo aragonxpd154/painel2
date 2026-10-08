@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Painel2 · Alertas</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0a1a40">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Painel2">
+<link rel="apple-touch-icon" href="/static/app/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="/static/app/icon-192.png">
+<style>
+  :root{--bg:#070c18;--bg-1:#0e1628;--bg-2:#14203a;--line:#1e2c4c;--green:#2ecc55;--red:#e5384b;--amber:#f5a524;--blue:#3d7ff0;
+        --gray:#8b95ab;--white:#eef2fa;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px);}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;background:var(--bg);color:var(--white);font-family:'Manrope',-apple-system,'Segoe UI',sans-serif;}
+  body{padding-bottom:calc(68px + var(--safe-bot));}
+  header{position:sticky;top:0;z-index:20;background:rgba(7,12,24,0.96);backdrop-filter:blur(8px);
+    padding:calc(10px + var(--safe-top)) 16px 10px;border-bottom:1px solid var(--line);}
+  .hrow{display:flex;align-items:center;gap:10px;}
+  .hrow img{height:22px;}
+  .hrow h1{font-size:17px;margin:0;font-weight:800;flex:1;}
+  .live{font-size:11px;color:var(--gray);display:flex;align-items:center;gap:6px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:#434f6c;}
+  .dot.up{background:var(--green);box-shadow:0 0 6px var(--green);} .dot.down{background:var(--red);}
+  .icon-btn{background:var(--bg-2);border:1px solid var(--line);color:#fff;border-radius:10px;width:36px;height:36px;font-size:16px;}
+  .search{margin-top:10px;width:100%;background:var(--bg-2);border:1px solid var(--line);color:#fff;border-radius:12px;padding:10px 12px;font:inherit;font-size:14px;}
+  .chips{display:flex;gap:8px;overflow-x:auto;padding:10px 16px 2px;scrollbar-width:none;}
+  .chips::-webkit-scrollbar{display:none;}
+  .chip{flex-shrink:0;font:inherit;font-size:13px;font-weight:700;padding:7px 13px;border-radius:999px;border:1px solid var(--line);
+    background:var(--bg-1);color:#b8c3dc;white-space:nowrap;}
+  .chip.on{background:#0a4bb5;border-color:#0a4bb5;color:#fff;}
+  .chip .n{display:inline-block;min-width:18px;margin-left:5px;padding:0 5px;border-radius:9px;background:rgba(255,255,255,0.15);font-size:11px;}
+  .filters2{display:flex;gap:8px;padding:8px 16px 0;}
+  .filters2 select{flex:1;background:var(--bg-1);border:1px solid var(--line);color:#fff;border-radius:10px;padding:8px 10px;font:inherit;font-size:13px;}
+  .toggle{display:flex;align-items:center;gap:6px;font-size:12.5px;color:#b8c3dc;background:var(--bg-1);border:1px solid var(--line);border-radius:10px;padding:0 10px;}
+  main{padding:6px 16px 20px;}
+  .ativos{margin:12px 0 4px;}
+  .ativos h2,.day{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--gray);margin:16px 2px 8px;font-weight:800;}
+  .ativos h2 b{color:#ff8f9a;}
+  .hscroll{display:flex;gap:10px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+  .hscroll::-webkit-scrollbar{display:none;}
+  .acard{flex-shrink:0;width:230px;background:linear-gradient(160deg,#3a0f18,#1a0d17);border:1px solid #6b1d2a;border-radius:14px;padding:10px 12px;}
+  .acard .t{font-weight:800;font-size:14px;margin:2px 0;} .acard .s{font-size:12px;color:#ffb3bb;}
+  .acard .m{font-size:11px;color:#b8c3dc;margin-top:4px;}
+  .card{position:relative;display:flex;gap:12px;background:var(--bg-1);border:1px solid var(--line);border-radius:14px;padding:12px 12px 12px 14px;margin-bottom:9px;overflow:hidden;}
+  .card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--gray);}
+  .card.alarme::before{background:var(--red);} .card.normal::before{background:var(--green);} .card.info::before{background:var(--blue);}
+  .card.unread{border-color:#2c4273;background:#101b33;}
+  .card .ic{font-size:22px;line-height:1;width:28px;text-align:center;flex-shrink:0;padding-top:2px;}
+  .card .body{flex:1;min-width:0;}
+  .card .top{display:flex;justify-content:space-between;gap:8px;align-items:baseline;}
+  .card .tt{font-weight:800;font-size:14.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .card .hr{font-size:11.5px;color:var(--gray);flex-shrink:0;}
+  .card .eq{font-size:12.5px;color:#b8c3dc;margin-top:2px;}
+  .card .st{display:inline-block;margin-top:6px;font-size:11.5px;font-weight:800;padding:2px 9px;border-radius:7px;}
+  .card.alarme .st{background:rgba(229,56,75,0.14);color:#ff8f9a;} .card.normal .st{background:rgba(46,204,85,0.12);color:#6fe38e;}
+  .card.info .st{background:rgba(61,127,240,0.15);color:#9cc0ff;}
+  .card .val{font-size:12px;color:#dbe3f5;margin-left:6px;}
+  .card .full{display:none;white-space:pre-wrap;font-size:12px;color:#b8c3dc;margin-top:8px;background:var(--bg);border-radius:9px;padding:9px 10px;font-family:'Manrope',sans-serif;}
+  .card.open .full{display:block;}
+  .card .udot{position:absolute;right:10px;bottom:10px;width:8px;height:8px;border-radius:50%;background:var(--blue);}
+  .empty{color:var(--gray);text-align:center;padding:40px 10px;font-size:14px;}
+  .more{display:block;width:100%;margin:8px 0;background:var(--bg-1);color:#b8c3dc;border:1px solid var(--line);border-radius:12px;padding:11px;font:inherit;}
+  nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;background:rgba(10,16,32,0.97);border-top:1px solid var(--line);
+    padding:6px 6px calc(6px + var(--safe-bot));backdrop-filter:blur(8px);}
+  nav.bottom a,nav.bottom button{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit;font-size:11px;color:var(--gray);
+    background:none;border:none;text-decoration:none;padding:4px;position:relative;}
+  nav.bottom .i{font-size:20px;}
+  nav.bottom .on{color:#fff;}
+  nav.bottom .badge{position:absolute;top:0;left:calc(50% + 6px);background:var(--red);color:#fff;font-size:10px;font-weight:800;border-radius:9px;padding:0 5px;min-width:16px;}
+  .install{margin:12px 0 0;background:#0e2a5c;border:1px solid #1d4a9a;border-radius:12px;padding:10px 12px;font-size:12.5px;color:#dbe3f5;display:none;}
+  .install b{color:#fff;}
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(80px + var(--safe-bot));background:#c0283c;color:#fff;font-weight:800;
+    padding:10px 16px;border-radius:12px;font-size:13px;display:none;z-index:40;box-shadow:0 8px 24px rgba(0,0,0,.5);}
+</style>
+</head>
+<body>
+<header>
+  <div class="hrow">
+    <img src="/static/img/logo-gazeta-branco.png" alt="Rede Gazeta">
+    <h1>Alertas</h1>
+    <span class="live"><span class="dot" id="dot"></span><span id="live">…</span></span>
+    <button class="icon-btn" id="snd" title="som de alerta">&#128263;</button>
+  </div>
+  <input class="search" id="q" type="search" placeholder="Buscar equipamento, zona, medida…">
+</header>
+
+<div class="chips" id="cats"></div>
+<div class="filters2">
+  <select id="ab"><option value="">Todos os abrigos</option></select>
+  <label class="toggle"><input type="checkbox" id="soAlarme"> só alarmes</label>
+</div>
+
+<main>
+  <div class="install" id="install"></div>
+  <section class="ativos" id="ativosBox"></section>
+  <div id="feed"></div>
+</main>
+
+<nav class="bottom">
+  <button class="on" id="nav-feed"><span class="i">&#128276;</span>Alertas<span class="badge" id="badge" style="display:none"></span></button>
+  <button id="nav-ativos"><span class="i">&#128680;</span>Ativos</button>
+  <a href="/selecionar"><span class="i">&#127970;</span>Abrigos</a>
+  <a href="/incendio"><span class="i">&#128293;</span>Incêndio</a>
+</nav>
+<div class="toast" id="toast"></div>
+
+<script>
+const CATS = [
+  {id: '', t: 'Todos', i: ''}, {id: 'incendio', t: 'Incêndio', i: '🔥'}, {id: 'medida', t: 'Medidas', i: '⚡'},
+  {id: 'comunicacao', t: 'Comunicação', i: '📡'}, {id: 'seguranca', t: 'Segurança', i: '🛡️'}, {id: 'comando', t: 'Comandos', i: '⚙️'},
+];
+let ALL = [], ATIVOS = [], lastId = 0, shown = 120, cat = localStorage.getItem('app_cat') || '', onlyActive = false;
+let seen = +(localStorage.getItem('app_seen') || 0);
+let sound = localStorage.getItem('app_som') === '1';
+const $ = id => document.getElementById(id);
+const esc = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+
+function hora(ts){ return new Date(ts * 1000).toLocaleTimeString('pt-BR', {hour: '2-digit', minute: '2-digit'}); }
+function dia(ts){
+  const d = new Date(ts * 1000), h = new Date(); h.setHours(0, 0, 0, 0);
+  const diff = Math.round((h - new Date(d.getFullYear(), d.getMonth(), d.getDate())) / 86400000);
+  if(diff === 0) return 'Hoje'; if(diff === 1) return 'Ontem';
+  return d.toLocaleDateString('pt-BR', {weekday: 'long', day: '2-digit', month: '2-digit'});
+}
+function desde(ts){ const s = Date.now() / 1000 - ts; if(s < 3600) return Math.max(1, Math.round(s / 60)) + ' min'; if(s < 86400) return Math.round(s / 3600) + ' h'; return Math.round(s / 86400) + ' d'; }
+
+async function load(){
+  try{
+    const r = await fetch('/api/alertas?limit=2000&desde_id=' + lastId, {cache: 'no-store'});
+    if(r.status === 401 || r.redirected){ location.href = '/login'; return; }
+    const d = await r.json();
+    const novos = d.alertas || [];
+    if(novos.length){
+      if(lastId && novos.some(a => a.nivel === 'alarme')) alertaNovo(novos.find(a => a.nivel === 'alarme'));
+      ALL = novos.concat(ALL).slice(0, 3000);
+      lastId = d.ultimo_id;
+    } else if(!lastId){ lastId = d.ultimo_id; }
+    ATIVOS = d.ativos || [];
+    $('dot').className = 'dot up'; $('live').textContent = 'ao vivo';
+    fillAbrigos(); render();
+  }catch(e){ $('dot').className = 'dot down'; $('live').textContent = 'sem conexão'; }
+}
+
+function alertaNovo(a){
+  const t = $('toast'); t.textContent = (a.icone || '🔴') + ' ' + (a.titulo || '') + ' · ' + (a.abrigo || '');
+  t.style.display = 'block'; clearTimeout(t._h); t._h = setTimeout(() => t.style.display = 'none', 5000);
+  if(navigator.vibrate) navigator.vibrate([200, 100, 200]);
+  if(sound) beep();
+}
+function beep(){
+  try{ const c = new (window.AudioContext || window.webkitAudioContext)();
+    [0, .35].forEach(t => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = 880; g.gain.value = .12;
+      o.connect(g); g.connect(c.destination); o.start(c.currentTime + t); o.stop(c.currentTime + t + .22); }); }catch(e){}
+}
+
+function fillAbrigos(){
+  const sel = $('ab'), cur = sel.value;
+  const abs = [...new Set(ALL.map(a => a.abrigo).filter(Boolean))].sort();
+  if(sel.options.length - 1 === abs.length) return;
+  sel.innerHTML = '<option value="">Todos os abrigos</option>' + abs.map(a => '<option>' + esc(a) + '</option>').join('');
+  sel.value = cur;
+}
+
+function filtra(list){
+  const q = $('q').value.trim().toLowerCase(), ab = $('ab').value, so = $('soAlarme').checked;
+  return list.filter(a => (!cat || a.categoria === cat) && (!ab || a.abrigo === ab) && (!so || a.nivel === 'alarme') &&
+    (!q || [a.titulo, a.equipamento, a.abrigo, a.status, a.valor].join(' ').toLowerCase().includes(q)));
+}
+
+function card(a){
+  const unread = a.id > seen;
+  return '<div class="card ' + (a.nivel || '') + (unread ? ' unread' : '') + '" data-id="' + a.id + '">' +
+    '<div class="ic">' + esc(a.icone || '•') + '</div><div class="body">' +
+    '<div class="top"><span class="tt">' + esc(a.titulo || a.categoria) + '</span><span class="hr">' + hora(a.ts) + '</span></div>' +
+    '<div class="eq">' + esc([a.equipamento, a.abrigo].filter(Boolean).join(' · ')) + '</div>' +
+    (a.status ? '<span class="st">' + esc(a.status) + '</span>' : '') + (a.valor ? '<span class="val">' + esc(a.valor) + '</span>' : '') +
+    '<div class="full">' + esc(a.texto || '') + '</div></div>' + (unread ? '<span class="udot"></span>' : '') + '</div>';
+}
+
+function render(){
+  // chips com contagem
+  $('cats').innerHTML = CATS.map(c => {
+    const n = c.id ? ALL.filter(a => a.categoria === c.id && a.id > seen).length : ALL.filter(a => a.id > seen).length;
+    return '<button class="chip' + (c.id === cat ? ' on' : '') + '" data-c="' + c.id + '">' + (c.i ? c.i + ' ' : '') + c.t +
+      (n ? '<span class="n">' + n + '</span>' : '') + '</button>';
+  }).join('');
+  $('cats').querySelectorAll('.chip').forEach(b => b.onclick = () => { cat = b.dataset.c; localStorage.setItem('app_cat', cat); shown = 120; render(); });
+
+  // ativos agora
+  const at = filtra(ATIVOS);
+  $('ativosBox').innerHTML = at.length ? '<h2>Ativos agora · <b>' + at.length + '</b></h2><div class="hscroll">' + at.map(a =>
+    '<div class="acard"><div style="font-size:18px">' + esc(a.icone || '🔴') + '</div><div class="t">' + esc(a.titulo) + '</div>' +
+    '<div class="s">' + esc(a.status || 'ALARME') + (a.valor ? ' · ' + esc(a.valor) : '') + '</div>' +
+    '<div class="m">' + esc([a.equipamento, a.abrigo].filter(Boolean).join(' · ')) + ' · há ' + desde(a.ts) + '</div></div>').join('') + '</div>'
+    : (onlyActive ? '<div class="empty">✅ Nenhum alarme ativo agora</div>' : '');
+
+  if(onlyActive){ $('feed').innerHTML = ''; return; }
+  const list = filtra(ALL);
+  let html = '', lastDay = '';
+  list.slice(0, shown).forEach(a => { const d = dia(a.ts); if(d !== lastDay){ html += '<div class="day">' + d + '</div>'; lastDay = d; } html += card(a); });
+  if(list.length > shown) html += '<button class="more" id="more">Ver mais (' + (list.length - shown) + ')</button>';
+  $('feed').innerHTML = html || '<div class="empty">Nenhum alerta com esses filtros.</div>';
+  const m = $('more'); if(m) m.onclick = () => { shown += 200; render(); };
+  $('feed').querySelectorAll('.card').forEach(c => c.onclick = () => c.classList.toggle('open'));
+
+  const unread = ALL.filter(a => a.id > seen).length;
+  $('badge').style.display = unread ? '' : 'none'; $('badge').textContent = unread > 99 ? '99+' : unread;
+  if('setAppBadge' in navigator){ unread ? navigator.setAppBadge(unread).catch(() => {}) : navigator.clearAppBadge().catch(() => {}); }
+  document.title = (unread ? '(' + unread + ') ' : '') + 'Painel2 · Alertas';
+}
+
+// marca como lido quando o app esta visivel por alguns segundos
+setInterval(() => { if(!document.hidden && ALL.length && ALL[0].id > seen && !onlyActive){
+  seen = ALL[0].id; localStorage.setItem('app_seen', seen); setTimeout(render, 1500); } }, 6000);
+
+$('q').oninput = () => { shown = 120; render(); };
+$('ab').onchange = render; $('soAlarme').onchange = render;
+$('nav-feed').onclick = () => { onlyActive = false; $('nav-feed').classList.add('on'); $('nav-ativos').classList.remove('on'); render(); window.scrollTo(0, 0); };
+$('nav-ativos').onclick = () => { onlyActive = true; $('nav-ativos').classList.add('on'); $('nav-feed').classList.remove('on'); render(); window.scrollTo(0, 0); };
+function updSnd(){ $('snd').innerHTML = sound ? '&#128266;' : '&#128263;'; }
+$('snd').onclick = () => { sound = !sound; localStorage.setItem('app_som', sound ? '1' : '0'); updSnd(); if(sound) beep(); };
+updSnd();
+
+// instalar como app
+const standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
+let deferred = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e;
+  $('install').style.display = 'block';
+  $('install').innerHTML = '📲 <b>Instalar o app Painel2</b> na tela inicial. <button class="chip on" id="inst" style="margin-left:6px">Instalar</button>';
+  $('inst').onclick = () => { deferred.prompt(); $('install').style.display = 'none'; };
+});
+if(!standalone && /iphone|ipad|ipod/i.test(navigator.userAgent)){
+  $('install').style.display = 'block';
+  $('install').innerHTML = '📲 Para instalar no iPhone: toque em <b>Compartilhar</b> (□↑) e depois em <b>Adicionar à Tela de Início</b>.';
+}
+if('serviceWorker' in navigator && window.isSecureContext) navigator.serviceWorker.register('/sw.js').catch(() => {});
+
+load();
+setInterval(load, 10000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden) load(); });
+</script>
+<link rel="stylesheet" href="/static/theme.css">
+</body>
+</html>
