@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Painel — Selecionar Mapa</title>
+<style>
+  :root{
+    --bg:#070c18;
+    --line:#232f4b;
+    --teal:#35d0c0;
+    --blue:#274bc9;
+    --gray:#8b95ab;
+    --white:#f3f3f3;
+    --mono: 'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+    --sans: 'IBM Plex Sans','Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0;padding:0;min-height:100vh;background:var(--bg);color:var(--white);font-family:var(--sans);
+    background-image: radial-gradient(circle, #111a2e 1px, transparent 1px);
+    background-size:24px 24px;
+  }
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 26px;border-bottom:1px solid var(--line);
+  }
+  .topbar h1{margin:0;font-size:15px;font-weight:600;}
+  .topbar a{
+    font-family:var(--mono);font-size:12px;color:var(--gray);text-decoration:none;
+    border:1px solid var(--line);border-radius:7px;padding:7px 12px;transition:all .15s ease;
+  }
+  .topbar a:hover{color:var(--white);border-color:var(--gray);}
+
+  .planning-wrap{position:relative;}
+  .planning-btn{
+    font-family:var(--mono);font-size:12px;color:var(--gray);background:none;text-decoration:none;
+    border:1px solid var(--line);border-radius:7px;padding:7px 12px;transition:all .15s ease;
+    cursor:pointer;display:flex;align-items:center;gap:6px;
+  }
+  .planning-btn:hover{color:var(--white);border-color:var(--gray);}
+  .planning-menu{
+    display:none;position:absolute;top:calc(100% + 6px);right:0;z-index:30;
+    background:#0c1325;border:1px solid var(--line);border-radius:10px;padding:6px;
+    min-width:200px;box-shadow:0 12px 30px -10px rgba(0,0,0,0.6);
+  }
+  .planning-menu.open{display:flex;flex-direction:column;gap:2px;}
+  .planning-menu a{
+    display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:7px;
+    color:var(--white);text-decoration:none;font-family:var(--sans);font-size:13px;
+    border:none;transition:background .15s ease;
+  }
+  .planning-menu a:hover{background:#162036;}
+  .planning-menu .pm-icon{font-size:15px;width:18px;text-align:center;}
+
+  .wrap{
+    max-width:1240px;margin:0 auto;padding:60px 26px;
+    display:flex;flex-direction:column;align-items:center;
+  }
+  .wrap h2{font-size:22px;margin:0 0 6px;text-align:center;}
+  .wrap .sub{
+    font-family:var(--mono);font-size:12px;color:var(--gray);text-align:center;
+    text-transform:uppercase;letter-spacing:.1em;margin-bottom:44px;
+  }
+
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;width:100%;}
+  @media (max-width:1000px){.cards{grid-template-columns:1fr 1fr;}}
+  @media (max-width:700px){.cards{grid-template-columns:1fr;}}
+
+  .card{
+    background:#0c1325;border:1px solid var(--line);border-radius:16px;padding:32px 26px;
+    text-decoration:none;color:var(--white);transition:all .2s ease;position:relative;overflow:hidden;
+    display:flex;flex-direction:column;align-items:center;text-align:center;
+  }
+  .card:hover{border-color:var(--teal);transform:translateY(-3px);box-shadow:0 16px 40px -12px rgba(53,208,192,0.25);}
+  .card .icon{
+    width:64px;height:64px;border-radius:16px;display:flex;align-items:center;justify-content:center;
+    margin-bottom:20px;font-size:28px;
+  }
+  .card.interior .icon{background:linear-gradient(135deg,#1c7a34,#2ecc55);}
+  .card.clima .icon{background:linear-gradient(135deg,#0b7a96,#39c6e8);}
+  .card.fogo .icon{background:linear-gradient(135deg,#a3172a,#ff6a3d);}
+  .cards.featured{grid-template-columns:repeat(4,1fr);gap:18px;}
+  @media (max-width:1100px){.cards.featured{grid-template-columns:1fr 1fr;}}
+  .card.fogo.em-alarme{border-color:#e5384b !important;animation:fogoPulse 1.2s ease-in-out infinite;}
+  @keyframes fogoPulse{0%,100%{box-shadow:0 0 0 0 rgba(229,56,75,0.6);}50%{box-shadow:0 0 0 12px rgba(229,56,75,0);}}
+  .card.abrigo .icon{background:linear-gradient(135deg,#1c7a34,#2ecc55);width:44px;height:44px;font-size:20px;}
+  .group-head{width:100%;display:flex;align-items:baseline;gap:12px;margin:6px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line);}
+  .group-title{font-size:16px;font-weight:800;color:#fff;letter-spacing:.01em;}
+  .group-sub{font-size:12px;color:var(--gray);}
+  .cards.featured .card{border-color:#1d4a9a;background:linear-gradient(160deg,rgba(10,75,181,0.22),rgba(14,22,40,0.6) 55%);
+    box-shadow:0 12px 30px -14px rgba(10,75,181,0.65);}
+  .cards.featured .card h3{font-size:19px;}
+  .cards.abrigos{grid-template-columns:repeat(4,1fr);gap:16px;}
+  @media (max-width:1200px){.cards.abrigos{grid-template-columns:repeat(3,1fr);}}
+  @media (max-width:800px){.cards.abrigos{grid-template-columns:1fr 1fr;}}
+  .cards.abrigos .card{padding:20px 16px;}
+  .cards.abrigos .card h3{font-size:16px;}
+  .cards.abrigos .card .desc{margin-bottom:10px;min-height:18px;}
+  .card.abrigo.has-off{border-color:rgba(229,56,75,0.55);}
+  .edp-code{font-size:11px;color:#9aa6c0;margin:-4px 0 10px;letter-spacing:.02em;}
+  .edp-box{width:100%;margin-top:30px;}
+  .edp-head{display:flex;align-items:baseline;gap:12px;padding-bottom:8px;border-bottom:1px solid var(--line);margin-bottom:12px;}
+  .edp-head b{font-size:14px;color:#fff;} .edp-head span{font-size:12px;color:var(--gray);}
+  .edp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;}
+  .edp-item{display:flex;justify-content:space-between;gap:10px;background:rgba(14,22,40,0.7);border:1px solid var(--line);border-radius:9px;padding:8px 12px;font-size:12px;color:#b8c3dc;cursor:pointer;}
+  .edp-item b{color:#fff;letter-spacing:.03em;} .edp-item:hover{border-color:#3d7ff0;}
+  .edp-item.copied{border-color:#2ecc55;} .edp-item.copied b::after{content:' ✓';color:#2ecc55;}
+  .card.energia .icon{background:linear-gradient(135deg,#b7791f,#f5c451);}
+  .card.fg .icon{background:linear-gradient(135deg,#1c3fae,#274bc9);}
+  .card h3{margin:0 0 6px;font-size:17px;font-weight:700;}
+  .card .desc{font-family:var(--mono);font-size:11.5px;color:var(--gray);line-height:1.6;margin-bottom:18px;}
+  .card .count{
+    font-family:var(--mono);font-size:10.5px;color:var(--teal);text-transform:uppercase;letter-spacing:.05em;
+    border:1px solid var(--line);border-radius:20px;padding:5px 14px;
+  }
+  .card .status-breakdown{
+    display:flex;gap:10px;margin-top:10px;font-family:var(--mono);font-size:11px;
+  }
+  .card .status-breakdown .st-online{color:#2ecc55;font-weight:700;}
+  .card .status-breakdown .st-offline{color:#e5384b;font-weight:700;}
+  .card .status-breakdown .st-label{color:#555;font-weight:400;margin-left:3px;}
+  .card .open-note{
+    margin-top:16px;font-family:var(--mono);font-size:10px;color:#555;
+  }
+
+  .footer-note{
+    margin-top:50px;text-align:center;font-family:var(--mono);font-size:10.5px;color:#555;max-width:520px;
+  }
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:14px;"><div class="brand-badge gz"><img src="/static/img/logo-gazeta-azul.png" alt="Rede Gazeta"></div><h1>Sistema Painel — Transmissão</h1></div>
+  <div style="display:flex;gap:10px;align-items:center;">
+    <div class="planning-wrap" id="planning-wrap">
+      <button class="planning-btn" id="planning-btn">&#128197; Planning <span style="font-size:9px;">&#9662;</span></button>
+      <div class="planning-menu" id="planning-menu">
+        <a href="/planning" target="_blank" rel="noopener"><span class="pm-icon">&#128198;</span>Calendário / Planning</a>
+        <a href="/arquivos" target="_blank" rel="noopener"><span class="pm-icon">&#128193;</span>Arquivos</a>
+        <div style="border-top:1px solid var(--line);margin:4px 0;"></div>
+        <a href="/relatorios-sites" target="_blank" rel="noopener"><span class="pm-icon">&#128203;</span>Relatórios Sites</a>
+        <a href="/nobreak" target="_blank" rel="noopener"><span class="pm-icon">&#128267;</span>Nobreak</a>
+        <a href="/refrigeracao" target="_blank" rel="noopener"><span class="pm-icon">&#10052;&#65039;</span>Refrigeração</a>
+        <a href="/relatorio_anual.html" target="_blank" rel="noopener"><span class="pm-icon">&#128197;</span>Relatório Anual</a>
+        <a href="/relatorio.html" target="_blank" rel="noopener"><span class="pm-icon">&#128196;</span>Relatório Mensal</a>
+        <div style="border-top:1px solid var(--line);margin:4px 0;"></div>
+        <a href="/inventario" target="_blank" rel="noopener"><span class="pm-icon">&#128230;</span>Inventário</a>
+        <a href="/graficos-historico" target="_blank" rel="noopener"><span class="pm-icon">&#128200;</span>Gráficos Históricos</a>
+      </div>
+    </div>
+    <a href="/saude" target="_blank" rel="noopener" id="saude-link">&#129658; Saúde</a>
+    <a href="/app" target="_blank" rel="noopener">&#128241; App de alertas</a>
+    <a href="/comandos" target="_blank" rel="noopener">&#128272; Comandos</a>
+    <a href="/logout">&#128274; sair</a>
+  </div>
+</div>
+
+<div class="wrap">
+  <h2>Selecione o abrigo</h2>
+  <div class="sub">cada mapa abre em uma aba separada — ideal para exibir em outro monitor</div>
+
+  <div class="group-head"><span class="group-title">Fonte Grande</span><span class="group-sub">abrigo principal — transmissão de TV e rádios</span></div>
+  <div class="cards featured">
+    <a class="card fg" href="/mapa-fg" target="_blank" rel="noopener">
+      <div class="icon">&#127970;</div>
+      <h3 id="fg-title">Abrigo Fonte Grande</h3>
+      <div class="desc">TX de TV e FM, geradores, medição de energia,<br>nobreaks, enlaces e infraestrutura</div>
+      <span class="count" id="count-fg">– dispositivos</span>
+      <div class="status-breakdown" id="status-fg"><span class="st-label">carregando status...</span></div>
+      <div class="open-note">abre em nova aba</div>
+    </a>
+
+    <a class="card energia" href="/energia" target="_blank" rel="noopener">
+      <div class="icon">&#9889;</div>
+      <h3>Energia Fonte Grande</h3>
+      <div class="desc">Geradores e medidores em Modbus:<br>tensões, correntes, potência e status</div>
+      <span class="count" id="count-energia">– equipamentos</span>
+      <div class="status-breakdown" id="status-energia"><span class="st-label">carregando status...</span></div>
+      <div class="open-note">abre em nova aba</div>
+    </a>
+
+    <a class="card clima" href="/climatizacao" target="_blank" rel="noopener">
+      <div class="icon">&#10052;&#65039;</div>
+      <h3>Climatização Fonte Grande</h3>
+      <div class="desc">CLP de refrigeração: temperaturas das salas,<br>sondas, splits, condensadoras e evaporadoras</div>
+      <span class="count" id="count-clima">– CLP</span>
+      <div class="status-breakdown" id="status-clima"><span class="st-label">carregando status...</span></div>
+      <div class="open-note">abre em nova aba</div>
+    </a>
+
+    <a class="card fogo" href="/incendio" target="_blank" rel="noopener" id="card-fogo">
+      <div class="icon">&#128293;</div>
+      <h3>Alarme de Incêndio</h3>
+      <div class="desc">Detectores de fumaça e calor, intrusão<br>e presença das centrais KNX</div>
+      <span class="count" id="count-fogo">– zonas</span>
+      <div class="status-breakdown" id="status-fogo"><span class="st-label">carregando status...</span></div>
+      <div class="open-note">abre em nova aba</div>
+    </a>
+  </div>
+
+  <div class="group-head" style="margin-top:34px;"><span class="group-title">Abrigos</span><span class="group-sub">um mapa por abrigo, em ordem de importância</span></div>
+  <div class="cards abrigos" id="abrigos-cards"><div class="st-label">carregando abrigos...</div></div>
+  <div class="edp-box" id="edp-list"></div>
+
+  <div class="cards" id="custom-maps-cards" style="margin-top:18px;"></div>
+
+  <div class="footer-note">
+    Dica: depois de abrir um mapa em nova aba, arraste a janela para o segundo monitor.
+    Esta página continua aberta para você acessar o outro mapa quando precisar.
+  </div>
+</div>
+
+<script>
+const planningBtn = document.getElementById('planning-btn');
+const planningMenu = document.getElementById('planning-menu');
+planningBtn.addEventListener('click', (e) => {
+  e.stopPropagation();
+  planningMenu.classList.toggle('open');
+});
+document.addEventListener('click', (e) => {
+  if(!document.getElementById('planning-wrap').contains(e.target)){
+    planningMenu.classList.remove('open');
+  }
+});
+
+async function loadMapStatus(devicesUrl, countElId, statusElId, defaultCount){
+  const countEl = document.getElementById(countElId);
+  const statusEl = document.getElementById(statusElId);
+  try{
+    const [devRes, statusRes] = await Promise.all([
+      fetch(devicesUrl, {cache:'no-store'}),
+      fetch('/api/status', {cache:'no-store'}),
+    ]);
+    const devData = await devRes.json();
+    const statusData = await statusRes.json();
+    const devices = devData.devices || [];
+    const liveStatus = statusData.devices || {};
+
+    let online = 0, offline = 0;
+    devices.forEach(dev => {
+      const st = liveStatus[dev.id];
+      if(st && st.reachable) online++;
+      else offline++;
+    });
+
+    countEl.textContent = devices.length + ' dispositivo' + (devices.length===1?'':'s');
+    statusEl.innerHTML =
+      '<span><span class="st-online">' + online + '</span><span class="st-label">online</span></span>' +
+      '<span><span class="st-offline">' + offline + '</span><span class="st-label">offline</span></span>';
+  }catch(err){
+    statusEl.innerHTML = '<span class="st-label">status indisponível</span>';
+  }
+}
+
+loadMapStatus('/api/devices-fg', 'count-fg', 'status-fg');
+async function loadAbrigos(){
+  const box = document.getElementById('abrigos-cards');
+  try{
+    const [abRes, stRes] = await Promise.all([
+      fetch('/api/abrigos', {cache:'no-store'}),
+      fetch('/api/status', {cache:'no-store'}),
+    ]);
+    if(abRes.status === 401){ location.href = '/login'; return; }
+    const abData = await abRes.json();
+    const abrigos = abData.abrigos || [];
+    if(abData.fg && abData.fg.nome) document.getElementById('fg-title').textContent = abData.fg.nome;
+    const edpBox = document.getElementById('edp-list');
+    if(edpBox){
+      const all = [{local: (abData.fg && abData.fg.nome) || 'Abrigo Fonte Grande', codigo: abData.fg && abData.fg.edp}]
+        .concat(abrigos.map(a => ({local: a.nome, codigo: a.edp})))
+        .concat((abData.edp_extras || []).map(x => ({local: x.local, codigo: x.codigo})))
+        .filter(x => x.codigo);
+      edpBox.innerHTML = '<div class="edp-head"><b>&#9889; Medidores EDP (ESCELSA)</b><span>para abrir chamado: ' + (abData.edp_tel || '') + '</span></div>' +
+        '<div class="edp-grid">' + all.map(x => '<div class="edp-item" title="clique para copiar" data-c="' + x.codigo + '"><span>' + x.local + '</span><b>' + x.codigo + '</b></div>').join('') + '</div>';
+      edpBox.querySelectorAll('.edp-item').forEach(el => el.onclick = () => {
+        if(navigator.clipboard) navigator.clipboard.writeText(el.dataset.c);
+        el.classList.add('copied'); setTimeout(() => el.classList.remove('copied'), 1200);
+      });
+    }
+    const live = (await stRes.json()).devices || {};
+    box.innerHTML = abrigos.map((ab, i) => {
+      let on = 0, off = 0;
+      ab.device_ids.forEach(id => { const x = live[id]; if(x && x.reachable) on++; else off++; });
+      const n = ab.device_ids.length;
+      return '<a class="card abrigo' + (off ? ' has-off' : '') + '" href="' + ab.url + '" target="_blank" rel="noopener">' +
+        '<div class="icon">' + (i === 0 ? '&#127963;' : '&#128225;') + '</div>' +
+        '<h3>' + ab.nome + '</h3>' +
+        '<div class="desc">' + (ab.sub || '&nbsp;') + '</div>' +
+        (ab.edp ? '<div class="edp-code" title="código do cliente EDP">&#9889; EDP ' + ab.edp + '</div>' : '') +
+        '<span class="count">' + n + ' dispositivo' + (n === 1 ? '' : 's') + '</span>' +
+        '<div class="status-breakdown"><span><span class="st-online">' + on + '</span><span class="st-label">online</span></span>' +
+        '<span><span class="st-offline">' + off + '</span><span class="st-label">offline</span></span></div></a>';
+    }).join('');
+  }catch(e){
+    box.innerHTML = '<div class="st-label">não foi possível carregar os abrigos</div>';
+  }
+}
+loadAbrigos();
+setInterval(loadAbrigos, 30000);
+async function loadSaude(){
+  try{ const d = await (await fetch('/api/saude', {cache:'no-store'})).json();
+       const c = {ok: '#2ecc55', aviso: '#f5c451', falha: '#e5384b'}[d.geral];
+       document.getElementById('saude-link').innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + c + ';margin-right:6px"></span>Saúde'; }catch(e){}
+}
+loadSaude(); setInterval(loadSaude, 30000);
+
+async function loadFogoStatus(){
+  try{
+    const d = await fetch('/api/knx/status', {cache:'no-store'}).then(r => r.json());
+    const fire = (d.points || []).filter(p => p.tipo === 'incendio');
+    const on = fire.filter(p => p.alarme).length;
+    document.getElementById('count-fogo').textContent = fire.length + ' detectores';
+    document.getElementById('card-fogo').classList.toggle('em-alarme', on > 0);
+    document.getElementById('status-fogo').innerHTML = on
+      ? '<span><span class="st-offline">' + on + '</span><span class="st-label">em alarme</span></span>'
+      : (d.connected ? '<span><span class="st-online">KNX</span><span class="st-label">conectado · sem alarme</span></span>'
+                     : '<span><span class="st-offline">KNX</span><span class="st-label">sem conexão</span></span>');
+  }catch(e){
+    document.getElementById('status-fogo').innerHTML = '<span class="st-label">status indisponível</span>';
+  }
+}
+loadFogoStatus();
+setInterval(loadFogoStatus, 5000);
+
+(async function loadClimaStatus(){
+  try{
+    const [fg, st] = await Promise.all([
+      fetch('/api/devices-fg', {cache:'no-store'}).then(r => r.json()),
+      fetch('/api/status', {cache:'no-store'}).then(r => r.json()),
+    ]);
+    const clps = (fg.devices || []).filter(d => (d.metrics || []).some(m => /^Split\s*\d|Temperatura Balanceada/i.test(m.label)));
+    const live = st.devices || {};
+    const on = clps.filter(d => live[d.id] && live[d.id].reachable).length;
+    document.getElementById('count-clima').textContent = clps.length + ' CLP' + (clps.length === 1 ? '' : 's');
+    document.getElementById('status-clima').innerHTML =
+      '<span><span class="st-online">' + on + '</span><span class="st-label">online</span></span>' +
+      '<span><span class="st-offline">' + (clps.length - on) + '</span><span class="st-label">offline</span></span>';
+  }catch(e){
+    document.getElementById('status-clima').innerHTML = '<span class="st-label">status indisponível</span>';
+  }
+})();
+
+(async function loadEnergiaStatus(){
+  try{
+    const [a, b, st] = await Promise.all([
+      fetch('/api/devices', {cache:'no-store'}).then(r => r.json()),
+      fetch('/api/devices-fg', {cache:'no-store'}).then(r => r.json()),
+      fetch('/api/status', {cache:'no-store'}).then(r => r.json()),
+    ]);
+    const devs = (b.devices || []).filter(d => d.protocol === 'modbus');
+    const live = st.devices || {};
+    let on = 0, off = 0;
+    devs.forEach(d => { const x = live[d.id]; if(x && x.reachable) on++; else off++; });
+    document.getElementById('count-energia').textContent = devs.length + ' equipamentos Modbus';
+    document.getElementById('status-energia').innerHTML =
+      '<span><span class="st-online">' + on + '</span><span class="st-label">online</span></span>' +
+      '<span><span class="st-offline">' + off + '</span><span class="st-label">offline</span></span>';
+  }catch(e){
+    document.getElementById('status-energia').innerHTML = '<span class="st-label">status indisponível</span>';
+  }
+})();
+
+(async function loadCustomMaps(){
+  try{
+    const res = await fetch('/api/maps', {cache:'no-store'});
+    const maps = await res.json();
+    const container = document.getElementById('custom-maps-cards');
+    const customEntries = Object.entries(maps).filter(([id, m]) => m.kind === 'custom');
+    let statusData = {devices: {}};
+    try{
+      const statusRes = await fetch('/api/status', {cache:'no-store'});
+      statusData = await statusRes.json();
+    }catch(e){ /* segue sem status ao vivo */ }
+    const liveStatus = statusData.devices || {};
+
+    for(const [id, m] of customEntries){
+      let devices = [];
+      try{
+        const devRes = await fetch('/api/map-devices/' + id, {cache:'no-store'});
+        const devData = await devRes.json();
+        devices = devData.devices || [];
+      }catch(e){ /* mostra 0 se nao conseguir contar */ }
+
+      let online = 0, offline = 0;
+      devices.forEach(dev => {
+        const st = liveStatus[dev.id];
+        if(st && st.reachable) online++;
+        else offline++;
+      });
+      const statusHtml = devices.length
+        ? '<span><span class="st-online">' + online + '</span><span class="st-label">online</span></span>' +
+          '<span><span class="st-offline">' + offline + '</span><span class="st-label">offline</span></span>'
+        : '<span class="st-label">sem dispositivos</span>';
+
+      const card = document.createElement('a');
+      card.className = 'card';
+      card.href = m.url;
+      card.target = '_blank';
+      card.rel = 'noopener';
+      card.innerHTML = `
+        <div class="icon" style="background:linear-gradient(135deg,#6a3fae,#9c4ed6);">&#128506;</div>
+        <h3>${m.name}</h3>
+        <div class="desc">Mapa personalizado</div>
+        <span class="count">${devices.length} dispositivo${devices.length===1?'':'s'}</span>
+        <div class="status-breakdown">${statusHtml}</div>
+        <div class="open-note">abre em nova aba</div>`;
+      container.appendChild(card);
+    }
+  }catch(err){ /* backend offline: so mostra Interior/FG estaticos */ }
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,3146 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configuração — Rede Gazeta</title>
+<style>
+  :root{
+    --bg:#070c18;
+    --bg-1:#0f172a;
+    --line:#232f4b;
+    --green:#2ecc55;
+    --red:#e5384b;
+    --gray:#8b95ab;
+    --white:#f3f3f3;
+    --amber:#f5c451;
+    --mono: 'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+    --sans: 'IBM Plex Sans','Segoe UI',sans-serif;
+  }
+  html[data-theme="light"]{
+    --bg:#eef0f3;
+    --bg-1:#ffffff;
+    --line:#d7dbe2;
+    --green:#1ea34a;
+    --red:#d1293b;
+    --gray:#667085;
+    --white:#12151c;
+    --amber:#b9790f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--white);font-family:var(--sans);}
+
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 26px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--bg);z-index:20;flex-wrap:wrap;gap:10px;
+  }
+  .topbar h1{margin:0;font-size:15px;font-weight:600;}
+  .topbar .back{
+    font-family:var(--mono);font-size:12px;color:var(--gray);text-decoration:none;
+    border:1px solid var(--line);border-radius:7px;padding:7px 12px;transition:all .15s ease;
+  }
+  .topbar .back:hover{color:var(--white);border-color:var(--gray);}
+
+  .map-tabs{display:flex;gap:8px;padding:14px 26px 0;}
+  .map-tab{
+    font-family:var(--mono);font-size:12.5px;color:var(--gray);background:var(--bg-1);
+    border:1px solid var(--line);border-radius:8px 8px 0 0;padding:9px 18px;cursor:pointer;
+    border-bottom:none;
+  }
+  .map-tab.active{color:var(--white);background:var(--bg);border-color:var(--green);font-weight:700;}
+  .map-tab:hover:not(.active){color:var(--white);}
+
+  .toolbar{
+    display:flex;gap:10px;align-items:center;padding:14px 26px;border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .toolbar input{
+    flex:1;min-width:200px;background:var(--bg-1);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;color:var(--white);font-size:13px;font-family:var(--sans);
+  }
+  .toolbar input::placeholder{color:var(--gray);}
+  .toolbar button{
+    font-family:var(--mono);font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;
+    padding:9px 14px;border-radius:8px;border:1px solid var(--line);background:var(--bg-1);
+    color:var(--white);cursor:pointer;transition:all .15s ease;white-space:nowrap;
+  }
+  .toolbar button:hover{border-color:var(--gray);}
+  .toolbar .count{font-family:var(--mono);font-size:12px;color:var(--gray);white-space:nowrap;}
+
+  .content{max-width:980px;margin:0 auto;padding:10px 26px 60px;}
+
+  .site-group{margin-top:28px;}
+  .site-group h2{
+    font-size:12px;text-transform:uppercase;letter-spacing:.1em;color:var(--gray);
+    font-family:var(--mono);margin:0 0 10px;padding-bottom:8px;border-bottom:1px solid var(--line);
+    display:flex;justify-content:space-between;align-items:center;
+  }
+  .site-group h2 .site-toggle-all{
+    font-size:10.5px;text-transform:none;letter-spacing:0;color:var(--amber);cursor:pointer;
+    border:none;background:none;font-family:var(--mono);
+  }
+
+  .device-row{
+    display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:12px 14px;border-radius:8px;margin-bottom:6px;background:var(--bg-1);
+    border:1px solid transparent;transition:all .15s ease;
+  }
+  .device-row.is-disabled{opacity:.5;}
+  .device-row:hover{border-color:var(--line);}
+  .device-info{min-width:0;flex:1;}
+  .device-info .d-name-edit{
+    font-size:13.5px;font-weight:600;font-family:var(--sans);color:var(--white);
+    background:none;border:1px solid transparent;border-radius:5px;padding:2px 4px;
+    width:100%;max-width:260px;
+  }
+  .device-info .d-name-edit:hover{border-color:var(--line);}
+  .device-info .d-name-edit:focus{
+    outline:none;border-color:var(--green);background:var(--bg-1);cursor:text;
+  }
+  .device-info .d-name-edit.saving{border-color:var(--amber);}
+  .device-info .d-meta{font-family:var(--mono);font-size:11px;color:var(--gray);margin-top:2px;}
+
+  .switch{position:relative;display:inline-block;width:42px;height:24px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .slider{
+    position:absolute;cursor:pointer;inset:0;background:var(--line);border-radius:24px;
+    transition:background .2s ease;
+  }
+  .slider::before{
+    content:"";position:absolute;width:18px;height:18px;left:3px;bottom:3px;
+    background:#fff;border-radius:50%;transition:transform .2s ease;
+  }
+  .switch input:checked + .slider{background:var(--green);}
+  .switch input:checked + .slider::before{transform:translateX(18px);}
+  .switch input:disabled + .slider{opacity:.4;cursor:wait;}
+  .switch input:checked + .alert-slider{background:var(--amber);}
+  .switch input:checked + .sound-slider{background:#5b8def;}
+
+  .switch-group{display:flex;gap:16px;align-items:flex-end;}
+
+  .services-toggle-btn{
+    background:#0a1121;border:1px solid var(--line);color:var(--gray);border-radius:7px;
+    padding:7px 12px;font-size:11px;font-family:var(--mono);cursor:pointer;white-space:nowrap;
+    align-self:center;
+  }
+  .services-toggle-btn:hover{color:var(--white);border-color:var(--gray);}
+
+  .device-row-wrap{border-bottom:1px solid var(--line);}
+  .device-row-wrap .device-row{border-bottom:none;}
+
+  .services-list{
+    display:none;flex-wrap:wrap;gap:8px 22px;padding:4px 20px 14px 20px;
+    background:rgba(255,255,255,0.015);
+  }
+  .services-list.show{display:flex;}
+  .service-item{
+    display:flex;align-items:center;gap:8px;font-size:12px;color:var(--white);
+    background:#0a1121;border:1px solid var(--line);border-radius:7px;padding:6px 10px;
+  }
+  .service-item .service-name i{color:var(--gray);font-style:normal;font-size:10.5px;}
+
+  .switch.small{width:32px;height:18px;}
+  .switch.small .slider::before{width:12px;height:12px;left:3px;bottom:3px;}
+  .switch.small input:checked + .slider::before{transform:translateX(14px);}
+  .switch-col{display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .switch-label{
+    font-family:var(--mono);font-size:9px;color:var(--gray);text-transform:uppercase;
+    letter-spacing:.04em;white-space:nowrap;
+  }
+
+  .empty{padding:40px;text-align:center;color:var(--gray);font-family:var(--mono);font-size:13px;}
+
+  .toast{
+    position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(20px);
+    background:#151e34;border:1px solid var(--line);border-radius:8px;padding:10px 18px;
+    font-family:var(--mono);font-size:12.5px;opacity:0;transition:all .25s ease;pointer-events:none;
+    z-index:100;
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  .toast.err{border-color:var(--red);color:#ffb4bd;}
+
+  .appearance-panel{
+    max-width:980px;margin:18px auto 0;padding:0 26px;
+  }
+  .appearance-head{
+    font-family:var(--mono);font-size:12px;color:var(--gray);text-transform:uppercase;
+    letter-spacing:.06em;margin-bottom:8px;
+  }
+  .appearance-body{
+    background:var(--bg-1);border:1px solid var(--line);border-radius:10px;padding:16px 18px;
+  }
+  .appearance-body label{display:block;font-size:13px;font-weight:600;margin-bottom:10px;}
+  .font-scale-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .font-scale-row input[type="range"]{flex:1;min-width:160px;accent-color:var(--green);}
+  .font-scale-row button{
+    background:#0a1121;border:1px solid var(--line);color:var(--white);border-radius:6px;
+    padding:6px 11px;cursor:pointer;font-family:var(--mono);font-size:12px;
+  }
+  .font-scale-row button:hover{border-color:var(--gray);}
+  .font-scale-row .reset-btn{color:var(--gray);font-size:10.5px;}
+  #font-scale-value{
+    font-family:var(--mono);font-size:12.5px;color:var(--green);min-width:44px;text-align:right;
+  }
+  .appearance-note{font-family:var(--mono);font-size:10.5px;color:var(--gray);margin-top:10px;}
+  .theme-btn{
+    background:#0a1121;border:1px solid var(--line);color:var(--white);border-radius:6px;
+    padding:7px 14px;cursor:pointer;font-family:var(--sans);font-size:12.5px;
+  }
+  html[data-theme="light"] .theme-btn{background:#f0f1f4;}
+  .theme-btn.active{border-color:var(--green);color:var(--green);font-weight:700;}
+
+  .btn-primary{
+    background:var(--green);color:#062712;border:none;border-radius:7px;padding:8px 15px;
+    font-weight:700;font-size:12px;cursor:pointer;font-family:var(--sans);
+  }
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-secondary{
+    background:#0a1121;color:var(--white);border:1px solid var(--line);border-radius:7px;
+    padding:8px 15px;font-weight:600;font-size:12px;cursor:pointer;font-family:var(--sans);
+  }
+  .btn-secondary:hover{border-color:var(--gray);}
+  .btn-secondary.active{border-color:var(--green);color:var(--green);}
+  html[data-theme="light"] .btn-secondary{background:#f0f1f4;}
+  .scan-status{font-family:var(--mono);font-size:11px;color:var(--gray);}
+  .font-scale-row input[type="time"]{
+    background:#0a1121;border:1px solid var(--line);border-radius:6px;color:var(--white);
+    padding:6px 9px;font-family:var(--mono);font-size:12.5px;
+  }
+  html[data-theme="light"] .font-scale-row input[type="time"]{background:#fff;}
+
+  .editor-colors{display:flex;gap:22px;margin-top:16px;flex-wrap:wrap;}
+  .editor-colors label{
+    display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray);
+    font-family:var(--mono);margin:0;
+  }
+  .editor-colors input[type="color"]{
+    width:34px;height:26px;border:1px solid var(--line);border-radius:5px;background:none;
+    cursor:pointer;padding:0;
+  }
+
+  .editor-size-panel{
+    display:flex;align-items:center;gap:10px;margin-top:14px;padding:10px 12px;
+    background:#0a1121;border:1px solid var(--line);border-radius:8px;flex-wrap:wrap;
+  }
+  .editor-size-panel input[type="range"]{accent-color:var(--green);}
+  .editor-size-panel span{font-family:var(--mono);font-size:11.5px;color:var(--green);}
+
+  .msg-placeholders{
+    font-family:var(--mono);font-size:11px;color:var(--gray);line-height:2;
+    background:#0a1121;border:1px solid var(--line);border-radius:8px;padding:10px 12px;
+  }
+  .msg-placeholders code{color:var(--amber);background:none;}
+  .msg-textarea{
+    width:100%;min-height:110px;resize:vertical;background:#0a1121;border:1px solid var(--line);
+    border-radius:8px;padding:10px 12px;color:var(--white);font-family:var(--mono);font-size:12.5px;
+    line-height:1.6;margin-top:6px;
+  }
+  .msg-textarea:focus{outline:none;border-color:var(--green);}
+  html[data-theme="light"] .msg-textarea, html[data-theme="light"] .msg-placeholders{background:#fff;}
+
+  .network-range-chip{
+    display:inline-flex;align-items:center;gap:8px;background:#0a1121;border:1px solid var(--line);
+    border-radius:999px;padding:6px 8px 6px 14px;margin:0 8px 8px 0;font-family:var(--mono);font-size:12px;
+  }
+  .network-range-chip button{
+    background:none;border:none;color:var(--gray);cursor:pointer;font-size:14px;padding:0 4px;line-height:1;
+  }
+  .network-range-chip button:hover{color:var(--red);}
+  html[data-theme="light"] .network-range-chip{background:#fff;}
+
+  .editor-canvas-wrap{
+    position:relative;width:100%;height:520px;overflow:auto;margin-top:16px;
+    border:1px solid var(--line);border-radius:10px;background:#050505;
+  }
+  .editor-canvas{
+    position:relative;width:2000px;height:1200px;
+    background-image:
+      linear-gradient(to right, rgba(255,255,255,0.08) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.08) 1px, transparent 1px),
+      linear-gradient(to right, rgba(255,255,255,0.16) 1px, transparent 1px),
+      linear-gradient(to bottom, rgba(255,255,255,0.16) 1px, transparent 1px);
+    background-size: 20px 20px, 20px 20px, 100px 100px, 100px 100px;
+  }
+  #editor-edges-svg{position:absolute;inset:0;width:2000px;height:1200px;pointer-events:none;z-index:1;}
+  .editor-edge-line{stroke:#555;stroke-width:2;cursor:pointer;pointer-events:stroke;}
+  .editor-edge-line:hover{stroke:var(--red);stroke-width:3;}
+
+  .editor-item{
+    position:absolute;cursor:grab;user-select:none;transform-origin:top left;
+    padding:7px 12px;border-radius:6px;background:#434f6c;color:#0c0c0c;
+    font-family:var(--mono);font-size:11px;font-weight:700;text-align:center;
+    border:1px solid rgba(0,0,0,0.3);white-space:nowrap;z-index:2;
+  }
+  .editor-item:active{cursor:grabbing;}
+  .editor-item.label-item{
+    background:#e9e9e9;border-radius:20px;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;
+  }
+  .editor-item.selected{outline:2px solid var(--green);outline-offset:2px;}
+
+  ::-webkit-scrollbar{width:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;}
+  #edit-device-metrics-list .em-modbus{display:none;}
+  #edit-device-metrics-list.proto-modbus .em-modbus{display:block;}
+  #edit-device-metrics-list.proto-modbus .em-snmp{display:none;}
+  .em-test-result{font-size:11px;margin-left:8px;}
+  .ab-top{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;}
+  .ab-top label{margin-bottom:4px !important;font-size:11.5px !important;color:var(--gray);}
+  .ab-top-btns{display:flex;gap:8px;flex-wrap:wrap;}
+  .ab-table-wrap{margin-top:14px;border:1px solid var(--line);border-radius:10px;overflow:auto;max-height:520px;}
+  .ab-table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  .ab-table th{position:sticky;top:0;background:#0b1326;color:var(--gray);font-size:11px;text-align:left;padding:8px 10px;font-weight:700;}
+  .ab-table td{padding:7px 10px;border-top:1px solid #182442;vertical-align:middle;}
+  .ab-table tr:hover td{background:#111b33;}
+  .ab-table td.n b{font-size:13px;} .ab-table td small{color:var(--gray);display:block;font-size:11px;}
+  .ab-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#434f6c;margin-right:6px;}
+  .ab-dot.up{background:var(--green);} .ab-dot.down{background:var(--red);}
+  .ab-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap;}
+  .ab-actions button,.ab-actions select{padding:4px 9px !important;font-size:11.5px !important;}
+  .ab-add{margin-top:14px;padding:12px 14px;border:1px dashed var(--line);border-radius:10px;}
+  .ab-add-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .ab-add-row input[type=text]{min-width:200px;}
+
+  /* ---------- Configuracao organizada em abas (menu lateral) ---------- */
+  .cfg-layout{display:grid;grid-template-columns:250px minmax(0,1fr);min-height:calc(100vh - 70px);}
+  .cfg-nav{position:sticky;top:66px;align-self:start;height:calc(100vh - 70px);overflow:auto;
+    padding:18px 12px;border-right:1px solid var(--line);background:rgba(7,12,24,0.6);}
+  .cfg-nav .ttl{font-size:10.5px;letter-spacing:.12em;color:var(--gray);font-weight:800;margin:6px 10px 10px;text-transform:uppercase;}
+  .cfg-nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;font-size:13.5px;font-weight:600;
+    color:#b8c3dc;background:none;border:1px solid transparent;border-radius:10px;padding:10px 12px;margin-bottom:4px;cursor:pointer;}
+  .cfg-nav button .ic{width:22px;text-align:center;font-size:16px;}
+  .cfg-nav button small{display:block;font-size:11px;font-weight:500;color:var(--gray);margin-top:1px;}
+  .cfg-nav button:hover{background:#111b33;color:#fff;}
+  .cfg-nav button.active{background:linear-gradient(135deg,rgba(10,75,181,0.35),rgba(10,75,181,0.12));border-color:#1d4a9a;color:#fff;}
+  .cfg-main{padding:6px 28px 60px;min-width:0;}
+  .cfg-tab{display:none;} .cfg-tab.active{display:block;}
+  .cfg-tab-head{max-width:1180px;margin:22px 0 4px;}
+  .cfg-tab-head h2{margin:0;font-size:20px;font-weight:800;color:#fff;}
+  .cfg-tab-head p{margin:4px 0 0;font-size:13px;color:var(--gray);}
+  .cfg-main .appearance-panel{max-width:1180px !important;margin:18px 0 0 !important;padding:0 !important;}
+  .cfg-main .map-tabs,.cfg-main .toolbar,.cfg-main .content{max-width:1180px;margin-left:0 !important;margin-right:0 !important;padding-left:0 !important;padding-right:0 !important;}
+  @media (max-width:900px){.cfg-layout{grid-template-columns:1fr;} .cfg-nav{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);}}
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Configuração de Monitoramento — Rede Gazeta</h1>
+  <a class="back" href="/" id="back-to-map-link">&larr; voltar ao mapa</a>
+  <a class="back" href="/logout">&#128274; sair</a>
+</div>
+
+<div class="appearance-panel">
+  <div class="appearance-head">
+    <span>&#128260; Aparência dos mapas</span>
+  </div>
+  <div class="appearance-body">
+    <label>Tema</label>
+    <div class="font-scale-row" style="margin-bottom:18px;">
+      <button id="theme-dark-btn" type="button" class="theme-btn">&#127769; Escuro</button>
+      <button id="theme-light-btn" type="button" class="theme-btn">&#9728;&#65039; Claro</button>
+      <span class="appearance-note" style="margin:0;">vale para esta página e os dois mapas</span>
+    </div>
+
+    <label>Peso da fonte</label>
+    <div class="font-scale-row" style="margin-bottom:18px;">
+      <button id="bold-normal-btn" type="button" class="theme-btn">Normal</button>
+      <button id="bold-bold-btn" type="button" class="theme-btn"><b>Negrito</b></button>
+      <span class="appearance-note" style="margin:0;">deixa o texto dos dispositivos mais grosso, sem mudar o tamanho da caixa</span>
+    </div>
+
+    <label for="font-scale-slider-interior">Tamanho da fonte — Mapa Abrigos</label>
+    <div class="font-scale-row">
+      <button id="font-scale-minus-interior" type="button">A-</button>
+      <input type="range" id="font-scale-slider-interior" min="0.7" max="1.8" step="0.05" value="1">
+      <button id="font-scale-plus-interior" type="button">A+</button>
+      <span id="font-scale-value-interior">100%</span>
+      <button id="font-scale-reset-interior" type="button" class="reset-btn">restaurar padrão</button>
+    </div>
+
+    <label for="font-scale-slider-fg" style="margin-top:16px;">Tamanho da fonte — Abrigo Fonte Grande</label>
+    <div class="font-scale-row">
+      <button id="font-scale-minus-fg" type="button">A-</button>
+      <input type="range" id="font-scale-slider-fg" min="0.7" max="1.8" step="0.05" value="1">
+      <button id="font-scale-plus-fg" type="button">A+</button>
+      <span id="font-scale-value-fg">100%</span>
+      <button id="font-scale-reset-fg" type="button" class="reset-btn">restaurar padrão</button>
+    </div>
+
+    <div class="appearance-note">Cada mapa guarda seu próprio tamanho de fonte. Aplica na hora — só recarregar a aba do mapa correspondente.</div>
+  </div>
+</div>
+
+<div class="appearance-panel" id="me-panel">
+  <div class="appearance-head"><span>&#128100; Minha conta</span><span id="me-who" style="font-size:12px;font-weight:600;"></span></div>
+  <div class="appearance-body">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+      <div><label>Senha atual</label><input type="password" id="me-a"></div>
+      <div><label>Nova senha (mín. 6)</label><input type="password" id="me-n"></div>
+      <button type="button" class="btn-primary" id="me-ok">Trocar minha senha</button>
+      <span id="me-msg" style="font-size:12px;"></span>
+    </div>
+  </div>
+</div>
+
+<div class="appearance-panel" id="users-panel">
+  <div class="appearance-head"><span>&#128101; Usuários</span><span style="font-size:12px;color:var(--gray);">cada pessoa com o seu login — o log mostra quem fez cada ação</span></div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 10px;line-height:1.6;"><b>admin</b>: tudo, inclusive cadastrar usuários · <b>operador</b>: tudo menos usuários · <b>visualizador</b>: só olha (não altera nada nem manda comandos).
+      Usuário novo ou com senha resetada é obrigado a criar a própria senha no primeiro acesso.</div>
+    <div class="ab-table-wrap" style="margin-top:0;"><table class="ab-table"><thead><tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th>Situação</th><th></th></tr></thead><tbody id="us-list"></tbody></table></div>
+    <div class="ab-add"><b>&#10133; Novo usuário / alterar</b>
+      <div class="ab-add-row">
+        <input type="text" id="us-u" placeholder="usuário (ex: marcos)" style="min-width:150px;">
+        <input type="text" id="us-n" placeholder="nome completo" style="min-width:200px;">
+        <select id="us-p"><option value="operador">operador</option><option value="visualizador">visualizador</option><option value="admin">admin</option></select>
+        <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="us-a" checked> ativo</label>
+        <input type="password" id="us-s" placeholder="senha inicial (só p/ novo)" style="min-width:170px;">
+        <button type="button" class="btn-primary" id="us-ok">Salvar usuário</button>
+      </div>
+      <div id="us-msg" style="font-size:12px;margin-top:6px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="appearance-panel" id="vigia-panel">
+  <div class="appearance-head"><span>&#128737;&#65039; Vigia e backup automático</span><a href="/saude" target="_blank" style="font-size:12px;color:#7fa6ff;">abrir Saúde do sistema &#8599;</a></div>
+  <div class="appearance-body">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;">
+      <div><label><input type="checkbox" id="sy-md"> Mensagem diária "Painel2 ativo" no Telegram, às</label>
+        <input type="number" id="sy-mh" min="0" max="23" style="width:80px;"> h</div>
+      <div><label>Endereço do monitor externo (opcional)</label>
+        <input type="text" id="sy-hb" placeholder="https://hc-ping.com/…" style="width:100%;">
+        <div class="appearance-note" style="margin:4px 0 0;">O painel avisa esse endereço a cada 1 min; se parar de avisar, o serviço externo manda o alerta (funciona mesmo com o PC desligado). Ex.: healthchecks.io, gratuito.</div></div>
+      <div><label>Backup diário às</label><input type="number" id="sy-bh" min="0" max="23" style="width:80px;"> h ·
+        guardar <input type="number" id="sy-bd" min="3" max="365" style="width:70px;"> dias</div>
+      <div><label>Copiar o backup também para a pasta (pendrive/rede)</label>
+        <input type="text" id="sy-be" placeholder="/media/transmissao/PENDRIVE/backup_painel" style="width:100%;"></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+      <button type="button" class="btn-primary" id="sy-ok">Salvar</button>
+      <button type="button" class="btn-secondary" id="sy-bk">&#128190; Fazer backup agora</button>
+      <button type="button" class="btn-secondary" id="sy-tg">Testar mensagem "ativo"</button>
+      <span id="sy-msg" style="font-size:12px;"></span>
+    </div>
+    <div class="ab-table-wrap"><table class="ab-table"><thead><tr><th>Backups guardados</th><th>Tamanho</th><th></th></tr></thead><tbody id="sy-list"></tbody></table></div>
+    <div class="appearance-note" style="margin-top:8px;">Para restaurar um backup no Debian: <code>sudo bash /opt/painel/linux/restaurar_backup.sh /opt/painel/backups/diarios/painel_AAAA-MM-DD_HHMM.tar.gz</code></div>
+  </div>
+</div>
+
+<div class="appearance-panel" id="speed-panel">
+  <div class="appearance-head"><span>&#9201; Velocidade de atualização</span></div>
+  <div class="appearance-body">
+    <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-end;">
+      <div><label>Abrigo Fonte Grande (mapa, energia, climatização)</label>
+        <select id="speed-fg"><option value="5">a cada 5 s</option><option value="10">a cada 10 s</option><option value="15">a cada 15 s</option><option value="30">a cada 30 s</option></select></div>
+      <div><label>Demais abrigos (Sede, Serra, Guarapari...)</label>
+        <select id="speed-ab"><option value="5">a cada 5 s</option><option value="10">a cada 10 s</option><option value="15">a cada 15 s</option><option value="30">a cada 30 s</option><option value="60">a cada 60 s</option></select></div>
+      <div><label>Avisar perda de comunicação só depois de</label>
+        <select id="speed-comm"><option value="5">5 min seguidos</option><option value="10">10 min seguidos</option><option value="15">15 min seguidos</option><option value="30">30 min seguidos</option><option value="60">60 min seguidos</option></select></div>
+      <button type="button" class="btn-primary" id="speed-save">Salvar</button>
+      <span id="speed-msg" style="font-size:12px;"></span>
+    </div>
+    <div class="appearance-note">Vale na hora, sem reiniciar. O gráfico histórico continua guardando 1 ponto a cada 30 s. Com leitura mais rápida, o alarme confirma mais rápido também (Config → confirmação de alarme conta leituras).</div>
+  </div>
+</div>
+
+<div class="appearance-panel" id="tg-panel">
+  <div class="appearance-head">
+    <span>&#9993; Telegram — grupo de alertas</span>
+    <span id="tg-status" style="font-size:12px;font-weight:600;"></span>
+  </div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 14px;line-height:1.6;">
+      1. No Telegram, fale com <b>@BotFather</b> → <b>/newbot</b> e copie o <b>token</b>.<br>
+      2. Adicione o bot ao grupo da transmissão e mande qualquer mensagem no grupo (ex: <b>/start</b>).<br>
+      3. Cole o token abaixo, clique em <b>Descobrir grupo</b>, escolha o grupo e depois <b>Enviar teste</b> e <b>Salvar</b>.
+    </div>
+    <div style="display:grid;grid-template-columns:2fr 1.2fr auto;gap:10px;align-items:end;">
+      <div><label>Token do bot</label>
+        <input type="password" id="tg-token" placeholder="123456789:ABC..." style="width:100%;" autocomplete="off"></div>
+      <div><label>Chat ID do grupo</label>
+        <input type="text" id="tg-chat" placeholder="-100..." style="width:100%;"></div>
+      <label style="display:flex;align-items:center;gap:8px;white-space:nowrap;margin-bottom:8px;">
+        <input type="checkbox" id="tg-enabled"> Ativo</label>
+    </div>
+    <div id="tg-chats" style="margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;align-items:center;">
+      <button type="button" class="btn-secondary" id="tg-discover">Descobrir grupo</button>
+      <button type="button" class="btn-secondary" id="tg-test">Enviar teste</button>
+      <button type="button" class="btn-secondary" id="tg-save" style="background:#0a4bb5;border-color:#0a4bb5;color:#fff;">Salvar</button>
+      <span id="tg-msg" style="font-size:12px;"></span>
+    </div>
+  </div>
+</div>
+
+<div class="appearance-panel">
+  <div class="appearance-head">
+    <span>&#8987; Horário de disparo de alarmes</span>
+  </div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 14px;">
+      Fora do horário configurado, o sistema continua monitorando e registrando tudo normalmente
+      (mapa, histórico, logs, dashboard de falhas) — só a notificação no Telegram fica em silêncio.
+    </div>
+
+    <label>Demais abrigos</label>
+    <div class="font-scale-row">
+      <input type="time" id="alarm-start-interior" value="00:00">
+      <span style="color:var(--gray);font-family:var(--mono);font-size:12px;">até</span>
+      <input type="time" id="alarm-end-interior" value="23:59">
+      <button id="alarm-save-interior" type="button" class="btn-primary" style="margin-left:8px;">Salvar</button>
+      <span class="scan-status" id="alarm-status-interior"></span>
+    </div>
+
+    <label style="margin-top:16px;">Abrigo Fonte Grande</label>
+    <div class="font-scale-row">
+      <input type="time" id="alarm-start-fg" value="00:00">
+      <span style="color:var(--gray);font-family:var(--mono);font-size:12px;">até</span>
+      <input type="time" id="alarm-end-fg" value="23:59">
+      <button id="alarm-save-fg" type="button" class="btn-primary" style="margin-left:8px;">Salvar</button>
+      <span class="scan-status" id="alarm-status-fg"></span>
+    </div>
+
+    <div class="appearance-note">Dica: para silenciar a noite toda, use algo como 22:00 até 06:00 (o sistema entende que passa da meia-noite).</div>
+  </div>
+</div>
+
+<div class="appearance-panel">
+  <div class="appearance-head">
+    <span>&#9203; Confirmação de Alarme (evitar alarme falso)</span>
+  </div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 14px;">
+      Antes de disparar um alarme de verdade, o sistema exige várias leituras <b>seguidas</b> confirmando o problema —
+      isso evita que uma instabilidade passageira de rede (um pacote perdido, uma oscilação momentânea) vire um alarme falso.
+      Aumentar esses números deixa o alarme mais "paciente" (menos alarme falso, porém demora mais pra avisar de um problema real).
+      Diminuir deixa mais rápido, porém mais sensível a oscilações passageiras.
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:16px;">
+      <div>
+        <label>Métricas SNMP (Potência, Bateria, Temperatura, etc.)</label>
+        <input type="number" id="metric-confirm-input" min="1" max="60" style="width:100%;background:#0a1121;border:1px solid var(--line);border-radius:6px;color:var(--white);padding:8px 10px;font-family:var(--mono);font-size:13px;">
+        <div class="appearance-note" id="metric-confirm-time" style="margin:6px 0 0;"></div>
+      </div>
+      <div>
+        <label>Ping / Conectividade (aviso no Telegram)</label>
+        <input type="number" id="ping-confirm-input" min="1" max="60" style="width:100%;background:#0a1121;border:1px solid var(--line);border-radius:6px;color:var(--white);padding:8px 10px;font-family:var(--mono);font-size:13px;">
+        <div class="appearance-note" id="ping-confirm-time" style="margin:6px 0 0;"></div>
+      </div>
+      <div>
+        <label>Cor da caixa e som no mapa</label>
+        <input type="number" id="visual-confirm-input" min="1" max="8" style="width:100%;background:#0a1121;border:1px solid var(--line);border-radius:6px;color:var(--white);padding:8px 10px;font-family:var(--mono);font-size:13px;">
+        <div class="appearance-note" id="visual-confirm-time" style="margin:6px 0 0;"></div>
+        <div class="appearance-note" style="margin:2px 0 0;font-size:10.5px;">máximo de 8 ciclos</div>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-primary" id="alarm-confirm-save-btn">Salvar</button>
+      <span class="scan-status" id="alarm-confirm-status"></span>
+    </div>
+  </div>
+</div>
+
+<div class="appearance-panel">
+  <div class="appearance-head">
+    <span>&#128197; Resumo Automático de Domingo</span>
+  </div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 14px;">
+      Como ninguém costuma acompanhar os alarmes no fim de semana, o sistema pode mandar automaticamente uma
+      mensagem no Telegram <b>todo domingo às 8h</b>, com o resumo de todas as falhas ocorridas entre
+      <b>sábado 23h e domingo 8h</b> — pra você já saber o que aconteceu de madrugada assim que acordar.
+    </div>
+    <div class="font-scale-row">
+      <label class="switch">
+        <input type="checkbox" id="sunday-summary-toggle">
+        <span class="slider"></span>
+      </label>
+      <span id="sunday-summary-label" style="font-family:var(--mono);font-size:12.5px;color:var(--gray);">desativado</span>
+      <span class="scan-status" id="sunday-summary-status" style="margin-left:12px;"></span>
+    </div>
+  </div>
+</div>
+
+<div class="appearance-panel">
+  <div class="appearance-head">
+    <span>&#128197; Resumo Diário da Agenda (Planning)</span>
+  </div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 14px;">
+      Manda uma mensagem no Telegram <b>todo dia, no horário que você escolher</b>, com as atividades
+      planejadas pra aquele dia no Planning (título, local, responsável e prioridade).
+    </div>
+    <div class="font-scale-row" style="flex-wrap:wrap;gap:14px;">
+      <label class="switch">
+        <input type="checkbox" id="agenda-summary-toggle">
+        <span class="slider"></span>
+      </label>
+      <span id="agenda-summary-label" style="font-family:var(--mono);font-size:12.5px;color:var(--gray);">desativado</span>
+      <span style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gray);">
+        Horário:
+        <input type="number" id="agenda-summary-hour" min="0" max="23" style="width:46px;background:var(--bg);border:1px solid var(--line);border-radius:5px;color:var(--white);padding:4px 6px;font-family:var(--mono);text-align:center;">
+        :
+        <input type="number" id="agenda-summary-minute" min="0" max="59" style="width:46px;background:var(--bg);border:1px solid var(--line);border-radius:5px;color:var(--white);padding:4px 6px;font-family:var(--mono);text-align:center;">
+      </span>
+      <button class="btn-secondary" id="agenda-summary-save-time-btn" style="font-size:11.5px;padding:5px 10px;">salvar horário</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--gray);cursor:pointer;">
+      <input type="checkbox" id="agenda-summary-skip-empty">
+      Não enviar nos dias em que não houver nenhuma atividade planejada
+    </label>
+    <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button class="btn-secondary" id="agenda-summary-test-btn" style="font-size:11.5px;padding:6px 12px;">&#9993; enviar teste agora</button>
+      <span class="scan-status" id="agenda-summary-status"></span>
+    </div>
+    <div id="agenda-summary-preview" style="display:none;margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--white);"></div>
+  </div>
+</div>
+
+<div class="appearance-panel">
+  <div class="appearance-head">
+    <span>&#128198; Aviso da Agenda — Um Dia Antes (Planning)</span>
+  </div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 14px;">
+      Manda uma mensagem no Telegram <b>um dia antes</b>, no horário que você escolher, com as atividades
+      já planejadas pra <b>amanhã</b> — útil pra se organizar na véspera. Funciona independente do
+      resumo de hoje acima, pode usar os dois juntos ou só um deles.
+    </div>
+    <div class="font-scale-row" style="flex-wrap:wrap;gap:14px;">
+      <label class="switch">
+        <input type="checkbox" id="agenda-summary-amanha-toggle">
+        <span class="slider"></span>
+      </label>
+      <span id="agenda-summary-amanha-label" style="font-family:var(--mono);font-size:12.5px;color:var(--gray);">desativado</span>
+      <span style="display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--gray);">
+        Horário:
+        <input type="number" id="agenda-summary-amanha-hour" min="0" max="23" style="width:46px;background:var(--bg);border:1px solid var(--line);border-radius:5px;color:var(--white);padding:4px 6px;font-family:var(--mono);text-align:center;">
+        :
+        <input type="number" id="agenda-summary-amanha-minute" min="0" max="59" style="width:46px;background:var(--bg);border:1px solid var(--line);border-radius:5px;color:var(--white);padding:4px 6px;font-family:var(--mono);text-align:center;">
+      </span>
+      <button class="btn-secondary" id="agenda-summary-amanha-save-time-btn" style="font-size:11.5px;padding:5px 10px;">salvar horário</button>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;color:var(--gray);cursor:pointer;">
+      <input type="checkbox" id="agenda-summary-amanha-skip-empty">
+      Não enviar nos dias em que amanhã não houver nenhuma atividade planejada
+    </label>
+    <div style="margin-top:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <button class="btn-secondary" id="agenda-summary-amanha-test-btn" style="font-size:11.5px;padding:6px 12px;">&#9993; enviar teste agora</button>
+      <span class="scan-status" id="agenda-summary-amanha-status"></span>
+    </div>
+    <div id="agenda-summary-amanha-preview" style="display:none;margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-family:var(--mono);font-size:11.5px;white-space:pre-wrap;color:var(--white);"></div>
+  </div>
+</div>
+
+<div class="appearance-panel">
+  <div class="appearance-head">
+    <span>&#127760; Configurações de Rede</span>
+  </div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 14px;">
+      Por padrão, o painel não restringe acesso por IP (só pede login e senha, como sempre).
+      Se quiser, você pode <b>liberar faixas de IP extras</b> (de outra rede, filial, etc.) e, quando quiser,
+      <b>ativar a restrição</b> — nesse caso, só a rede local do próprio computador e as faixas listadas
+      abaixo vão conseguir acessar. Sua rede local <b>nunca</b> fica bloqueada, mesmo com a restrição ligada.
+    </div>
+
+    <div class="font-scale-row" style="margin-bottom:16px;">
+      <label class="switch">
+        <input type="checkbox" id="network-restrict-toggle">
+        <span class="slider"></span>
+      </label>
+      <span id="network-restrict-label" style="font-family:var(--mono);font-size:12.5px;color:var(--gray);">restrição desativada — qualquer rede pode acessar</span>
+    </div>
+
+    <label>Faixas de IP extras liberadas (formato CIDR, ex: 203.0.113.0/24 ou 189.45.12.10/32 pra um IP só)</label>
+    <div id="network-ranges-list" style="margin:8px 0 12px;"></div>
+    <div class="font-scale-row">
+      <input type="text" id="network-range-input" placeholder="Ex: 203.0.113.0/24" style="max-width:260px;background:#0a1121;border:1px solid var(--line);border-radius:6px;color:var(--white);padding:8px 10px;font-family:var(--mono);font-size:12.5px;">
+      <button id="network-add-range-btn" type="button" class="btn-secondary">+ Adicionar faixa</button>
+    </div>
+
+    <div class="form-actions" style="margin-top:16px;">
+      <button class="btn-primary" id="network-save-btn">Salvar configuração de rede</button>
+      <span class="scan-status" id="network-status"></span>
+    </div>
+  </div>
+</div>
+
+<div class="appearance-panel" id="ab-panel" style="max-width:1180px;">
+  <div class="appearance-head">
+    <span>&#127968; Abrigos e dispositivos</span>
+  </div>
+  <div class="appearance-body">
+    <div class="ab-top">
+      <div><label>Abrigo</label><select id="ab-select" style="min-width:260px;"></select></div>
+      <div><label>Nome exibido</label><input type="text" id="ab-nome" style="width:260px;"></div>
+      <div><label>Nome no alerta do Telegram</label><input type="text" id="ab-alerta" style="width:200px;" placeholder="ex: SERRA"></div>
+      <div><label>Subtítulo</label><input type="text" id="ab-sub" style="width:160px;" placeholder="ex: Morro do Céu"></div>
+      <div><label>Latitude</label><input type="text" id="ab-lat" style="width:110px;" placeholder="-20.3053"></div>
+      <div><label>Longitude</label><input type="text" id="ab-lon" style="width:110px;" placeholder="-40.3381"></div>
+      <div><label>Código do cliente EDP</label><input type="text" id="ab-edp" style="width:120px;"></div>
+      <div class="ab-top-btns">
+        <button type="button" class="btn-primary" id="ab-save">Salvar</button>
+        <button type="button" class="btn-secondary" id="ab-new">&#10133; Novo abrigo</button>
+        <button type="button" class="btn-secondary" id="ab-del" title="Só exclui abrigo sem dispositivos">Excluir abrigo</button>
+        <a class="btn-secondary" id="ab-open" target="_blank" rel="noopener" style="text-decoration:none;">Abrir mapa &#8599;</a>
+      </div>
+    </div>
+    <div class="appearance-note" id="ab-msg" style="margin:8px 0 0;"></div>
+
+    <div class="ab-table-wrap">
+      <table class="ab-table">
+        <thead><tr><th>Dispositivo</th><th>IP</th><th>Protocolo</th><th>Categoria / tipo</th><th>Medidas</th><th></th></tr></thead>
+        <tbody id="ab-devices"></tbody>
+      </table>
+    </div>
+
+    <div class="ab-add">
+      <b>&#10133; Adicionar dispositivo neste abrigo</b>
+      <div class="ab-add-row">
+        <input type="text" id="ab-add-name" placeholder="Nome (ex: TX SERRA)">
+        <input type="text" id="ab-add-ip" placeholder="IP" style="width:140px;">
+        <select id="ab-add-proto"><option value="snmp">SNMP</option><option value="modbus">Modbus TCP</option></select>
+        <select id="ab-add-kind">
+          <option value="tx">Transmissor</option><option value="power">Gerador / energia</option><option value="ups">Nobreak</option>
+          <option value="link">Enlace</option><option value="sensor">Sensor / CLP / FLEX</option><option value="other">Outro</option>
+        </select>
+        <select id="ab-add-cat" title="Categoria no Abrigo Fonte Grande"></select>
+        <button type="button" class="btn-primary" id="ab-add-btn">Adicionar e configurar medidas</button>
+      </div>
+      <div class="appearance-note" style="margin-top:6px;">Depois de adicionar, abre a janela de edição para cadastrar os OIDs (SNMP) ou registradores (Modbus), unidades e divisores.</div>
+    </div>
+  </div>
+</div>
+
+<div class="appearance-panel">
+  <div class="appearance-head">
+    <span>&#127912; Editor de Mapa (avançado — biblioteca e mapas personalizados)</span>
+  </div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 12px;">
+      Arraste os dispositivos e rótulos pra reposicionar. Clique num item pra selecionar (ajustar tamanho ou excluir rótulos).
+      "Modo conexão" liga o desenho de linhas: clique em dois itens pra ligar, clique numa linha existente pra removê-la.
+      Nada muda no mapa de verdade até você clicar em <b>Salvar layout</b> — e dá pra voltar ao padrão quando quiser.
+    </div>
+
+    <div class="form-grid" style="grid-template-columns:200px 1fr;align-items:end;">
+      <div class="form-field">
+        <label>Mapa</label>
+        <select id="editor-map-select">
+          <option value="interior">Todos os abrigos (posições antigas)</option>
+          <option value="fg">Abrigo Fonte Grande</option>
+          <option value="biblioteca">&#128218; Biblioteca de Dispositivos</option>
+        </select>
+      </div>
+      <div class="form-actions" style="margin:0;">
+        <button class="btn-secondary" id="editor-load-btn">Carregar</button>
+        <button class="btn-secondary" id="editor-new-map-btn">&#10133; Novo Mapa</button>
+        <button class="btn-secondary" id="editor-add-device-btn">&#10133; Dispositivo</button>
+        <button class="btn-secondary" id="editor-connect-mode-btn">&#128279; Modo conexão: desligado</button>
+        <button class="btn-secondary" id="editor-add-label-btn">+ Cidade / Rótulo</button>
+        <button class="btn-secondary active" id="editor-grid-btn">&#9638; Encaixar na grade: ligado</button>
+        <button class="btn-secondary" id="editor-reset-btn" style="color:var(--red);">Restaurar padrão</button>
+        <button class="btn-primary" id="editor-save-btn">Salvar layout</button>
+        <span class="scan-status" id="editor-status"></span>
+      </div>
+    </div>
+
+    <div class="appearance-note" id="editor-add-device-form" style="display:none;margin-top:14px;padding:14px;background:#0a1121;border:1px solid var(--line);border-radius:8px;">
+      <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:10px;">
+        <div class="form-field"><label>Nome</label><input type="text" id="new-dev-name" placeholder="Ex: Câmera Entrada"></div>
+        <div class="form-field"><label>Categoria / Grupo</label><input type="text" id="new-dev-category" value="GERAL"></div>
+        <div class="form-field"><label>IP</label><input type="text" id="new-dev-ip" placeholder="192.168.0.10"></div>
+        <div class="form-field"><label>Tipo</label>
+          <select id="new-dev-kind">
+            <option value="other" selected>Outro</option>
+            <option value="radio">Rádio</option>
+            <option value="tx">Transmissor</option>
+            <option value="sensor">Sensor</option>
+            <option value="ups">Nobreak</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="appearance-note" style="margin:12px 0 8px;padding:0;background:none;border:none;">
+        <b style="color:var(--white);">Busca SNMP</b> — descobre os OIDs disponíveis nesse IP (opcional, ajuda a montar as métricas depois).
+      </div>
+      <div class="form-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:8px;">
+        <div class="form-field"><label>Versão SNMP</label>
+          <select id="new-dev-snmp-version">
+            <option value="1">v1</option>
+            <option value="2c" selected>v2c</option>
+            <option value="3">v3</option>
+          </select>
+        </div>
+        <div class="form-field"><label>Comunidade</label><input type="text" id="new-dev-community" value="public"></div>
+        <div class="form-field"><label>Porta</label><input type="text" id="new-dev-port" value="161"></div>
+        <div class="form-field" style="display:flex;align-items:end;">
+          <button class="btn-secondary" id="new-dev-snmp-search-btn" type="button" style="width:100%;">&#128269; Buscar OIDs</button>
+        </div>
+      </div>
+      <div class="form-grid" style="grid-template-columns:2fr 1fr;margin-bottom:10px;">
+        <div class="form-field"><label>OID inicial (de onde a busca começa)</label>
+          <input type="text" id="new-dev-base-oid" value="1.3.6.1.2.1.1" placeholder="Ex: 1.3.6.1.4.1.31957">
+        </div>
+        <div class="form-field"><label>Atalhos</label>
+          <select id="new-dev-oid-shortcut">
+            <option value="">— escolher —</option>
+            <option value="1.3.6.1.2.1.1">Info do sistema (padrão, pouco resultado)</option>
+            <option value="1.3.6.1.2.1">MIB-II padrão (interfaces, sistema, etc)</option>
+            <option value="1.3.6.1.4.1">Toda a árvore de fabricantes (pode ser lento)</option>
+          </select>
+        </div>
+      </div>
+      <div class="appearance-note" style="margin:0 0 10px;padding:0;background:none;border:none;font-size:11px;">
+        Dica: se você já sabe o número do fabricante (ex: <code>31957</code> pra TSDA), coloque algo como
+        <code>1.3.6.1.4.1.31957</code> no OID inicial — encontra muito mais rápido do que buscar a árvore toda.
+      </div>
+      <div class="appearance-note" id="snmp-v3-warning" style="display:none;margin:0 0 10px;padding:8px 10px;background:rgba(245,196,81,0.1);border:1px solid rgba(245,196,81,0.3);border-radius:6px;color:var(--amber);">
+        ⚠ SNMPv3 ainda não é suportado para leitura de métricas neste sistema (só v1 e v2c). Use v1/v2c por enquanto.
+      </div>
+      <div id="snmp-scan-status" class="scan-status"></div>
+      <div id="snmp-scan-results" style="max-height:220px;overflow-y:auto;margin-bottom:10px;"></div>
+
+      <div class="form-actions" style="margin:0;">
+        <button class="btn-primary" id="confirm-add-device-btn">Adicionar dispositivo</button>
+        <button class="btn-secondary" id="cancel-add-device-btn">Cancelar</button>
+      </div>
+    </div>
+
+    <div class="editor-colors">
+      <label>Online <input type="color" id="editor-color-online" value="#2ecc55"></label>
+      <label>Offline / Alarme <input type="color" id="editor-color-offline" value="#e5384b"></label>
+      <label>Aguardando dados <input type="color" id="editor-color-unknown" value="#434f6c"></label>
+    </div>
+
+    <div class="editor-size-panel" id="editor-size-panel" style="display:none;">
+      <label style="margin:0;">Tamanho do item selecionado:</label>
+      <input type="range" id="editor-size-slider" min="0.5" max="2" step="0.05" value="1">
+      <span id="editor-size-value">100%</span>
+      <button id="editor-edit-device-btn" class="btn-secondary">&#9999;&#65039; Editar</button>
+      <button id="editor-move-to-library-btn" class="btn-secondary">&#128218; Mover pra Biblioteca</button>
+      <button id="editor-paste-from-library-btn" class="btn-secondary" style="display:none;">&#128203; Colar em outro mapa</button>
+      <button id="editor-delete-btn" class="btn-secondary" style="color:var(--red);">Excluir rótulo</button>
+      <button id="editor-deselect-btn" class="btn-secondary">Concluído</button>
+    </div>
+
+    <div class="modal-overlay" id="edit-device-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:300;align-items:center;justify-content:center;">
+      <div style="background:var(--bg-1, #0f172a);border:1px solid var(--line);border-radius:12px;padding:22px 26px;max-width:640px;width:92%;max-height:85vh;overflow-y:auto;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+          <h2 style="margin:0;font-size:16px;">Editar Dispositivo</h2>
+          <button type="button" class="btn-secondary" id="edit-device-close-btn">Fechar</button>
+        </div>
+        <label>Nome</label>
+        <input type="text" id="edit-device-name" style="width:100%;margin-bottom:10px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">
+          <div><label>IP</label><input type="text" id="edit-device-ip" style="width:100%;"></div>
+          <div><label>Tipo</label>
+            <select id="edit-device-kind" style="width:100%;">
+              <option value="tx">tx (transmissor)</option>
+              <option value="ups">ups (nobreak)</option>
+              <option value="sensor">sensor</option>
+              <option value="radio">radio</option>
+              <option value="power">power</option>
+              <option value="link">link</option>
+              <option value="camera">camera</option>
+              <option value="other">outro</option>
+            </select>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 2fr;gap:10px;margin-bottom:10px;">
+          <div><label>Protocolo</label>
+            <select id="edit-device-protocol" style="width:100%;">
+              <option value="snmp">SNMP (v1 / v2c)</option>
+              <option value="modbus">Modbus TCP</option>
+            </select>
+          </div>
+          <div id="edit-device-modbus-box" style="display:none;">
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;">
+              <div><label style="font-size:11px;">Porta</label><input type="number" id="edit-mb-port" value="502" style="width:100%;"></div>
+              <div><label style="font-size:11px;">Slave ID</label><input type="number" id="edit-mb-unit" value="1" style="width:100%;"></div>
+              <div><label style="font-size:11px;" title="Ordem das palavras de 32 bits (igual ao NETx)">Word swap</label>
+                <select id="edit-mb-wordswap" style="width:100%;"><option value="T">T (alta 1º)</option><option value="F">F (baixa 1º)</option></select></div>
+              <div><label style="font-size:11px;">Timeout (ms)</label><input type="number" id="edit-mb-timeout" value="3000" style="width:100%;"></div>
+            </div>
+          </div>
+        </div>
+        <label style="margin-top:6px;" id="edit-device-metrics-title">Métricas / OIDs</label>
+        <div id="edit-device-metrics-list"></div>
+        <button type="button" class="btn-secondary" id="edit-device-add-metric-btn" style="margin:8px 0 16px;">+ Adicionar métrica</button>
+        <div class="form-actions">
+          <button type="button" class="btn-primary" id="edit-device-save-btn">Salvar alterações</button>
+          <span class="scan-status" id="edit-device-status"></span>
+        </div>
+      </div>
+    </div>
+
+    <div class="editor-canvas-wrap" id="editor-canvas-wrap">
+      <div class="editor-canvas" id="editor-canvas">
+        <svg id="editor-edges-svg"></svg>
+      </div>
+    </div>
+    <div class="appearance-note">Role a área acima (barra de rolagem) se precisar de mais espaço — o mapa real se ajusta à tela automaticamente, mas aqui usamos um espaço fixo maior pra facilitar o arraste.</div>
+  </div>
+</div>
+
+<div class="appearance-panel">
+  <div class="appearance-head">
+    <span>&#9993; Mensagem do Telegram</span>
+  </div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 14px;">
+      Edite o texto que é enviado no Telegram quando um alarme dispara. Use os marcadores abaixo — eles são
+      substituídos automaticamente pelo valor real na hora do envio. O texto atual já vem preenchido como ponto de partida.
+    </div>
+
+    <div class="msg-placeholders">
+      <code>{equipamento}</code> nome do dispositivo &nbsp;·&nbsp;
+      <code>{status}</code> UP/DOWN/ALARME/OK &nbsp;·&nbsp;
+      <code>{ip}</code> endereço IP &nbsp;·&nbsp;
+      <code>{metrica}</code> nome da métrica (só na de valor) &nbsp;·&nbsp;
+      <code>{valor}</code> valor atual (só na de valor)
+    </div>
+
+    <div class="form-grid" style="grid-template-columns:200px 1fr;align-items:end;margin-top:14px;">
+      <div class="form-field">
+        <label>Mapa</label>
+        <select id="msg-map-select">
+          <option value="interior">Todos os abrigos (posições antigas)</option>
+          <option value="fg">Abrigo Fonte Grande</option>
+        </select>
+      </div>
+      <div class="form-actions" style="margin:0;">
+        <button class="btn-secondary" id="msg-reset-btn">Restaurar padrão</button>
+        <button class="btn-primary" id="msg-save-btn">Salvar mensagem</button>
+        <span class="scan-status" id="msg-status"></span>
+      </div>
+    </div>
+
+    <label style="margin-top:16px;">Mensagem de PING (equipamento ficou online/offline)</label>
+    <textarea id="msg-ping-textarea" class="msg-textarea"></textarea>
+
+    <label style="margin-top:14px;">Mensagem de VALOR (métrica entrou/saiu de alarme)</label>
+    <textarea id="msg-metric-textarea" class="msg-textarea"></textarea>
+  </div>
+</div>
+
+<div class="map-tabs">
+  <button class="map-tab active" id="tab-interior" data-map="interior">Demais abrigos</button>
+  <button class="map-tab" id="tab-fg" data-map="fg">Abrigo Fonte Grande</button>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="search-input" placeholder="Buscar dispositivo, site ou IP...">
+  <span class="count" id="count-label">carregando...</span>
+  <button id="enable-all">Ativar todos</button>
+  <button id="disable-all">Desativar todos</button>
+</div>
+
+
+<div class="content" id="content">
+  <div class="empty">carregando dispositivos...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let DEVICES = [];
+let SITES_ORDER = [];
+let currentDeviceMap = 'interior';
+
+async function loadDevices(){
+  const endpoint = currentDeviceMap === 'fg' ? '/api/devices-fg' : '/api/devices';
+  const res = await fetch(endpoint, {cache:'no-store'});
+  const data = await res.json();
+  DEVICES = data.devices || [];
+  SITES_ORDER = data.sites_order || data.categories_order || [...new Set(DEVICES.map(d => d.site))];
+  render();
+}
+
+function showToast(msg, isErr){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isErr ? ' err' : '');
+  setTimeout(()=> t.classList.remove('show'), 2200);
+}
+
+async function toggleDevice(dev, enabled, switchEl){
+  switchEl.disabled = true;
+  try{
+    const res = await fetch('/api/toggle', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: dev.id, enabled: enabled})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    dev.enabled = enabled;
+    showToast((enabled ? 'Ativado: ' : 'Desativado: ') + dev.name, false);
+    render();
+  }catch(err){
+    showToast('Erro ao salvar: ' + err.message, true);
+    switchEl.checked = !enabled; // reverte visualmente
+  }finally{
+    switchEl.disabled = false;
+  }
+}
+
+async function toggleDeviceAlert(dev, alertEnabled, switchEl){
+  switchEl.disabled = true;
+  try{
+    const res = await fetch('/api/toggle-alert', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: dev.id, alert_enabled: alertEnabled})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    dev.alert_enabled = alertEnabled;
+    showToast((alertEnabled ? 'Alarme ativado: ' : 'Alarme desativado: ') + dev.name, false);
+  }catch(err){
+    showToast('Erro ao salvar: ' + err.message, true);
+    switchEl.checked = !alertEnabled;
+  }finally{
+    switchEl.disabled = false;
+  }
+}
+
+async function toggleDeviceSound(dev, soundEnabled, switchEl){
+  switchEl.disabled = true;
+  try{
+    const res = await fetch('/api/toggle-sound', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: dev.id, sound_enabled: soundEnabled})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    dev.sound_enabled = soundEnabled;
+    showToast((soundEnabled ? 'Som do alarme ativado: ' : 'Som do alarme desativado: ') + dev.name, false);
+  }catch(err){
+    showToast('Erro ao salvar: ' + err.message, true);
+    switchEl.checked = !soundEnabled;
+  }finally{
+    switchEl.disabled = false;
+  }
+}
+
+async function togglePing(dev, pingEnabled, switchEl){
+  switchEl.disabled = true;
+  try{
+    const res = await fetch('/api/toggle-ping', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: dev.id, ping_enabled: pingEnabled})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    dev.ping_enabled = pingEnabled;
+    showToast((pingEnabled ? 'Ping ativado: ' : 'Ping desativado: ') + dev.name, false);
+  }catch(err){
+    showToast('Erro ao salvar: ' + err.message, true);
+    switchEl.checked = !pingEnabled;
+  }finally{
+    switchEl.disabled = false;
+  }
+}
+
+async function toggleService(dev, label, enabled, switchEl){
+  switchEl.disabled = true;
+  try{
+    const res = await fetch('/api/toggle-service', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: dev.id, label: label, enabled: enabled})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    const metric = (dev.metrics || []).find(m => m.label === label);
+    if(metric) metric.enabled = enabled;
+    showToast((enabled ? 'Serviço ativado: ' : 'Serviço desativado: ') + dev.name + ' → ' + label, false);
+  }catch(err){
+    showToast('Erro ao salvar: ' + err.message, true);
+    switchEl.checked = !enabled;
+  }finally{
+    switchEl.disabled = false;
+  }
+}
+
+async function renameDevice(dev, inputEl){
+  const newName = inputEl.value.trim();
+  const oldName = inputEl.dataset.original;
+  if(!newName){
+    inputEl.value = oldName;
+    return;
+  }
+  if(newName === oldName) return; // nada mudou, nao chama a API a toa
+
+  inputEl.classList.add('saving');
+  inputEl.disabled = true;
+  try{
+    const res = await fetch('/api/rename-device', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({id: dev.id, name: newName})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    dev.name = newName;
+    inputEl.dataset.original = newName;
+    showToast('Nome atualizado: ' + oldName + ' → ' + newName, false);
+  }catch(err){
+    showToast('Erro ao renomear: ' + err.message, true);
+    inputEl.value = oldName;
+  }finally{
+    inputEl.classList.remove('saving');
+    inputEl.disabled = false;
+  }
+}
+
+function render(){
+  const q = (document.getElementById('search-input').value || '').trim().toLowerCase();
+  const content = document.getElementById('content');
+  content.innerHTML = '';
+
+  const filtered = DEVICES.filter(d => {
+    if(!q) return true;
+    return d.name.toLowerCase().includes(q) ||
+           d.site.toLowerCase().includes(q) ||
+           (d.ip||'').includes(q);
+  });
+
+  const total = DEVICES.length;
+  const enabledCount = DEVICES.filter(d => d.enabled !== false).length;
+  document.getElementById('count-label').textContent =
+    enabledCount + ' de ' + total + ' ativos';
+
+  if(filtered.length === 0){
+    content.innerHTML = '<div class="empty">nenhum dispositivo encontrado</div>';
+    return;
+  }
+
+  SITES_ORDER.forEach(site => {
+    const devs = filtered.filter(d => d.site === site);
+    if(devs.length === 0) return;
+
+    const group = document.createElement('div');
+    group.className = 'site-group';
+    group.innerHTML = `<h2><span>${site}</span><button class="site-toggle-all" data-site="${site}">ativar/desativar todos deste site</button></h2>`;
+
+    devs.forEach(dev => {
+      const enabled = dev.enabled !== false;
+      const alertEnabled = dev.alert_enabled !== false;
+      const pingEnabled = dev.ping_enabled !== false;
+      const soundEnabledDev = dev.sound_enabled !== false;
+      const metricCount = (dev.metrics && dev.metrics.length) || 0;
+      const wrap = document.createElement('div');
+      wrap.className = 'device-row-wrap';
+
+      const row = document.createElement('div');
+      row.className = 'device-row' + (enabled ? '' : ' is-disabled');
+      row.innerHTML = `
+        <div class="device-info">
+          <input type="text" class="d-name-edit" value="${dev.name}" data-original="${dev.name}">
+          <div class="d-meta">${dev.ip || 'sem IP'} · ${dev.kind}</div>
+        </div>
+        <div class="switch-group">
+          <button class="services-toggle-btn" type="button">&#9881; Serviços (${metricCount + 1}) &#9662;</button>
+          <div class="switch-col">
+            <span class="switch-label">Monitorar</span>
+            <label class="switch">
+              <input type="checkbox" class="toggle-enabled" ${enabled ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="switch-col">
+            <span class="switch-label">Alarme</span>
+            <label class="switch">
+              <input type="checkbox" class="toggle-alert" ${alertEnabled ? 'checked' : ''}>
+              <span class="slider alert-slider"></span>
+            </label>
+          </div>
+          <div class="switch-col">
+            <span class="switch-label">Som</span>
+            <label class="switch">
+              <input type="checkbox" class="toggle-sound" ${soundEnabledDev ? 'checked' : ''}>
+              <span class="slider sound-slider"></span>
+            </label>
+          </div>
+        </div>`;
+      const enabledInput = row.querySelector('.toggle-enabled');
+      const alertInput = row.querySelector('.toggle-alert');
+      const soundInput = row.querySelector('.toggle-sound');
+      const nameInput = row.querySelector('.d-name-edit');
+      enabledInput.addEventListener('change', () => toggleDevice(dev, enabledInput.checked, enabledInput));
+      alertInput.addEventListener('change', () => toggleDeviceAlert(dev, alertInput.checked, alertInput));
+      soundInput.addEventListener('change', () => toggleDeviceSound(dev, soundInput.checked, soundInput));
+      nameInput.addEventListener('keydown', (e) => {
+        if(e.key === 'Enter') nameInput.blur();
+        if(e.key === 'Escape'){ nameInput.value = nameInput.dataset.original; nameInput.blur(); }
+      });
+      nameInput.addEventListener('blur', () => renameDevice(dev, nameInput));
+      wrap.appendChild(row);
+
+      {
+        const servicesList = document.createElement('div');
+        servicesList.className = 'services-list';
+        const pingItem = `
+            <div class="service-item">
+              <span class="service-name">Ping <i>(conectividade)</i></span>
+              <label class="switch small">
+                <input type="checkbox" class="toggle-ping" ${pingEnabled ? 'checked' : ''}>
+                <span class="slider"></span>
+              </label>
+            </div>`;
+        const metricItems = (dev.metrics || []).map(m => {
+          const svcEnabled = m.enabled !== false;
+          return `
+            <div class="service-item">
+              <span class="service-name">${m.label}${m.unit ? ' <i>(' + m.unit + ')</i>' : ''}</span>
+              <label class="switch small">
+                <input type="checkbox" class="toggle-service" data-label="${m.label}" ${svcEnabled ? 'checked' : ''}>
+                <span class="slider"></span>
+              </label>
+            </div>`;
+        }).join('');
+        servicesList.innerHTML = pingItem + metricItems;
+
+        servicesList.querySelector('.toggle-ping').addEventListener('change', function(){
+          togglePing(dev, this.checked, this);
+        });
+        servicesList.querySelectorAll('.toggle-service').forEach(input => {
+          input.addEventListener('change', () => toggleService(dev, input.dataset.label, input.checked, input));
+        });
+        wrap.appendChild(servicesList);
+
+        row.querySelector('.services-toggle-btn').addEventListener('click', () => {
+          servicesList.classList.toggle('show');
+        });
+      }
+
+      group.appendChild(wrap);
+    });
+
+    content.appendChild(group);
+  });
+
+  content.querySelectorAll('.site-toggle-all').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const site = btn.dataset.site;
+      const devs = DEVICES.filter(d => d.site === site);
+      const anyEnabled = devs.some(d => d.enabled !== false);
+      const targetState = !anyEnabled; // se algum estava ligado, desliga todos; senao liga todos
+      for(const dev of devs){
+        await fetch('/api/toggle', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({id: dev.id, enabled: targetState})
+        });
+        dev.enabled = targetState;
+      }
+      showToast(site + ': ' + (targetState ? 'todos ativados' : 'todos desativados'), false);
+      render();
+    });
+  });
+}
+
+document.getElementById('search-input').addEventListener('input', render);
+
+document.getElementById('enable-all').addEventListener('click', async () => {
+  for(const dev of DEVICES){
+    await fetch('/api/toggle', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id: dev.id, enabled: true})
+    });
+    dev.enabled = true;
+  }
+  showToast('Todos os dispositivos ativados', false);
+  render();
+});
+
+document.getElementById('disable-all').addEventListener('click', async () => {
+  if(!confirm('Desativar o monitoramento de TODOS os dispositivos?')) return;
+  for(const dev of DEVICES){
+    await fetch('/api/toggle', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({id: dev.id, enabled: false})
+    });
+    dev.enabled = false;
+  }
+  showToast('Todos os dispositivos desativados', false);
+  render();
+});
+
+// ---------------- tamanho da fonte dos dispositivos (independente por mapa) ----------------
+function setupFontScaleControl(storageKey, suffix){
+  const slider = document.getElementById('font-scale-slider-' + suffix);
+  const valueLabel = document.getElementById('font-scale-value-' + suffix);
+
+  function loadScale(){
+    const saved = parseFloat(localStorage.getItem(storageKey));
+    return isNaN(saved) ? 1 : saved;
+  }
+  function setScale(value){
+    value = Math.max(0.7, Math.min(1.8, value));
+    localStorage.setItem(storageKey, value);
+    slider.value = value;
+    valueLabel.textContent = Math.round(value * 100) + '%';
+  }
+
+  setScale(loadScale());
+  slider.addEventListener('input', () => setScale(parseFloat(slider.value)));
+  document.getElementById('font-scale-minus-' + suffix).addEventListener('click', () => setScale(parseFloat(slider.value) - 0.05));
+  document.getElementById('font-scale-plus-' + suffix).addEventListener('click', () => setScale(parseFloat(slider.value) + 0.05));
+  document.getElementById('font-scale-reset-' + suffix).addEventListener('click', () => setScale(1));
+}
+
+// ---------------- tema claro/escuro ----------------
+const THEME_KEY = 'painel_theme';
+function applyTheme(theme){
+  document.documentElement.setAttribute('data-theme', theme);
+  localStorage.setItem(THEME_KEY, theme);
+  document.getElementById('theme-dark-btn').classList.toggle('active', theme === 'dark');
+  document.getElementById('theme-light-btn').classList.toggle('active', theme === 'light');
+}
+applyTheme(localStorage.getItem(THEME_KEY) || 'dark');
+document.getElementById('theme-dark-btn').addEventListener('click', () => applyTheme('dark'));
+document.getElementById('theme-light-btn').addEventListener('click', () => applyTheme('light'));
+
+// ---------------- peso da fonte (negrito) ----------------
+const BOLD_KEY = 'painel_bold';
+function applyBold(value){
+  localStorage.setItem(BOLD_KEY, value);
+  document.getElementById('bold-normal-btn').classList.toggle('active', value !== 'bold');
+  document.getElementById('bold-bold-btn').classList.toggle('active', value === 'bold');
+}
+applyBold(localStorage.getItem(BOLD_KEY) || 'normal');
+document.getElementById('bold-normal-btn').addEventListener('click', () => applyBold('normal'));
+document.getElementById('bold-bold-btn').addEventListener('click', () => applyBold('bold'));
+
+setupFontScaleControl('painel_font_scale_interior', 'interior');
+setupFontScaleControl('painel_font_scale_fg', 'fg');
+
+// ---------------- horario de disparo de alarmes ----------------
+async function loadAlarmSchedule(){
+  try{
+    const res = await fetch('/api/alarm-schedule', {cache:'no-store'});
+    const data = await res.json();
+    ['interior','fg'].forEach(map => {
+      if(data[map]){
+        document.getElementById('alarm-start-' + map).value = data[map].start;
+        document.getElementById('alarm-end-' + map).value = data[map].end;
+      }
+    });
+  }catch(err){ /* backend pode estar offline; mantem os valores padrao no formulario */ }
+}
+
+function setupAlarmScheduleSave(map){
+  document.getElementById('alarm-save-' + map).addEventListener('click', async () => {
+    const statusEl = document.getElementById('alarm-status-' + map);
+    const start = document.getElementById('alarm-start-' + map).value;
+    const end = document.getElementById('alarm-end-' + map).value;
+    if(!start || !end){
+      statusEl.textContent = 'preencha os dois horários';
+      statusEl.style.color = 'var(--red)';
+      return;
+    }
+    statusEl.textContent = 'salvando...';
+    statusEl.style.color = 'var(--gray)';
+    try{
+      const payload = {};
+      payload[map] = {start, end};
+      const res = await fetch('/api/alarm-schedule', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+      statusEl.textContent = 'salvo ✓';
+      statusEl.style.color = 'var(--green)';
+      setTimeout(() => { statusEl.textContent = ''; }, 2500);
+    }catch(err){
+      statusEl.textContent = 'erro: ' + err.message;
+      statusEl.style.color = 'var(--red)';
+    }
+  });
+}
+
+loadAlarmSchedule();
+setupAlarmScheduleSave('interior');
+setupAlarmScheduleSave('fg');
+
+// ==================== resumo automatico de domingo ====================
+async function loadSundaySummaryConfig(){
+  try{
+    const res = await fetch('/api/sunday-summary', {cache:'no-store'});
+    const data = await res.json();
+    const toggle = document.getElementById('sunday-summary-toggle');
+    toggle.checked = !!data.enabled;
+    updateSundaySummaryLabel(data);
+  }catch(err){
+    document.getElementById('sunday-summary-status').textContent = 'erro ao carregar: ' + err.message;
+  }
+}
+
+function updateSundaySummaryLabel(data){
+  const label = document.getElementById('sunday-summary-label');
+  if(data.enabled){
+    label.textContent = 'ativado' + (data.last_sent_date ? ' — último envio: ' + data.last_sent_date : ' — ainda não enviou nenhum');
+  } else {
+    label.textContent = 'desativado';
+  }
+}
+
+document.getElementById('sunday-summary-toggle').addEventListener('change', async function(){
+  const statusEl = document.getElementById('sunday-summary-status');
+  const enabled = this.checked;
+  this.disabled = true;
+  statusEl.textContent = 'salvando...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/sunday-summary', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({enabled})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    updateSundaySummaryLabel(data);
+    statusEl.textContent = 'salvo ✓';
+    statusEl.style.color = 'var(--green)';
+    setTimeout(() => { statusEl.textContent = ''; }, 2000);
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+    this.checked = !enabled;
+  }finally{
+    this.disabled = false;
+  }
+});
+
+// ==================== resumo diario da agenda (planning) ====================
+async function loadAgendaSummaryConfig(){
+  try{
+    const res = await fetch('/api/agenda-summary', {cache:'no-store'});
+    const data = await res.json();
+    document.getElementById('agenda-summary-toggle').checked = !!data.enabled;
+    document.getElementById('agenda-summary-hour').value = data.hour ?? 7;
+    document.getElementById('agenda-summary-minute').value = data.minute ?? 0;
+    document.getElementById('agenda-summary-skip-empty').checked = !!data.skip_if_empty;
+    updateAgendaSummaryLabel(data);
+  }catch(err){
+    document.getElementById('agenda-summary-status').textContent = 'erro ao carregar: ' + err.message;
+  }
+}
+
+function updateAgendaSummaryLabel(data){
+  const label = document.getElementById('agenda-summary-label');
+  const hh = String(data.hour ?? 7).padStart(2,'0');
+  const mm = String(data.minute ?? 0).padStart(2,'0');
+  if(data.enabled){
+    label.textContent = `ativado — todo dia às ${hh}:${mm}` + (data.last_sent_date ? ' — último envio: ' + data.last_sent_date : ' — ainda não enviou nenhum');
+  } else {
+    label.textContent = 'desativado';
+  }
+}
+
+async function saveAgendaSummaryConfig(partial){
+  const statusEl = document.getElementById('agenda-summary-status');
+  statusEl.textContent = 'salvando...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/agenda-summary', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(partial)
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    updateAgendaSummaryLabel(data);
+    statusEl.textContent = 'salvo ✓';
+    statusEl.style.color = 'var(--green)';
+    setTimeout(() => { statusEl.textContent = ''; }, 2000);
+    return data;
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+    throw err;
+  }
+}
+
+document.getElementById('agenda-summary-toggle').addEventListener('change', async function(){
+  const enabled = this.checked;
+  this.disabled = true;
+  try{
+    await saveAgendaSummaryConfig({enabled});
+  }catch(err){
+    this.checked = !enabled;
+  }finally{
+    this.disabled = false;
+  }
+});
+
+document.getElementById('agenda-summary-save-time-btn').addEventListener('click', async function(){
+  const hour = parseInt(document.getElementById('agenda-summary-hour').value, 10) || 0;
+  const minute = parseInt(document.getElementById('agenda-summary-minute').value, 10) || 0;
+  await saveAgendaSummaryConfig({enabled: document.getElementById('agenda-summary-toggle').checked, hour, minute});
+});
+
+document.getElementById('agenda-summary-skip-empty').addEventListener('change', async function(){
+  await saveAgendaSummaryConfig({enabled: document.getElementById('agenda-summary-toggle').checked, skip_if_empty: this.checked});
+});
+
+document.getElementById('agenda-summary-test-btn').addEventListener('click', async function(){
+  const statusEl = document.getElementById('agenda-summary-status');
+  const previewEl = document.getElementById('agenda-summary-preview');
+  this.disabled = true;
+  statusEl.textContent = 'enviando teste...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/agenda-summary/test', {method: 'POST'});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao enviar');
+    statusEl.textContent = 'teste enviado ✓';
+    statusEl.style.color = 'var(--green)';
+    previewEl.textContent = data.preview;
+    previewEl.style.display = 'block';
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }finally{
+    this.disabled = false;
+  }
+});
+
+// ==================== aviso da agenda - um dia antes (amanha) ====================
+async function loadAgendaSummaryAmanhaConfig(){
+  try{
+    const res = await fetch('/api/agenda-summary-amanha', {cache:'no-store'});
+    const data = await res.json();
+    document.getElementById('agenda-summary-amanha-toggle').checked = !!data.enabled;
+    document.getElementById('agenda-summary-amanha-hour').value = data.hour ?? 18;
+    document.getElementById('agenda-summary-amanha-minute').value = data.minute ?? 0;
+    document.getElementById('agenda-summary-amanha-skip-empty').checked = !!data.skip_if_empty;
+    updateAgendaSummaryAmanhaLabel(data);
+  }catch(err){
+    document.getElementById('agenda-summary-amanha-status').textContent = 'erro ao carregar: ' + err.message;
+  }
+}
+
+function updateAgendaSummaryAmanhaLabel(data){
+  const label = document.getElementById('agenda-summary-amanha-label');
+  const hh = String(data.hour ?? 18).padStart(2,'0');
+  const mm = String(data.minute ?? 0).padStart(2,'0');
+  if(data.enabled){
+    label.textContent = `ativado — todo dia às ${hh}:${mm}` + (data.last_sent_date ? ' — último envio: ' + data.last_sent_date : ' — ainda não enviou nenhum');
+  } else {
+    label.textContent = 'desativado';
+  }
+}
+
+async function saveAgendaSummaryAmanhaConfig(partial){
+  const statusEl = document.getElementById('agenda-summary-amanha-status');
+  statusEl.textContent = 'salvando...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/agenda-summary-amanha', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(partial)
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    updateAgendaSummaryAmanhaLabel(data);
+    statusEl.textContent = 'salvo ✓';
+    statusEl.style.color = 'var(--green)';
+    setTimeout(() => { statusEl.textContent = ''; }, 2000);
+    return data;
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+    throw err;
+  }
+}
+
+document.getElementById('agenda-summary-amanha-toggle').addEventListener('change', async function(){
+  const enabled = this.checked;
+  this.disabled = true;
+  try{
+    await saveAgendaSummaryAmanhaConfig({enabled});
+  }catch(err){
+    this.checked = !enabled;
+  }finally{
+    this.disabled = false;
+  }
+});
+
+document.getElementById('agenda-summary-amanha-save-time-btn').addEventListener('click', async function(){
+  const hour = parseInt(document.getElementById('agenda-summary-amanha-hour').value, 10) || 0;
+  const minute = parseInt(document.getElementById('agenda-summary-amanha-minute').value, 10) || 0;
+  await saveAgendaSummaryAmanhaConfig({enabled: document.getElementById('agenda-summary-amanha-toggle').checked, hour, minute});
+});
+
+document.getElementById('agenda-summary-amanha-skip-empty').addEventListener('change', async function(){
+  await saveAgendaSummaryAmanhaConfig({enabled: document.getElementById('agenda-summary-amanha-toggle').checked, skip_if_empty: this.checked});
+});
+
+document.getElementById('agenda-summary-amanha-test-btn').addEventListener('click', async function(){
+  const statusEl = document.getElementById('agenda-summary-amanha-status');
+  const previewEl = document.getElementById('agenda-summary-amanha-preview');
+  this.disabled = true;
+  statusEl.textContent = 'enviando teste...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/agenda-summary-amanha/test', {method: 'POST'});
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao enviar');
+    statusEl.textContent = 'teste enviado ✓';
+    statusEl.style.color = 'var(--green)';
+    previewEl.textContent = data.preview;
+    previewEl.style.display = 'block';
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }finally{
+    this.disabled = false;
+  }
+});
+
+// ==================== confirmacao de alarme (evitar alarme falso) ====================
+const REFRESH_INTERVAL_S = 30; // precisa bater com o REFRESH_INTERVAL do server.py
+
+function formatConfirmTime(count){
+  const totalSeconds = count * REFRESH_INTERVAL_S;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  if(minutes === 0) return '≈ ' + seconds + 's de leituras seguidas confirmando';
+  if(seconds === 0) return '≈ ' + minutes + ' min de leituras seguidas confirmando';
+  return '≈ ' + minutes + 'min' + seconds + 's de leituras seguidas confirmando';
+}
+
+async function loadAlarmConfirmConfig(){
+  try{
+    const res = await fetch('/api/alarm-confirm-config', {cache:'no-store'});
+    const data = await res.json();
+    document.getElementById('metric-confirm-input').value = data.metric_confirm_count;
+    document.getElementById('ping-confirm-input').value = data.ping_confirm_count;
+    document.getElementById('visual-confirm-input').value = data.visual_confirm_count;
+    document.getElementById('metric-confirm-time').textContent = formatConfirmTime(data.metric_confirm_count);
+    document.getElementById('ping-confirm-time').textContent = formatConfirmTime(data.ping_confirm_count);
+    document.getElementById('visual-confirm-time').textContent = formatConfirmTime(data.visual_confirm_count);
+  }catch(err){
+    document.getElementById('alarm-confirm-status').textContent = 'erro ao carregar: ' + err.message;
+    document.getElementById('alarm-confirm-status').style.color = 'var(--red)';
+  }
+}
+
+const CONFIRM_TIME_TARGETS = {
+  'metric-confirm-input': 'metric-confirm-time',
+  'ping-confirm-input': 'ping-confirm-time',
+  'visual-confirm-input': 'visual-confirm-time',
+};
+Object.keys(CONFIRM_TIME_TARGETS).forEach(id => {
+  document.getElementById(id).addEventListener('input', function(){
+    const val = parseInt(this.value, 10);
+    document.getElementById(CONFIRM_TIME_TARGETS[id]).textContent = isNaN(val) ? '' : formatConfirmTime(val);
+  });
+});
+
+document.getElementById('alarm-confirm-save-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('alarm-confirm-status');
+  const metricCount = parseInt(document.getElementById('metric-confirm-input').value, 10);
+  const pingCount = parseInt(document.getElementById('ping-confirm-input').value, 10);
+  const visualCount = parseInt(document.getElementById('visual-confirm-input').value, 10);
+
+  if(isNaN(metricCount) || isNaN(pingCount) || isNaN(visualCount) || metricCount < 1 || pingCount < 1 || visualCount < 1){
+    statusEl.textContent = 'preencha os três campos com números válidos (mínimo 1)';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+  if(visualCount > 8){
+    statusEl.textContent = 'a cor da caixa/som no mapa aceita no máximo 8 ciclos';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+  statusEl.textContent = 'salvando...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/alarm-confirm-config', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({metric_confirm_count: metricCount, ping_confirm_count: pingCount, visual_confirm_count: visualCount})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    statusEl.textContent = 'salvo ✓';
+    statusEl.style.color = 'var(--green)';
+    setTimeout(() => { statusEl.textContent = ''; }, 2500);
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+loadAlarmConfirmConfig();
+
+loadSundaySummaryConfig();
+loadAgendaSummaryConfig();
+loadAgendaSummaryAmanhaConfig();
+
+// ==================== configuracoes de rede ====================
+let networkRanges = [];
+
+function renderNetworkRanges(){
+  const list = document.getElementById('network-ranges-list');
+  if(!networkRanges.length){
+    list.innerHTML = '<span style="color:var(--gray);font-family:var(--mono);font-size:12px;">nenhuma faixa extra cadastrada ainda</span>';
+    return;
+  }
+  list.innerHTML = networkRanges.map((r, i) => `
+    <span class="network-range-chip">${r}<button type="button" data-idx="${i}" title="remover">&times;</button></span>
+  `).join('');
+  list.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      networkRanges.splice(parseInt(btn.dataset.idx, 10), 1);
+      renderNetworkRanges();
+    });
+  });
+}
+
+function updateNetworkRestrictLabel(){
+  const toggle = document.getElementById('network-restrict-toggle');
+  const label = document.getElementById('network-restrict-label');
+  label.textContent = toggle.checked
+    ? 'restrição ativada — só rede local + faixas listadas podem acessar'
+    : 'restrição desativada — qualquer rede pode acessar';
+}
+
+async function loadNetworkConfig(){
+  const statusEl = document.getElementById('network-status');
+  try{
+    const res = await fetch('/api/network-config', {cache:'no-store'});
+    const data = await res.json();
+    document.getElementById('network-restrict-toggle').checked = !!data.restrict_enabled;
+    networkRanges = data.extra_ranges || [];
+    renderNetworkRanges();
+    updateNetworkRestrictLabel();
+  }catch(err){
+    statusEl.textContent = 'erro ao carregar: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+document.getElementById('network-restrict-toggle').addEventListener('change', updateNetworkRestrictLabel);
+
+document.getElementById('network-add-range-btn').addEventListener('click', () => {
+  const input = document.getElementById('network-range-input');
+  const val = input.value.trim();
+  if(!val) return;
+  networkRanges.push(val);
+  input.value = '';
+  renderNetworkRanges();
+});
+document.getElementById('network-range-input').addEventListener('keydown', (e) => {
+  if(e.key === 'Enter'){
+    e.preventDefault();
+    document.getElementById('network-add-range-btn').click();
+  }
+});
+
+document.getElementById('network-save-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('network-status');
+  statusEl.textContent = 'salvando...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/network-config', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({
+        restrict_enabled: document.getElementById('network-restrict-toggle').checked,
+        extra_ranges: networkRanges,
+      })
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    networkRanges = data.config.extra_ranges;
+    renderNetworkRanges();
+    statusEl.textContent = 'salvo ✓';
+    statusEl.style.color = 'var(--green)';
+    setTimeout(() => { statusEl.textContent = ''; }, 2500);
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+loadNetworkConfig();
+
+// ==================== editor de mapa ====================
+let editorMap = 'interior';
+let editorDevices = [];   // {id, name, x, y, scale, kind:'device'}
+let editorFullDeviceById = {};  // id -> dispositivo completo (ip, kind real, metricas/OIDs)
+let editorLabels = [];    // {id, text, x, y, scale, kind:'label'}
+let editorEdges = [];     // [[idA, idB], ...]
+let editorColors = {online:'#2ecc55', offline:'#e5384b', unknown:'#434f6c'};
+let editorSelected = null;
+let editorConnectMode = false;
+let editorConnectFirst = null;
+let editorDragging = null;
+let editorDragOffset = {x:0, y:0};
+let editorDragMoved = false;
+
+// posicoes de referencia que reproduzem o layout REAL de cada mapa hoje,
+// usadas como ponto de partida no editor quando ainda nao existe nada
+// salvo (em vez de uma grade generica sem relacao com o mapa de verdade)
+const REAL_LAYOUT_INTERIOR = {
+  'LINHARES':        {x: 72,   y: 101},
+  'ARACRUZ':         {x: 592,  y: 101},
+  'M. DO MORENO':    {x: 932,  y: 101},
+  'VIANA':           {x: 1212, y: 101},
+  'COLATINA':        {x: 72,   y: 621},
+  'S.B.ESPERANCA':   {x: 332,  y: 621},
+  'CAVALINHOS':      {x: 592,  y: 621},
+  'VITORIA FG':      {x: 932,  y: 541},
+  'SERRA':           {x: 932,  y: 891},
+  'GUARAPARI':       {x: 1212, y: 621},
+  'RIO NOVO DO SUL': {x: 1492, y: 621},
+  'CACHOEIRO':       {x: 1772, y: 621},
+};
+// grade real: canvas 1900x988, 4 colunas de ~463px, linhas 260/200/480 (gap 16px)
+// areas: "transmissores sistemas sistemas logo" / "transmissores infra infra infra" / "iurd nobreak hosts cameras"
+const REAL_LAYOUT_FG = {
+  'TRANSMISSORES':   {x: 0,    y: 0,   cols: 1, colWidth: 220, rowHeight: 90},
+  'SISTEMAS':        {x: 479,  y: 0,   cols: 2, colWidth: 450, rowHeight: 58},
+  'INFRAESTRUTURA':  {x: 479,  y: 276, cols: 4, colWidth: 340, rowHeight: 58},
+  'IURD':            {x: 0,    y: 492, cols: 5, colWidth: 85,  rowHeight: 58},
+  'NOBREAK':         {x: 479,  y: 492, cols: 2, colWidth: 210, rowHeight: 58},
+  'HOSTS':           {x: 958,  y: 492, cols: 1, colWidth: 150, rowHeight: 40},
+  'CAMERAS':         {x: 1437, y: 492, cols: 3, colWidth: 140, rowHeight: 40},
+};
+
+// conexoes que ja existem de verdade no Mapa Abrigos hoje (mesmas do
+// mapa_interior.html) - usadas como ponto de partida no editor, ligando
+// os rotulos de cidade gerados automaticamente
+const REAL_EDGES_INTERIOR = [
+  ['LINHARES', 'CAVALINHOS'],
+  ['ARACRUZ', 'CAVALINHOS'],
+  ['M. DO MORENO', 'VIANA'],
+  ['M. DO MORENO', 'VITORIA FG'],
+  ['COLATINA', 'S.B.ESPERANCA'],
+  ['S.B.ESPERANCA', 'CAVALINHOS'],
+  ['CAVALINHOS', 'VITORIA FG'],
+  ['VITORIA FG', 'SERRA'],
+  ['VITORIA FG', 'GUARAPARI'],
+  ['GUARAPARI', 'RIO NOVO DO SUL'],
+  ['RIO NOVO DO SUL', 'CACHOEIRO'],
+];
+
+async function populateEditorMapSelect(){
+  const select = document.getElementById('editor-map-select');
+  const currentValue = select.value;
+  try{
+    const res = await fetch('/api/maps', {cache:'no-store'});
+    const maps = await res.json();
+    // remove opcoes de mapas customizados antigas (recria do zero, mantem interior/fg fixos)
+    Array.from(select.querySelectorAll('option[data-custom]')).forEach(o => o.remove());
+    Object.entries(maps).forEach(([id, m]) => {
+      if(m.kind !== 'custom') return;
+      const opt = document.createElement('option');
+      opt.value = id;
+      opt.textContent = m.name;
+      opt.dataset.custom = '1';
+      select.appendChild(opt);
+    });
+    if([...select.options].some(o => o.value === currentValue)) select.value = currentValue;
+  }catch(err){ /* backend offline: mantem so interior/fg */ }
+}
+
+document.getElementById('editor-new-map-btn').addEventListener('click', async () => {
+  const name = prompt('Nome do novo mapa:');
+  if(!name) return;
+  const statusEl = document.getElementById('editor-status');
+  statusEl.textContent = 'criando mapa...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/maps', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({name})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao criar mapa');
+    await populateEditorMapSelect();
+    document.getElementById('editor-map-select').value = data.id;
+    statusEl.textContent = 'mapa "' + name + '" criado ✓ — acesse em ' + data.url;
+    statusEl.style.color = 'var(--green)';
+    editorLoadMap();
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+document.getElementById('editor-add-device-btn').addEventListener('click', () => {
+  const form = document.getElementById('editor-add-device-form');
+  form.style.display = form.style.display === 'none' ? 'block' : 'none';
+});
+document.getElementById('cancel-add-device-btn').addEventListener('click', () => {
+  document.getElementById('editor-add-device-form').style.display = 'none';
+  document.getElementById('snmp-scan-results').innerHTML = '';
+  document.getElementById('snmp-scan-status').textContent = '';
+  const pendingNote = document.getElementById('pending-metrics-note');
+  if(pendingNote) pendingNote.remove();
+  pendingNewDeviceMetrics = [];
+});
+
+let pendingNewDeviceMetrics = [];
+
+document.getElementById('new-dev-snmp-version').addEventListener('change', function(){
+  document.getElementById('snmp-v3-warning').style.display = this.value === '3' ? 'block' : 'none';
+});
+
+document.getElementById('new-dev-oid-shortcut').addEventListener('change', function(){
+  if(this.value) document.getElementById('new-dev-base-oid').value = this.value;
+});
+
+document.getElementById('new-dev-snmp-search-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('snmp-scan-status');
+  const resultsEl = document.getElementById('snmp-scan-results');
+  const ip = document.getElementById('new-dev-ip').value.trim();
+  const version = document.getElementById('new-dev-snmp-version').value;
+  const community = document.getElementById('new-dev-community').value.trim() || 'public';
+  const port = document.getElementById('new-dev-port').value.trim() || '161';
+  const baseOid = document.getElementById('new-dev-base-oid').value.trim() || '1.3.6.1.2.1.1';
+
+  if(!ip){
+    statusEl.textContent = 'preencha o IP antes de buscar';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+  if(version === '3'){
+    statusEl.textContent = 'SNMPv3 ainda não é suportado para busca — use v1 ou v2c';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+
+  statusEl.textContent = 'buscando até o fim da árvore... (pode levar até 1 minuto)';
+  statusEl.style.color = 'var(--gray)';
+  resultsEl.innerHTML = '';
+
+  try{
+    const qs = new URLSearchParams({ip, community, version, port, oid: baseOid, max: '5000'});
+    const res = await fetch('/api/snmp/scan?' + qs.toString(), {cache:'no-store'});
+    const data = await res.json();
+    if(data.error) throw new Error(data.error);
+
+    if(!data.results || data.results.length === 0){
+      statusEl.textContent = 'nenhuma resposta SNMP desse IP (confira comunidade/porta/versão)';
+      statusEl.style.color = 'var(--amber)';
+      return;
+    }
+
+    statusEl.textContent = data.count + ' OIDs encontrados — clique em "usar" pra adicionar como métrica:';
+    statusEl.style.color = 'var(--green)';
+
+    resultsEl.innerHTML = data.results.map((r, i) => `
+      <div class="service-item" style="width:100%;flex-direction:column;align-items:stretch;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;width:100%;">
+          <span class="service-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%;" title="${r.oid}">
+            ${r.oid}<br><i>${(r.value||'').toString().substring(0,60)}</i>
+          </span>
+          <button type="button" class="btn-secondary use-oid-btn" data-idx="${i}" style="padding:5px 10px;font-size:10.5px;">usar</button>
+        </div>
+        <div class="oid-config-panel" id="oid-config-${i}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
+          <div class="form-grid" style="grid-template-columns:1fr 1fr;margin-bottom:8px;">
+            <div class="form-field"><label>Nome da métrica</label><input type="text" class="oid-cfg-label" value="${r.name || 'Métrica'}"></div>
+            <div class="form-field"><label>Unidade</label><input type="text" class="oid-cfg-unit" placeholder="Ex: W, V, °C"></div>
+            <div class="form-field"><label>Divisor (opcional)</label><input type="text" class="oid-cfg-divisor" placeholder="Ex: 1000"></div>
+            <div class="form-field"><label>Tipo de alarme (igual ao Dude)</label>
+              <select class="oid-cfg-method">
+                <option value="">Sem alarme (só monitorar valor)</option>
+                <option value="1">Igual a (=)</option>
+                <option value="2">Diferente de (≠)</option>
+                <option value="3">Menor que (&lt;)</option>
+                <option value="4">Menor ou igual a (&le;)</option>
+                <option value="5">Maior que (&gt;)</option>
+                <option value="6">Maior ou igual a (&ge;)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid" style="grid-template-columns:1fr 2fr;margin-bottom:8px;">
+            <div class="form-field"><label>Valor de alarme</label><input type="text" class="oid-cfg-value" placeholder="Ex: 30"></div>
+            <div class="form-field" style="display:flex;align-items:end;">
+              <button type="button" class="btn-primary confirm-oid-btn" data-idx="${i}" style="width:100%;">Adicionar essa métrica</button>
+            </div>
+          </div>
+        </div>
+      </div>`).join('');
+
+    resultsEl.querySelectorAll('.use-oid-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const panel = document.getElementById('oid-config-' + btn.dataset.idx);
+        panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+      });
+    });
+
+    resultsEl.querySelectorAll('.confirm-oid-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const idx = btn.dataset.idx;
+        const r = data.results[parseInt(idx, 10)];
+        const panel = document.getElementById('oid-config-' + idx);
+        const label = panel.querySelector('.oid-cfg-label').value.trim();
+        const unit = panel.querySelector('.oid-cfg-unit').value.trim();
+        const divisorRaw = panel.querySelector('.oid-cfg-divisor').value.trim();
+        const methodRaw = panel.querySelector('.oid-cfg-method').value;
+        const valueRaw = panel.querySelector('.oid-cfg-value').value.trim();
+
+        if(!label){
+          alert('Dê um nome pra essa métrica antes de adicionar.');
+          return;
+        }
+        if(methodRaw && valueRaw === ''){
+          alert('Escolheu um tipo de alarme — preencha o valor de alarme também.');
+          return;
+        }
+
+        const metric = {
+          label, oid: r.oid, unit, divisor: divisorRaw ? parseFloat(divisorRaw) : null,
+          community, version,
+        };
+        if(methodRaw){
+          metric.compare_method = parseInt(methodRaw, 10);
+          metric.compare_value = parseFloat(valueRaw);
+        }
+        pendingNewDeviceMetrics.push(metric);
+
+        const parentRow = btn.closest('.service-item');
+        parentRow.querySelector('.use-oid-btn').textContent = '✓ adicionada';
+        parentRow.querySelector('.use-oid-btn').disabled = true;
+        panel.style.display = 'none';
+        updatePendingMetricsNote();
+      });
+    });
+  }catch(err){
+    statusEl.textContent = 'erro na busca: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+function updatePendingMetricsNote(){
+  const resultsEl = document.getElementById('snmp-scan-results');
+  let note = document.getElementById('pending-metrics-note');
+  if(!note){
+    note = document.createElement('div');
+    note.id = 'pending-metrics-note';
+    note.className = 'scan-status';
+    note.style.color = 'var(--green)';
+    note.style.marginTop = '8px';
+    resultsEl.parentNode.insertBefore(note, resultsEl.nextSibling);
+  }
+  note.textContent = pendingNewDeviceMetrics.length + ' métrica(s) selecionada(s) pra esse dispositivo.';
+}
+
+document.getElementById('confirm-add-device-btn').addEventListener('click', async () => {
+  const statusEl = document.getElementById('editor-status');
+  const name = document.getElementById('new-dev-name').value.trim();
+  const category = document.getElementById('new-dev-category').value.trim() || 'GERAL';
+  const ip = document.getElementById('new-dev-ip').value.trim();
+  const kind = document.getElementById('new-dev-kind').value;
+  const metrics = pendingNewDeviceMetrics;
+  if(!name){
+    statusEl.textContent = 'preencha ao menos o nome';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+  statusEl.textContent = 'adicionando...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    let endpoint, body;
+    if(editorMap === 'interior'){
+      endpoint = '/api/devices/add';
+      body = {name, site: category, ip, kind, metrics};
+    } else {
+      endpoint = '/api/map-devices/' + editorMap + '/add';
+      body = {name, category, site: category, ip, kind, metrics};
+    }
+    const res = await fetch(endpoint, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao adicionar dispositivo');
+    statusEl.textContent = 'dispositivo "' + name + '" adicionado ✓ (' + metrics.length + ' métrica(s))';
+    statusEl.style.color = 'var(--green)';
+    document.getElementById('new-dev-name').value = '';
+    document.getElementById('new-dev-ip').value = '';
+    document.getElementById('snmp-scan-results').innerHTML = '';
+    document.getElementById('snmp-scan-status').textContent = '';
+    const pendingNote = document.getElementById('pending-metrics-note');
+    if(pendingNote) pendingNote.remove();
+    pendingNewDeviceMetrics = [];
+    document.getElementById('editor-add-device-form').style.display = 'none';
+    editorLoadMap();
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+async function editorLoadMap(){
+  editorMap = document.getElementById('editor-map-select').value;
+  editorSelected = null;
+  editorConnectFirst = null;
+  document.getElementById('editor-size-panel').style.display = 'none';
+
+  let allDevices = [];
+  try{
+    const endpoint = editorMap === 'interior' ? '/api/devices'
+      : editorMap === 'fg' ? '/api/devices-fg'
+      : '/api/map-devices/' + editorMap;
+    const devicesRes = await fetch(endpoint, {cache:'no-store'});
+    const devicesData = await devicesRes.json();
+    allDevices = devicesData.devices || [];
+  }catch(err){
+    document.getElementById('editor-status').textContent = 'erro ao carregar dispositivos: ' + err.message;
+    return;
+  }
+
+  let layout = {};
+  try{
+    const layoutRes = await fetch('/api/layout/' + editorMap, {cache:'no-store'});
+    layout = await layoutRes.json();
+  }catch(err){ /* sem layout salvo ainda, usa padrao */ }
+
+  editorLabels = (layout.labels || []).map(l => ({...l, kind:'label'}));
+  editorEdges = layout.edges || [];
+  editorColors = layout.colors || {online:'#2ecc55', offline:'#e5384b', unknown:'#434f6c'};
+
+  const posMap = {};
+  Object.entries(layout.devices || {}).forEach(([id, pos]) => { posMap[id] = pos; });
+  const hasSavedLayout = Object.keys(posMap).length > 0;
+
+  const groups = {};
+  const groupOrder = [];
+  allDevices.forEach(d => {
+    const g = d.site || d.category || 'outros';
+    if(!groups[g]){ groups[g] = []; groupOrder.push(g); }
+    groups[g].push(d);
+  });
+
+  const refLayout = editorMap === 'interior' ? REAL_LAYOUT_INTERIOR
+    : editorMap === 'fg' ? REAL_LAYOUT_FG
+    : {};  // mapa customizado: sem layout de referencia, cai na grade generica
+
+  editorDevices = [];
+  editorFullDeviceById = {};
+  groupOrder.forEach((g, gi) => {
+    const base = refLayout[g] || {x: 40 + gi * 210, y: 900};
+    const cols = base.cols || 1;
+    const colWidth = base.colWidth || 210;
+    const rowHeight = base.rowHeight || 58;
+    groups[g].forEach((d, di) => {
+      const saved = posMap[d.id];
+      const col = di % cols;
+      const row = Math.floor(di / cols);
+      editorDevices.push({
+        id: d.id, name: d.name, kind: 'device',
+        x: saved ? saved.x : (base.x + col * colWidth),
+        y: saved ? saved.y : (base.y + 40 + row * rowHeight),
+        scale: saved && saved.scale ? saved.scale : 1,
+      });
+      editorFullDeviceById[d.id] = d;
+    });
+  });
+
+  // se ainda nao existe layout salvo, gera automaticamente os rotulos de
+  // site/categoria nas posicoes reais, pra ja aparecer igual ao mapa de hoje
+  if(!hasSavedLayout){
+    groupOrder.forEach((g, gi) => {
+      const base = refLayout[g] || {x: 40 + gi * 210, y: 900};
+      editorLabels.push({id: 'auto_' + g.replace(/\W+/g,'_'), text: g, x: base.x, y: base.y, scale: 1, kind: 'label'});
+    });
+
+    // e tambem as conexoes que ja existem de verdade entre as cidades
+    // (so o Mapa Abrigos tem esse sistema de linhas hoje)
+    if(editorMap === 'interior'){
+      REAL_EDGES_INTERIOR.forEach(([a, b]) => {
+        const idA = 'auto_' + a.replace(/\W+/g,'_');
+        const idB = 'auto_' + b.replace(/\W+/g,'_');
+        editorEdges.push([idA, idB]);
+      });
+    }
+  }
+
+  updateEditorColorInputs();
+  renderEditor();
+  document.getElementById('editor-status').textContent = allDevices.length + ' dispositivos carregados';
+  document.getElementById('editor-status').style.color = 'var(--gray)';
+}
+
+function updateEditorColorInputs(){
+  document.getElementById('editor-color-online').value = editorColors.online;
+  document.getElementById('editor-color-offline').value = editorColors.offline;
+  document.getElementById('editor-color-unknown').value = editorColors.unknown;
+}
+
+function editorAllItems(){
+  return [...editorDevices, ...editorLabels];
+}
+
+function renderEditor(){
+  const canvas = document.getElementById('editor-canvas');
+  const svg = document.getElementById('editor-edges-svg');
+  canvas.querySelectorAll('.editor-item').forEach(el => el.remove());
+
+  editorAllItems().forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'editor-item' + (item.kind === 'label' ? ' label-item' : '') + (editorSelected && editorSelected.id === item.id ? ' selected' : '');
+    el.style.left = item.x + 'px';
+    el.style.top = item.y + 'px';
+    el.style.transform = 'scale(' + (item.scale || 1) + ')';
+    el.textContent = item.kind === 'label' ? item.text : item.name;
+    el.dataset.id = item.id;
+    el.addEventListener('mousedown', function(e){ startEditorDrag(e, item); });
+    el.addEventListener('click', function(e){ e.stopPropagation(); onEditorItemClick(item); });
+    canvas.appendChild(el);
+  });
+
+  renderEditorEdges();
+}
+
+function renderEditorEdges(){
+  const svg = document.getElementById('editor-edges-svg');
+  svg.innerHTML = '';
+  const byId = {};
+  editorAllItems().forEach(i => byId[i.id] = i);
+  editorEdges.forEach(function(pair, idx){
+    const pa = byId[pair[0]], pb = byId[pair[1]];
+    if(!pa || !pb) return;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', pa.x + 35); line.setAttribute('y1', pa.y + 15);
+    line.setAttribute('x2', pb.x + 35); line.setAttribute('y2', pb.y + 15);
+    line.setAttribute('class', 'editor-edge-line');
+    line.style.pointerEvents = 'stroke';
+    line.addEventListener('click', function(){
+      editorEdges.splice(idx, 1);
+      renderEditorEdges();
+    });
+    svg.appendChild(line);
+  });
+}
+
+function startEditorDrag(e, item){
+  e.preventDefault();
+  editorDragging = item;
+  editorDragMoved = false;
+  const canvas = document.getElementById('editor-canvas');
+  const rect = canvas.getBoundingClientRect();
+  const scrollWrap = document.getElementById('editor-canvas-wrap');
+  editorDragOffset.x = (e.clientX - rect.left) - item.x;
+  editorDragOffset.y = (e.clientY - rect.top) - item.y;
+}
+
+let editorSnapToGrid = true;
+const EDITOR_GRID_SIZE = 20;
+
+document.addEventListener('mousemove', function(e){
+  if(!editorDragging) return;
+  const canvas = document.getElementById('editor-canvas');
+  if(!canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  let newX = Math.max(0, (e.clientX - rect.left) - editorDragOffset.x);
+  let newY = Math.max(0, (e.clientY - rect.top) - editorDragOffset.y);
+  if(editorSnapToGrid){
+    newX = Math.round(newX / EDITOR_GRID_SIZE) * EDITOR_GRID_SIZE;
+    newY = Math.round(newY / EDITOR_GRID_SIZE) * EDITOR_GRID_SIZE;
+  }
+  if(Math.abs(newX - editorDragging.x) > 2 || Math.abs(newY - editorDragging.y) > 2) editorDragMoved = true;
+  editorDragging.x = newX;
+  editorDragging.y = newY;
+  const el = document.querySelector('.editor-item[data-id="' + editorDragging.id + '"]');
+  if(el){ el.style.left = newX + 'px'; el.style.top = newY + 'px'; }
+  renderEditorEdges();
+});
+document.addEventListener('mouseup', function(){
+  editorDragging = null;
+});
+
+function onEditorItemClick(item){
+  if(editorDragMoved){ editorDragMoved = false; return; } // evita selecionar apos arrastar
+  if(editorConnectMode){
+    if(!editorConnectFirst){
+      editorConnectFirst = item;
+    } else if(editorConnectFirst.id !== item.id){
+      editorEdges.push([editorConnectFirst.id, item.id]);
+      editorConnectFirst = null;
+      renderEditorEdges();
+    }
+    return;
+  }
+  editorSelected = item;
+  const panel = document.getElementById('editor-size-panel');
+  panel.style.display = 'flex';
+  document.getElementById('editor-size-slider').value = item.scale || 1;
+  document.getElementById('editor-size-value').textContent = Math.round((item.scale || 1) * 100) + '%';
+  document.getElementById('editor-delete-btn').style.display = item.kind === 'label' ? 'inline-block' : 'none';
+
+  const moveBtn = document.getElementById('editor-move-to-library-btn');
+  const pasteBtn = document.getElementById('editor-paste-from-library-btn');
+  if(item.kind === 'label'){
+    moveBtn.style.display = 'none';
+    pasteBtn.style.display = 'none';
+  } else if(editorMap === 'biblioteca'){
+    moveBtn.style.display = 'none';
+    pasteBtn.style.display = 'inline-block';
+  } else {
+    moveBtn.style.display = 'inline-block';
+    pasteBtn.style.display = 'none';
+  }
+  document.getElementById('editor-edit-device-btn').style.display = item.kind === 'label' ? 'none' : 'inline-block';
+  renderEditor();
+}
+
+document.getElementById('editor-size-slider').addEventListener('input', function(e){
+  if(!editorSelected) return;
+  editorSelected.scale = parseFloat(e.target.value);
+  document.getElementById('editor-size-value').textContent = Math.round(editorSelected.scale * 100) + '%';
+  const el = document.querySelector('.editor-item[data-id="' + editorSelected.id + '"]');
+  if(el) el.style.transform = 'scale(' + editorSelected.scale + ')';
+});
+
+document.getElementById('editor-delete-btn').addEventListener('click', function(){
+  if(!editorSelected || editorSelected.kind !== 'label') return;
+  editorLabels = editorLabels.filter(l => l.id !== editorSelected.id);
+  editorEdges = editorEdges.filter(pair => pair[0] !== editorSelected.id && pair[1] !== editorSelected.id);
+  editorSelected = null;
+  document.getElementById('editor-size-panel').style.display = 'none';
+  renderEditor();
+});
+
+document.getElementById('editor-deselect-btn').addEventListener('click', function(){
+  editorSelected = null;
+  document.getElementById('editor-size-panel').style.display = 'none';
+  renderEditor();
+});
+
+document.getElementById('editor-move-to-library-btn').addEventListener('click', async () => {
+  if(!editorSelected || editorSelected.kind === 'label') return;
+  if(!confirm('Mover "' + editorSelected.name + '" pra Biblioteca?\n\nEle sai do mapa atual (desativado) e fica guardado com todos os OIDs/SNMP, pra você colar de volta quando quiser reaproveitar.')) return;
+
+  const statusEl = document.getElementById('editor-status');
+  try{
+    const res = await fetch('/api/library/move', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id: editorSelected.id})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao mover');
+    statusEl.textContent = '"' + editorSelected.name + '" movido pra Biblioteca ✓';
+    statusEl.style.color = 'var(--green)';
+    editorSelected = null;
+    document.getElementById('editor-size-panel').style.display = 'none';
+    editorLoadMap();
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+document.getElementById('editor-paste-from-library-btn').addEventListener('click', async () => {
+  if(!editorSelected || editorSelected.kind === 'label') return;
+
+  const targetMaps = {interior: 'Abrigos', fg: 'Abrigo Fonte Grande'};
+  Array.from(document.getElementById('editor-map-select').options).forEach(opt => {
+    if(opt.dataset.custom) targetMaps[opt.value] = opt.textContent;
+  });
+  const optionsTxt = Object.entries(targetMaps).map(([id, name]) => id + ' = ' + name).join('\n');
+  const targetMap = prompt('Colar "' + editorSelected.name + '" em qual mapa? Digite o identificador:\n\n' + optionsTxt, 'interior');
+  if(!targetMap || !targetMaps[targetMap]){
+    if(targetMap) alert('Mapa não reconhecido.');
+    return;
+  }
+  const targetSite = prompt('Em qual cidade/categoria desse mapa?', 'GERAL');
+  if(!targetSite) return;
+
+  const statusEl = document.getElementById('editor-status');
+  try{
+    const res = await fetch('/api/library/paste', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id: editorSelected.id, target_map: targetMap, target_site: targetSite})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao colar');
+    statusEl.textContent = '"' + editorSelected.name + '" restaurado em ' + targetMaps[targetMap] + ' / ' + targetSite + ' ✓';
+    statusEl.style.color = 'var(--green)';
+    editorSelected = null;
+    document.getElementById('editor-size-panel').style.display = 'none';
+    editorLoadMap();
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+// ---------------- editar dispositivo (nome/IP/tipo/metricas/OIDs) ----------------
+const COMPARE_METHOD_LABELS = {1:'igual a',2:'diferente de',3:'menor que',4:'menor ou igual a',5:'maior que',6:'maior ou igual a'};
+
+function renderEditMetricRow(metric){
+  const row = document.createElement('div');
+  row.className = 'edit-metric-row';
+  row.style.cssText = 'border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px;';
+  // rate_mode e pair_with sao campos avancados sem controle proprio no
+  // formulario (configurados por mim direto no arquivo) - guarda no
+  // dataset pra nao se perderem quando o dispositivo for salvo de novo
+  if(metric.rate_mode) row.dataset.rateMode = metric.rate_mode;
+  if(metric.pair_with) row.dataset.pairWith = metric.pair_with;
+  // value_labels (ex: 1=Normal, 2=Bypass...) tambem nao tem campo proprio
+  // no formulario - sem isso, salvar o dispositivo de novo apagava a
+  // traducao e a metrica passava a mostrar o numero cru (1, 2, 3...) em
+  // vez do texto (Normal, Bypass...)
+  if(metric.value_labels) row.dataset.valueLabels = JSON.stringify(metric.value_labels);
+  if(metric.enabled === false) row.dataset.enabled = 'false';
+  if(metric.desc) row.dataset.desc = metric.desc;
+  if(metric.dword_swap !== undefined) row.dataset.dwordSwap = metric.dword_swap ? 'T' : 'F';
+  const rt = (metric.register_type || 'holding');
+  const dt = (metric.data_type || 'uint16');
+  const wsv = metric.word_swap === true ? 'T' : (metric.word_swap === false ? 'F' : '');
+  const opt = (v, cur, txt) => `<option value="${v}" ${v===cur?'selected':''}>${txt || v}</option>`;
+  row.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:6px;">
+      <div><label style="font-size:11px;">Nome da métrica</label><input type="text" class="em-label" value="${metric.label || ''}" style="width:100%;"></div>
+      <div><label style="font-size:11px;">Unidade</label><input type="text" class="em-unit" value="${metric.unit || ''}" style="width:100%;"></div>
+    </div>
+    <div class="em-modbus">
+      <div style="display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px;">
+        <div><label style="font-size:11px;">Registrador</label>
+          <select class="em-rtype" style="width:100%;">
+            ${opt('holding', rt, 'Holding (FC3)')}${opt('input', rt, 'Input (FC4)')}${opt('coil', rt, 'Coil (FC1)')}${opt('discrete', rt, 'Discrete (FC2)')}
+          </select></div>
+        <div><label style="font-size:11px;">Endereço</label><input type="number" min="0" max="65535" class="em-address" value="${metric.address ?? ''}" style="width:100%;"></div>
+        <div><label style="font-size:11px;">Tipo de dado</label>
+          <select class="em-dtype" style="width:100%;">
+            ${['bool','uint16','int16','uint32','int32','float','uint64','int64','double'].map(v => opt(v, dt)).join('')}
+          </select></div>
+        <div><label style="font-size:11px;">Word swap</label>
+          <select class="em-wordswap" style="width:100%;">${opt('', wsv, 'do disp.')}${opt('T', wsv, 'T')}${opt('F', wsv, 'F')}</select></div>
+        <div><label style="font-size:11px;">Divisor</label><input type="number" step="any" class="em-divisor-mb" value="${metric.divisor ?? ''}" style="width:100%;"></div>
+        <div><label style="font-size:11px;" title="Somado ao valor depois do divisor. Ex: sonda marca 27,5 e o termômetro 26,0 → -1,5">Ajuste (±)</label><input type="number" step="any" class="em-offset-mb" value="${metric.offset ?? ''}" placeholder="0" style="width:100%;"></div>
+      </div>
+      <button type="button" class="btn-secondary em-test-btn" style="padding:4px 10px;font-size:11px;margin-bottom:6px;">Testar leitura</button><span class="em-test-result"></span>
+    </div>
+    <div class="em-snmp">
+    <label style="font-size:11px;">OID</label>
+    <input type="text" class="em-oid" value="${metric.oid || ''}" style="width:100%;margin-bottom:6px;font-family:var(--mono);">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:6px;">
+      <div><label style="font-size:11px;">Comunidade</label><input type="text" class="em-community" value="${metric.community || 'public'}" style="width:100%;"></div>
+      <div><label style="font-size:11px;">Versão SNMP</label>
+        <select class="em-version" style="width:100%;">
+          <option value="1" ${metric.version=='1'?'selected':''}>v1</option>
+          <option value="2c" ${metric.version=='2c'?'selected':''}>v2c</option>
+        </select>
+      </div>
+      <div><label style="font-size:11px;">Divisor</label><input type="number" step="any" class="em-divisor" value="${metric.divisor ?? ''}" style="width:100%;"></div>
+      <div><label style="font-size:11px;" title="Somado ao valor depois do divisor. Ex: sonda marca 27,5 e o termômetro 26,0 → -1,5">Ajuste (±)</label><input type="number" step="any" class="em-offset" value="${metric.offset ?? ''}" placeholder="0" style="width:100%;"></div>
+    </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;">
+      <div><label style="font-size:11px;">Normal (OK) enquanto o valor for</label>
+        <select class="em-compare-method" style="width:100%;">
+          <option value="">(sem alarme nessa métrica)</option>
+          ${Object.entries(COMPARE_METHOD_LABELS).map(([v,l]) => `<option value="${v}" ${metric.compare_method==v?'selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
+      <div><label style="font-size:11px;">Valor de referência</label><input type="number" step="any" class="em-compare-value" value="${metric.compare_value ?? ''}" style="width:100%;"></div>
+      <button type="button" class="btn-secondary em-remove-btn" style="color:var(--red);">Remover</button>
+    </div>
+    <label style="font-size:11px;display:flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer;">
+      <input type="checkbox" class="em-hide-on-map" ${metric.hide_on_map ? 'checked' : ''}>
+      Esconder da caixinha no mapa (continua aparecendo no popup e no gráfico) — use para métricas muito numerosas
+    </label>
+    <div class="em-alarm-hint" style="font-size:11px;margin-top:6px;color:var(--amber, #f5c451);"></div>
+    ${metric.value_labels ? `<div style="font-size:10.5px;color:var(--teal);margin-top:6px;">&#127991; tradução de valores configurada (${Object.entries(metric.value_labels).map(([k,v])=>k+'='+v).join(', ')}) — preservada automaticamente ao salvar</div>` : ''}`;
+  row.querySelector('.em-remove-btn').addEventListener('click', () => row.remove());
+  // frase explicando quando o alerta dispara (o limite e o valor que aparece na tela, ja com divisor)
+  const ALARM_WHEN = {1:'diferente de',2:'igual a',3:'maior ou igual a',4:'maior que',5:'menor ou igual a',6:'menor que'};
+  const updHint = () => {
+    const mth = row.querySelector('.em-compare-method').value, val = row.querySelector('.em-compare-value').value;
+    const unit = row.querySelector('.em-unit').value.trim();
+    const hint = row.querySelector('.em-alarm-hint');
+    if(!mth || val === ''){ hint.textContent = ''; return; }
+    hint.textContent = '⚠ Alerta quando o valor for ' + ALARM_WHEN[mth] + ' ' + val + (unit ? ' ' + unit : '') +
+                       ' · volta ao normal quando for ' + COMPARE_METHOD_LABELS[mth] + ' ' + val + (unit ? ' ' + unit : '');
+  };
+  ['.em-compare-method', '.em-compare-value', '.em-unit'].forEach(sel => {
+    row.querySelector(sel).addEventListener('input', updHint);
+    row.querySelector(sel).addEventListener('change', updHint);
+  });
+  updHint();
+  // divisor e o mesmo campo logico nos dois protocolos - mantem sincronizado
+  const dSnmp = row.querySelector('.em-divisor'), dMb = row.querySelector('.em-divisor-mb');
+  dSnmp.addEventListener('input', () => { dMb.value = dSnmp.value; });
+  dMb.addEventListener('input', () => { dSnmp.value = dMb.value; });
+  row.querySelector('.em-test-btn').addEventListener('click', async () => {
+    const out = row.querySelector('.em-test-result');
+    const ip = document.getElementById('edit-device-ip').value.trim();
+    const qs = new URLSearchParams({
+      ip, port: document.getElementById('edit-mb-port').value || '502',
+      unit: document.getElementById('edit-mb-unit').value || '1',
+      type: row.querySelector('.em-rtype').value, address: row.querySelector('.em-address').value || '0',
+      dtype: row.querySelector('.em-dtype').value,
+      word_swap: row.querySelector('.em-wordswap').value || document.getElementById('edit-mb-wordswap').value,
+    });
+    out.textContent = 'lendo...'; out.style.color = 'var(--gray)';
+    try{
+      const r = await fetch('/api/modbus/test?' + qs.toString(), {cache:'no-store'});
+      const d = await r.json();
+      if(d.error && d.value === undefined) throw new Error(d.error);
+      if(d.value === null || d.value === undefined){
+        out.textContent = d.connected ? ('sem valor: ' + (d.error || '?')) : ('sem conexão: ' + (d.error || '?'));
+        out.style.color = 'var(--red)';
+      } else {
+        const div = parseFloat(dMb.value);
+        const esc = div ? ' → ' + (d.value / div).toLocaleString('pt-BR', {maximumFractionDigits: 3}) : '';
+        out.textContent = 'valor bruto: ' + d.value + esc + (d.latency_ms != null ? '  (' + d.latency_ms + ' ms)' : '');
+        out.style.color = 'var(--green)';
+      }
+    }catch(err){ out.textContent = 'erro: ' + err.message; out.style.color = 'var(--red)'; }
+  });
+  return row;
+}
+
+function openEditDeviceModal(dev){
+  document.getElementById('edit-device-name').value = dev.name || '';
+  document.getElementById('edit-device-ip').value = dev.ip || '';
+  document.getElementById('edit-device-kind').value = dev.kind || 'other';
+  const list = document.getElementById('edit-device-metrics-list');
+  list.innerHTML = '';
+  const proto = dev.protocol === 'modbus' ? 'modbus' : 'snmp';
+  const mb = dev.modbus || {};
+  document.getElementById('edit-device-protocol').value = proto;
+  document.getElementById('edit-mb-port').value = mb.port || 502;
+  document.getElementById('edit-mb-unit').value = (mb.unit_id ?? 1);
+  document.getElementById('edit-mb-wordswap').value = mb.word_swap === false ? 'F' : 'T';
+  document.getElementById('edit-mb-timeout').value = mb.timeout_ms || 3000;
+  list.dataset.dwordSwap = mb.dword_swap === false ? 'F' : 'T';
+  list.dataset.description = mb.description || '';
+  applyEditProtocolUi();
+  (dev.metrics || []).forEach(m => list.appendChild(renderEditMetricRow(m)));
+  document.getElementById('edit-device-status').textContent = '';
+  document.getElementById('edit-device-modal').style.display = 'flex';
+}
+
+document.getElementById('editor-edit-device-btn').addEventListener('click', () => {
+  if(!editorSelected || editorSelected.kind === 'label') return;
+  const fullDev = editorFullDeviceById[editorSelected.id];
+  if(!fullDev){
+    alert('Não foi possível carregar os dados completos desse dispositivo.');
+    return;
+  }
+  openEditDeviceModal(fullDev);
+});
+
+document.getElementById('edit-device-close-btn').addEventListener('click', () => {
+  document.getElementById('edit-device-modal').style.display = 'none';
+});
+document.getElementById('edit-device-modal').addEventListener('click', (e) => {
+  if(e.target.id === 'edit-device-modal') document.getElementById('edit-device-modal').style.display = 'none';
+});
+
+function applyEditProtocolUi(){
+  const proto = document.getElementById('edit-device-protocol').value;
+  document.getElementById('edit-device-modbus-box').style.display = proto === 'modbus' ? 'block' : 'none';
+  document.getElementById('edit-device-metrics-list').classList.toggle('proto-modbus', proto === 'modbus');
+  document.getElementById('edit-device-metrics-title').textContent = proto === 'modbus' ? 'Métricas / registradores Modbus' : 'Métricas / OIDs';
+}
+document.getElementById('edit-device-protocol').addEventListener('change', applyEditProtocolUi);
+
+document.getElementById('edit-device-add-metric-btn').addEventListener('click', () => {
+  document.getElementById('edit-device-metrics-list').appendChild(renderEditMetricRow({community:'public', version:'1'}));
+});
+
+document.getElementById('edit-device-save-btn').addEventListener('click', async () => {
+  if(!editorSelected) return;
+  const statusEl = document.getElementById('edit-device-status');
+
+  const proto = document.getElementById('edit-device-protocol').value;
+  const metrics = Array.from(document.querySelectorAll('#edit-device-metrics-list .edit-metric-row')).map(row => ({
+    source: proto,
+    register_type: row.querySelector('.em-rtype').value,
+    address: row.querySelector('.em-address').value,
+    data_type: row.querySelector('.em-dtype').value,
+    word_swap: row.querySelector('.em-wordswap').value || null,
+    dword_swap: row.dataset.dwordSwap || null,
+    enabled: row.dataset.enabled === 'false' ? false : undefined,
+    desc: row.dataset.desc || null,
+    label: row.querySelector('.em-label').value.trim(),
+    unit: row.querySelector('.em-unit').value.trim(),
+    oid: row.querySelector('.em-oid').value.trim(),
+    community: row.querySelector('.em-community').value.trim() || 'public',
+    version: row.querySelector('.em-version').value,
+    divisor: row.querySelector('.em-divisor').value || null,
+    offset: (document.getElementById('edit-device-protocol').value === 'modbus'
+             ? row.querySelector('.em-offset-mb').value : row.querySelector('.em-offset').value) || null,
+    compare_method: row.querySelector('.em-compare-method').value || null,
+    compare_value: row.querySelector('.em-compare-value').value || null,
+    hide_on_map: row.querySelector('.em-hide-on-map').checked,
+    rate_mode: row.dataset.rateMode || null,
+    pair_with: row.dataset.pairWith || null,
+    value_labels: row.dataset.valueLabels ? JSON.parse(row.dataset.valueLabels) : null,
+  })).filter(m => m.label && (proto === 'modbus' ? m.address !== '' : m.oid));
+
+  const list = document.getElementById('edit-device-metrics-list');
+  const payload = {
+    id: editorSelected.id,
+    name: document.getElementById('edit-device-name').value.trim(),
+    ip: document.getElementById('edit-device-ip').value.trim(),
+    kind: document.getElementById('edit-device-kind').value,
+    protocol: proto,
+    modbus: proto === 'modbus' ? {
+      port: document.getElementById('edit-mb-port').value,
+      unit_id: document.getElementById('edit-mb-unit').value,
+      word_swap: document.getElementById('edit-mb-wordswap').value,
+      dword_swap: list.dataset.dwordSwap || 'T',
+      timeout_ms: document.getElementById('edit-mb-timeout').value,
+      description: list.dataset.description || '',
+    } : null,
+    metrics: metrics,
+  };
+
+  if(!payload.name){
+    statusEl.textContent = 'preencha o nome do dispositivo';
+    statusEl.style.color = 'var(--red)';
+    return;
+  }
+
+  statusEl.textContent = 'salvando...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/edit-device', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    statusEl.textContent = 'salvo ✓';
+    statusEl.style.color = 'var(--green)';
+    setTimeout(() => {
+      document.getElementById('edit-device-modal').style.display = 'none';
+      editorSelected = null;
+      document.getElementById('editor-size-panel').style.display = 'none';
+      editorLoadMap();
+      if(window.abReload) window.abReload();
+    }, 500);
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+document.getElementById('editor-connect-mode-btn').addEventListener('click', function(){
+  editorConnectMode = !editorConnectMode;
+  editorConnectFirst = null;
+  this.textContent = editorConnectMode ? '🔗 Modo conexão: ligado (clique em 2 itens)' : '🔗 Modo conexão: desligado';
+  this.style.borderColor = editorConnectMode ? 'var(--green)' : '';
+  this.style.color = editorConnectMode ? 'var(--green)' : '';
+});
+
+document.getElementById('editor-add-label-btn').addEventListener('click', function(){
+  const text = prompt('Nome da cidade / rótulo:');
+  if(!text) return;
+  editorLabels.push({id: 'lbl_' + Date.now(), text: text.toUpperCase(), x: 120, y: 120, scale: 1, kind: 'label'});
+  renderEditor();
+});
+
+document.getElementById('editor-load-btn').addEventListener('click', editorLoadMap);
+document.getElementById('editor-map-select').addEventListener('change', editorLoadMap);
+
+document.getElementById('editor-save-btn').addEventListener('click', async function(){
+  const statusEl = document.getElementById('editor-status');
+  const devicesPos = {};
+  editorDevices.forEach(d => { devicesPos[d.id] = {x: d.x, y: d.y, scale: d.scale || 1}; });
+  const payload = {
+    devices: devicesPos,
+    labels: editorLabels.map(l => ({id: l.id, text: l.text, x: l.x, y: l.y, scale: l.scale || 1})),
+    edges: editorEdges,
+    colors: {
+      online: document.getElementById('editor-color-online').value,
+      offline: document.getElementById('editor-color-offline').value,
+      unknown: document.getElementById('editor-color-unknown').value,
+    }
+  };
+  statusEl.textContent = 'salvando...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/layout/' + editorMap, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    statusEl.textContent = 'salvo ✓ — recarregue a aba do mapa pra ver as mudanças';
+    statusEl.style.color = 'var(--green)';
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+document.getElementById('editor-reset-btn').addEventListener('click', async function(){
+  if(!confirm('Isso remove o layout personalizado desse mapa e volta ao padrão original. Confirma?')) return;
+  try{
+    await fetch('/api/layout/' + editorMap, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({})
+    });
+    document.getElementById('editor-status').textContent = 'layout restaurado ao padrão';
+    document.getElementById('editor-status').style.color = 'var(--green)';
+    editorLoadMap();
+  }catch(err){
+    document.getElementById('editor-status').textContent = 'erro: ' + err.message;
+  }
+});
+
+document.getElementById('editor-grid-btn').addEventListener('click', function(){
+  editorSnapToGrid = !editorSnapToGrid;
+  this.classList.toggle('active', editorSnapToGrid);
+  this.textContent = (editorSnapToGrid ? '▨ Encaixar na grade: ligado' : '▨ Encaixar na grade: desligado');
+});
+
+populateEditorMapSelect();
+editorLoadMap();
+
+// ==================== editor de mensagem do Telegram ====================
+async function loadMessageTemplate(){
+  const mapName = document.getElementById('msg-map-select').value;
+  const statusEl = document.getElementById('msg-status');
+  try{
+    const res = await fetch('/api/message-template/' + mapName, {cache:'no-store'});
+    const data = await res.json();
+    document.getElementById('msg-ping-textarea').value = data.ping || '';
+    document.getElementById('msg-metric-textarea').value = data.metric || '';
+    statusEl.textContent = '';
+  }catch(err){
+    statusEl.textContent = 'erro ao carregar: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+}
+
+document.getElementById('msg-map-select').addEventListener('change', loadMessageTemplate);
+
+document.getElementById('msg-save-btn').addEventListener('click', async () => {
+  const mapName = document.getElementById('msg-map-select').value;
+  const statusEl = document.getElementById('msg-status');
+  const payload = {
+    ping: document.getElementById('msg-ping-textarea').value,
+    metric: document.getElementById('msg-metric-textarea').value,
+  };
+  statusEl.textContent = 'salvando...';
+  statusEl.style.color = 'var(--gray)';
+  try{
+    const res = await fetch('/api/message-template/' + mapName, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    statusEl.textContent = 'salvo ✓';
+    statusEl.style.color = 'var(--green)';
+    setTimeout(() => { statusEl.textContent = ''; }, 2500);
+  }catch(err){
+    statusEl.textContent = 'erro: ' + err.message;
+    statusEl.style.color = 'var(--red)';
+  }
+});
+
+document.getElementById('msg-reset-btn').addEventListener('click', async () => {
+  if(!confirm('Isso restaura a mensagem padrão desse mapa. Confirma?')) return;
+  const mapName = document.getElementById('msg-map-select').value;
+  const DEFAULT_PING = 'ALERTA FG\n\n Ping \nEQUIPAMENTO: {equipamento}\nSTATUS: {status}\nIP={ip}';
+  const DEFAULT_METRIC = 'ALERTA FG\n\n {metrica} \nEQUIPAMENTO: {equipamento}\nSTATUS: {status}\nIP={ip}\nVALOR ATUAL: {valor}';
+  document.getElementById('msg-ping-textarea').value = DEFAULT_PING;
+  document.getElementById('msg-metric-textarea').value = DEFAULT_METRIC;
+  try{
+    const res = await fetch('/api/message-template/' + mapName, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ping: DEFAULT_PING, metric: DEFAULT_METRIC})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao restaurar');
+    document.getElementById('msg-status').textContent = 'restaurado ✓';
+    document.getElementById('msg-status').style.color = 'var(--green)';
+  }catch(err){
+    document.getElementById('msg-status').textContent = 'erro: ' + err.message;
+    document.getElementById('msg-status').style.color = 'var(--red)';
+  }
+});
+
+loadMessageTemplate();
+
+(function fixBackLink(){
+  const lastMap = localStorage.getItem('painel_last_map');
+  const link = document.getElementById('back-to-map-link');
+  if(!link) return;
+  if(lastMap === 'fg') link.href = '/mapa-fg';
+  else if(lastMap === 'interior') link.href = '/mapa-interior';
+  else link.href = '/selecionar';
+})();
+
+document.querySelectorAll('.map-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    if(btn.classList.contains('active')) return;
+    document.querySelectorAll('.map-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentDeviceMap = btn.dataset.map;
+    document.getElementById('content').innerHTML = '<div class="empty">carregando dispositivos...</div>';
+    loadDevices();
+  });
+});
+
+loadDevices();
+
+// ==================== Telegram (grupo de alertas) ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const msg = (t, ok) => { $('tg-msg').textContent = t; $('tg-msg').style.color = ok ? 'var(--green)' : (ok === false ? 'var(--red)' : 'var(--gray)'); };
+  const fmtTs = ts => ts ? new Date(ts * 1000).toLocaleString('pt-BR') : '';
+  async function load(){
+    try{
+      const d = await (await fetch('/api/telegram-config', {cache:'no-store'})).json();
+      $('tg-enabled').checked = !!d.enabled;
+      $('tg-chat').value = d.chat_id || '';
+      $('tg-token').placeholder = d.has_token ? ('salvo: ' + d.token_masked + ' (deixe vazio para manter)') : '123456789:ABC...';
+      let st = d.enabled ? '<span style="color:var(--green)">● ativo</span>' : '<span style="color:var(--gray)">● desligado</span>';
+      if(d.last_error) st += ' <span style="color:var(--red)" title="' + fmtTs(d.last_error_at) + '">último erro: ' + d.last_error + '</span>';
+      else if(d.last_ok_at) st += ' <span style="color:var(--gray)">último envio ' + fmtTs(d.last_ok_at) + '</span>';
+      $('tg-status').innerHTML = st;
+    }catch(e){ $('tg-status').textContent = ''; }
+  }
+  async function post(url, body){
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const d = await r.json().catch(() => ({ok:false, error:'resposta invalida'}));
+    if(!d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    return d;
+  }
+  $('tg-discover').addEventListener('click', async () => {
+    msg('consultando o Telegram...');
+    try{
+      const d = await post('/api/telegram-discover', {bot_token: $('tg-token').value});
+      const groups = d.chats.filter(c => c.type !== 'private');
+      const list = groups.length ? groups : d.chats;
+      $('tg-chats').innerHTML = list.length ? list.map(c =>
+        '<button type="button" class="btn-secondary tg-pick" data-id="' + c.id + '" style="padding:5px 10px;font-size:12px;">' +
+        (c.title || '(sem nome)') + ' · ' + c.id + '</button>').join('') : '';
+      document.querySelectorAll('.tg-pick').forEach(b => b.addEventListener('click', () => { $('tg-chat').value = b.dataset.id; msg('grupo selecionado', true); }));
+      msg(list.length ? ('bot @' + d.bot + ': clique no grupo') : ('bot @' + d.bot + ' ainda não recebeu mensagem em nenhum grupo — mande /start no grupo e tente de novo'), list.length ? true : false);
+    }catch(e){ msg('erro: ' + e.message, false); }
+  });
+  $('tg-test').addEventListener('click', async () => {
+    msg('enviando...');
+    try{ await post('/api/telegram-test', {bot_token: $('tg-token').value, chat_id: $('tg-chat').value}); msg('mensagem enviada — confira no grupo', true); }
+    catch(e){ msg('erro: ' + e.message, false); }
+  });
+  $('tg-save').addEventListener('click', async () => {
+    try{
+      await post('/api/telegram-config', {enabled: $('tg-enabled').checked, bot_token: $('tg-token').value, chat_id: $('tg-chat').value});
+      $('tg-token').value = ''; msg('salvo', true); load();
+    }catch(e){ msg('erro: ' + e.message, false); }
+  });
+  load();
+})();
+
+// ==================== Abrigos e dispositivos ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  let AB = {abrigos: [], fg: {}};
+  let FGNET = null, ABNET = null, LIVE = {};
+  const KIND_TXT = {tx:'Transmissor', power:'Gerador / energia', ups:'Nobreak', link:'Enlace', sensor:'Sensor / CLP', radio:'Rádio', other:'Outro', camera:'Câmera', tower:'Torre'};
+  const msg = (t, ok) => { $('ab-msg').textContent = t || ''; $('ab-msg').style.color = ok ? 'var(--green)' : (ok === false ? 'var(--red)' : 'var(--gray)'); };
+  const esc = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+  const post = async (url, body) => {
+    const r = await fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)});
+    const d = await r.json().catch(() => ({ok:false, error:'resposta invalida'}));
+    if(!d.ok) throw new Error(d.error || ('HTTP ' + r.status));
+    return d;
+  };
+  const current = () => $('ab-select').value;
+
+  async function loadAll(keep){
+    const [a, st] = await Promise.all([
+      fetch('/api/abrigos', {cache:'no-store'}).then(r => r.json()),
+      fetch('/api/status', {cache:'no-store'}).then(r => r.json()).catch(() => ({})),
+    ]);
+    AB = a; LIVE = st.devices || {};
+    const sel = $('ab-select'); const prev = keep || sel.value || 'fg';
+    sel.innerHTML = '<option value="fg">' + esc(AB.fg.nome || 'Abrigo Fonte Grande') + '</option>' +
+      AB.abrigos.map(x => '<option value="' + x.slug + '">' + esc(x.nome) + '</option>').join('');
+    sel.value = [...sel.options].some(o => o.value === prev) ? prev : 'fg';
+    await showAbrigo();
+  }
+
+  async function showAbrigo(){
+    const slug = current();
+    const isFg = slug === 'fg';
+    const info = isFg ? AB.fg : AB.abrigos.find(x => x.slug === slug) || {};
+    $('ab-nome').value = info.nome || '';
+    $('ab-alerta').value = info.alerta || '';
+    $('ab-sub').value = info.sub || '';
+    $('ab-lat').value = info.lat ?? ''; $('ab-lon').value = info.lon ?? ''; $('ab-edp').value = info.edp || '';
+    $('ab-del').style.display = isFg ? 'none' : '';
+    $('ab-open').href = isFg ? '/mapa-fg' : '/mapa-abrigo/' + slug;
+    const url = isFg ? '/api/devices-fg' : '/api/devices-abrigo/' + slug;
+    const net = await fetch(url, {cache:'no-store'}).then(r => r.json());
+    if(isFg) FGNET = net; else ABNET = net;
+    // categorias (so faz sentido no FG; nos abrigos a categoria vem do tipo)
+    const cats = (net.categories_order || []);
+    $('ab-add-cat').innerHTML = cats.map(c => '<option>' + esc(c) + '</option>').join('') + '<option value="__nova">+ nova categoria...</option>';
+    $('ab-add-cat').style.display = isFg ? '' : 'none';
+    renderTable(net.devices || [], isFg);
+  }
+
+  function renderTable(devs, isFg){
+    const moveOpts = '<option value="">mover para…</option><option value="fg">' + esc(AB.fg.nome || 'Abrigo Fonte Grande') + '</option>' +
+      AB.abrigos.map(x => '<option value="' + x.slug + '">' + esc(x.nome) + '</option>').join('');
+    $('ab-devices').innerHTML = devs.length ? devs.map(d => {
+      const st = LIVE[d.id] || LIVE[String(d.id)];
+      const dot = st ? (st.reachable ? 'up' : 'down') : '';
+      const proto = d.protocol === 'modbus' ? ('Modbus · ID ' + (d.modbus ? d.modbus.unit_id : '?')) : ('SNMP v' + ((d.metrics && d.metrics[0] && d.metrics[0].version) || '1'));
+      const ativos = (d.metrics || []).filter(m => m.enabled !== false).length;
+      return '<tr data-id="' + d.id + '"><td class="n"><span class="ab-dot ' + dot + '"></span><b>' + esc(d.name) + '</b>' +
+        (d.netx_id ? '<small>' + esc(d.netx_id) + '</small>' : '') + '</td>' +
+        '<td>' + esc(d.ip || '—') + '</td><td>' + proto + '</td>' +
+        '<td>' + esc(d.category || '') + '<small>' + esc(KIND_TXT[d.kind] || d.kind || '') + '</small></td>' +
+        '<td>' + ativos + (ativos !== (d.metrics || []).length ? ' <small>(' + (d.metrics.length - ativos) + ' desativadas)</small>' : '') + '</td>' +
+        '<td><div class="ab-actions"><button type="button" class="btn-secondary ab-edit">Editar medidas / OIDs</button>' +
+        '<select class="ab-move">' + moveOpts + '</select>' +
+        '<button type="button" class="btn-secondary ab-delete" style="color:var(--red)">Excluir</button></div></td></tr>';
+    }).join('') : '<tr><td colspan="6" style="color:var(--gray);padding:14px;">Nenhum dispositivo neste abrigo ainda.</td></tr>';
+
+    const byId = id => devs.find(x => String(x.id) === String(id));
+    $('ab-devices').querySelectorAll('.ab-edit').forEach(b => b.addEventListener('click', () => {
+      const dev = byId(b.closest('tr').dataset.id);
+      editorSelected = {id: dev.id, name: dev.name};
+      openEditDeviceModal(dev);
+    }));
+    $('ab-devices').querySelectorAll('.ab-delete').forEach(b => b.addEventListener('click', async () => {
+      const dev = byId(b.closest('tr').dataset.id);
+      if(!confirm('Excluir "' + dev.name + '" de vez?\n\n(Se for só tirar do mapa por um tempo, prefira mover para a Biblioteca no Editor de Mapa.)')) return;
+      try{ await post('/api/devices/delete', {id: dev.id}); msg('"' + dev.name + '" excluído', true); loadAll(current()); }
+      catch(e){ msg('erro: ' + e.message, false); }
+    }));
+    $('ab-devices').querySelectorAll('.ab-move').forEach(sel => sel.addEventListener('change', async () => {
+      const dev = byId(sel.closest('tr').dataset.id); const to = sel.value; if(!to) return;
+      if(to === current()){ sel.value = ''; return; }
+      try{ await post('/api/abrigos/move-device', {id: dev.id, slug: to}); msg('"' + dev.name + '" movido', true); loadAll(current()); }
+      catch(e){ msg('erro: ' + e.message, false); sel.value = ''; }
+    }));
+  }
+
+  $('ab-select').addEventListener('change', () => { msg(''); showAbrigo(); });
+
+  $('ab-save').addEventListener('click', async () => {
+    const slug = current();
+    const body = slug === 'fg'
+      ? {fg: {nome: $('ab-nome').value, alerta: $('ab-alerta').value, sub: $('ab-sub').value,
+              lat: $('ab-lat').value, lon: $('ab-lon').value, edp: $('ab-edp').value}}
+      : {abrigos: [{slug, nome: $('ab-nome').value, alerta: $('ab-alerta').value, sub: $('ab-sub').value,
+                    lat: $('ab-lat').value, lon: $('ab-lon').value, edp: $('ab-edp').value}]};
+    try{ await post('/api/abrigos/save', body); msg('nomes salvos', true); loadAll(slug); }
+    catch(e){ msg('erro: ' + e.message, false); }
+  });
+
+  $('ab-new').addEventListener('click', async () => {
+    const nome = prompt('Nome do novo abrigo (ex: Abrigo Cachoeiro):', 'Abrigo ');
+    if(!nome || !nome.trim() || nome.trim().toLowerCase() === 'abrigo') return;
+    try{
+      const d = await post('/api/abrigos/save', {abrigos: [{nome: nome.trim()}]});
+      const novo = d.config.abrigos[d.config.abrigos.length - 1];
+      msg('abrigo criado — agora adicione os dispositivos', true);
+      loadAll(novo.slug);
+    }catch(e){ msg('erro: ' + e.message, false); }
+  });
+
+  $('ab-del').addEventListener('click', async () => {
+    const slug = current(); if(slug === 'fg') return;
+    if(!confirm('Excluir o abrigo "' + $('ab-nome').value + '"? (só funciona se ele não tiver dispositivos)')) return;
+    try{ await post('/api/abrigos/delete', {slug}); msg('abrigo excluído', true); loadAll('fg'); }
+    catch(e){ msg('erro: ' + e.message, false); }
+  });
+
+  $('ab-add-btn').addEventListener('click', async () => {
+    const slug = current(), isFg = slug === 'fg';
+    const name = $('ab-add-name').value.trim(), ip = $('ab-add-ip').value.trim();
+    if(!name){ msg('preencha o nome do dispositivo', false); return; }
+    let category = $('ab-add-cat').value;
+    if(isFg && category === '__nova'){ category = (prompt('Nome da nova categoria:') || '').trim().toUpperCase(); if(!category) return; }
+    const proto = $('ab-add-proto').value;
+    const base = {name, ip, kind: $('ab-add-kind').value, metrics: [], protocol: proto,
+                  modbus: proto === 'modbus' ? {port: 502, unit_id: 1, word_swap: 'T', dword_swap: 'T', timeout_ms: 5000} : null};
+    try{
+      let created;
+      if(isFg){
+        created = await post('/api/map-devices/fg/add', Object.assign({category, site: category}, base));
+      } else {
+        const ab = AB.abrigos.find(x => x.slug === slug);
+        created = await post('/api/devices/add', Object.assign({site: ab.site}, base));
+      }
+      $('ab-add-name').value = ''; $('ab-add-ip').value = '';
+      msg('"' + name + '" adicionado — cadastre as medidas na janela de edição', true);
+      await loadAll(slug);
+      const dev = created.device || created.new_device || null;
+      const net = isFg ? FGNET : ABNET;
+      const full = (net.devices || []).find(d => dev ? String(d.id) === String(dev.id) : d.name === name);
+      if(full){ editorSelected = {id: full.id, name: full.name}; openEditDeviceModal(full); }
+    }catch(e){ msg('erro: ' + e.message, false); }
+  });
+
+  window.abReload = () => loadAll(current());
+  loadAll('fg');
+})();
+
+// ==================== Velocidade de atualizacao ====================
+(async function(){
+  const $ = id => document.getElementById(id);
+  try{
+    const c = await (await fetch('/api/polling-config', {cache:'no-store'})).json();
+    $('speed-fg').value = String(c.fg_interval_s); $('speed-ab').value = String(c.abrigos_interval_s);
+    $('speed-comm').value = String(c.comm_loss_min || 15);
+  }catch(e){}
+  $('speed-save').addEventListener('click', async () => {
+    try{
+      const r = await fetch('/api/polling-config', {method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({fg_interval_s: +$('speed-fg').value, abrigos_interval_s: +$('speed-ab').value, comm_loss_min: +$('speed-comm').value})});
+      const d = await r.json(); if(!d.ok) throw new Error(d.error);
+      $('speed-msg').textContent = 'salvo ✓'; $('speed-msg').style.color = 'var(--green)';
+    }catch(e){ $('speed-msg').textContent = 'erro: ' + e.message; $('speed-msg').style.color = 'var(--red)'; }
+  });
+})();
+
+// ==================== Configuracao em abas ====================
+// Reorganiza os paineis que ja existem em seções no menu lateral (nao muda
+// nenhuma funcao - so onde cada painel aparece).
+(function(){
+  const TABS = [
+    {id: 'abrigos', ic: '&#127968;', t: 'Abrigos e dispositivos', d: 'abrigos, equipamentos, medidas, OIDs e registradores',
+     match: [/abrigos e dispositivos/i]},
+    {id: 'alertas', ic: '&#128276;', t: 'Alertas e Telegram', d: 'grupo, horário, confirmação e texto das mensagens',
+     match: [/telegram/i, /hor[aá]rio de disparo/i, /confirma[cç][aã]o de alarme/i, /mensagem do telegram/i]},
+    {id: 'monitorar', ic: '&#9989;', t: 'Ligar / desligar monitoramento', d: 'ativar ou desativar cada equipamento',
+     match: []},
+    {id: 'agenda', ic: '&#128197;', t: 'Resumos e agenda', d: 'resumo de domingo e avisos do Planning',
+     match: [/resumo/i, /aviso da agenda/i]},
+    {id: 'seguranca', ic: '&#128737;&#65039;', t: 'Segurança e backup', d: 'usuários, minha senha, vigia e backup',
+     match: [/minha conta/i, /usu[aá]rios/i, /vigia e backup/i]},
+    {id: 'sistema', ic: '&#9881;&#65039;', t: 'Sistema', d: 'velocidade, rede/acesso e aparência dos mapas',
+     match: [/velocidade/i, /configura[cç][oõ]es de rede/i, /apar[eê]ncia/i]},
+    {id: 'avancado', ic: '&#129520;', t: 'Avançado', d: 'editor de mapa, biblioteca e busca SNMP',
+     match: [/editor de mapa/i]},
+  ];
+  const topbar = document.querySelector('.topbar');
+  const toast = document.getElementById('toast');
+  if(!topbar) return;
+
+  // modais precisam ficar fora das abas (senao somem junto com a aba escondida)
+  ['edit-device-modal'].forEach(id => { const m = document.getElementById(id); if(m) document.body.appendChild(m); });
+
+  // tudo que esta entre o topo e o toast
+  const blocks = [];
+  let el = topbar.nextElementSibling;
+  while(el && el !== toast){
+    const next = el.nextElementSibling;
+    if(el.tagName !== 'SCRIPT') blocks.push(el);
+    el = next;
+  }
+  const layout = document.createElement('div'); layout.className = 'cfg-layout';
+  const nav = document.createElement('nav'); nav.className = 'cfg-nav';
+  nav.innerHTML = '<div class="ttl">Configuração</div>';
+  const main = document.createElement('div'); main.className = 'cfg-main';
+  layout.appendChild(nav); layout.appendChild(main);
+  topbar.after(layout);
+
+  const sections = {};
+  TABS.forEach(tb => {
+    const sec = document.createElement('section'); sec.className = 'cfg-tab'; sec.dataset.tab = tb.id;
+    sec.innerHTML = '<div class="cfg-tab-head"><h2>' + tb.ic + ' ' + tb.t + '</h2><p>' + tb.d + '</p></div>';
+    main.appendChild(sec); sections[tb.id] = sec;
+    const b = document.createElement('button'); b.type = 'button'; b.dataset.tab = tb.id;
+    b.innerHTML = '<span class="ic">' + tb.ic + '</span><span>' + tb.t + '<small>' + tb.d + '</small></span>';
+    b.onclick = () => show(tb.id);
+    nav.appendChild(b);
+  });
+
+  let last = 'sistema';
+  blocks.forEach(blk => {
+    let dest = null;
+    if(blk.matches('.map-tabs, .toolbar, .content, #content')) dest = 'monitorar';
+    else {
+      const head = blk.querySelector('.appearance-head');
+      const txt = head ? head.textContent : '';
+      const tb = TABS.find(t => t.match.some(re => re.test(txt)));
+      dest = tb ? tb.id : last;   // painel sem titulo = continuacao do anterior
+    }
+    sections[dest].appendChild(blk);
+    last = dest;
+  });
+
+  function show(id){
+    if(!sections[id]) id = 'abrigos';
+    Object.values(sections).forEach(s => s.classList.toggle('active', s.dataset.tab === id));
+    nav.querySelectorAll('button').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+    try{ localStorage.setItem('cfg_tab', id); }catch(e){}
+    if(location.hash !== '#' + id) history.replaceState(null, '', '#' + id);
+    window.scrollTo(0, 0);
+    if(id === 'avancado' && typeof editorLoadMap === 'function'){ try{ editorLoadMap(); }catch(e){} }
+  }
+  const start = (location.hash || '').slice(1) || (function(){ try{ return localStorage.getItem('cfg_tab'); }catch(e){ return null; } })() || 'abrigos';
+  show(start);
+})();
+
+// ==================== Minha conta / Usuarios / Vigia e backup ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const esc = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+  const post = async (u, b) => { const r = await fetch(u, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(b)});
+    const d = await r.json().catch(() => ({ok: false, error: 'resposta invalida'})); if(!d.ok) throw new Error(d.error || 'erro'); return d; };
+  const say = (el, t, ok) => { $(el).textContent = t; $(el).style.color = ok ? 'var(--green)' : (ok === false ? 'var(--red)' : 'var(--gray)'); };
+  let ME = {};
+  fetch('/api/eu').then(r => r.json()).then(u => {
+    ME = u; $('me-who').textContent = (u.nome || u.usuario || '') + ' · ' + (u.perfil || '');
+    if(u.perfil !== 'admin') $('users-panel').style.display = 'none'; else loadUsers();
+  });
+  $('me-ok').onclick = async () => { try{ await post('/api/auth/minha-senha', {atual: $('me-a').value, nova: $('me-n').value});
+    $('me-a').value = $('me-n').value = ''; say('me-msg', 'senha trocada ✓', true); }catch(e){ say('me-msg', e.message, false); } };
+
+  async function loadUsers(){
+    const d = await (await fetch('/api/usuarios', {cache: 'no-store'})).json();
+    $('us-list').innerHTML = (d.usuarios || []).map(u => '<tr><td class="n"><b>' + esc(u.usuario) + '</b></td><td>' + esc(u.nome || '') + '</td><td>' + esc(u.perfil) +
+      '</td><td>' + (u.ativo === false ? '<span style="color:var(--red)">desativado</span>' : (u.trocar_senha ? '<span style="color:var(--amber)">vai criar senha</span>' : 'ativo')) +
+      '</td><td><div class="ab-actions"><button type="button" class="btn-secondary us-ed" data-u="' + esc(u.usuario) + '">Editar</button>' +
+      '<button type="button" class="btn-secondary us-rs" data-u="' + esc(u.usuario) + '">Resetar senha</button></div></td></tr>').join('');
+    $('us-list').querySelectorAll('.us-ed').forEach(b => b.onclick = () => { const u = d.usuarios.find(x => x.usuario === b.dataset.u);
+      $('us-u').value = u.usuario; $('us-n').value = u.nome || ''; $('us-p').value = u.perfil; $('us-a').checked = u.ativo !== false; $('us-s').value = ''; $('us-u').focus(); });
+    $('us-list').querySelectorAll('.us-rs').forEach(b => b.onclick = async () => {
+      const nova = prompt('Senha provisória para ' + b.dataset.u + ' (mín. 6). No próximo acesso ele cria a dele:'); if(!nova) return;
+      try{ await post('/api/usuarios/resetar-senha', {usuario: b.dataset.u, senha: nova}); say('us-msg', 'senha resetada ✓', true); loadUsers(); }
+      catch(e){ say('us-msg', e.message, false); } });
+  }
+  $('us-ok').onclick = async () => { try{
+    await post('/api/usuarios/salvar', {usuario: $('us-u').value, nome: $('us-n').value, perfil: $('us-p').value, ativo: $('us-a').checked, senha: $('us-s').value});
+    say('us-msg', 'usuário salvo ✓', true); $('us-u').value = $('us-n').value = $('us-s').value = ''; loadUsers(); }catch(e){ say('us-msg', e.message, false); } };
+
+  async function loadSis(){
+    const d = await (await fetch('/api/sistema', {cache: 'no-store'})).json(); const c = d.config || {};
+    $('sy-md').checked = !!c.msg_diaria; $('sy-mh').value = c.msg_hora; $('sy-hb').value = c.heartbeat_url || '';
+    $('sy-bh').value = c.backup_hora; $('sy-bd').value = c.backup_dias; $('sy-be').value = c.backup_pasta_extra || '';
+    $('sy-list').innerHTML = (d.backups || []).slice(0, 15).map(b => '<tr><td>' + esc(b.nome) + '<small>' + new Date(b.ts * 1000).toLocaleString('pt-BR') + '</small></td><td>' +
+      (b.kb > 1024 ? (b.kb / 1024).toFixed(1) + ' MB' : b.kb + ' KB') + '</td><td><a class="btn-secondary" style="text-decoration:none;padding:4px 9px;font-size:11.5px;" href="/api/sistema/backup?nome=' +
+      encodeURIComponent(b.nome) + '">baixar</a></td></tr>').join('') || '<tr><td colspan="3" style="color:var(--gray)">nenhum backup ainda</td></tr>';
+  }
+  $('sy-ok').onclick = async () => { try{ await post('/api/sistema/config', {msg_diaria: $('sy-md').checked, msg_hora: $('sy-mh').value, heartbeat_url: $('sy-hb').value,
+      backup_hora: $('sy-bh').value, backup_dias: $('sy-bd').value, backup_pasta_extra: $('sy-be').value}); say('sy-msg', 'salvo ✓', true); }catch(e){ say('sy-msg', e.message, false); } };
+  $('sy-bk').onclick = async () => { say('sy-msg', 'fazendo backup…'); try{ const d = await post('/api/sistema/backup-agora', {}); say('sy-msg', 'backup ' + d.nome + ' ✓', true); loadSis(); }
+      catch(e){ say('sy-msg', e.message, false); loadSis(); } };
+  $('sy-tg').onclick = async () => { try{ await post('/api/sistema/teste-telegram', {}); say('sy-msg', 'mensagem enviada ✓', true); }catch(e){ say('sy-msg', e.message, false); } };
+  loadSis();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Alarme de Incêndio Fonte Grande — Rede Gazeta</title>
+<style>
+  :root{
+    --bg:#070c18; --bg-1:#0e1628; --bg-2:#121d36; --line:#223050;
+    --green:#2ecc55; --red:#e5384b; --amber:#f5c451; --cyan:#39c6e8; --gray:#8b95ab; --white:#eef2fa;
+    --mono:'Manrope','Segoe UI',sans-serif; --sans:'Manrope','Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--white);font-family:var(--sans);}
+  .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+    padding:10px 26px;background:rgba(7,12,24,0.94);border-bottom:1px solid var(--line);backdrop-filter:blur(6px);}
+  .topbar h1{margin:0;font-size:17px;font-weight:700;}
+  .topbar .sub{font-size:12px;color:var(--gray);margin-top:2px;display:flex;align-items:center;gap:7px;}
+  .dot{width:9px;height:9px;border-radius:50%;background:#434f6c;display:inline-block;flex-shrink:0;}
+  .dot.up{background:var(--green);box-shadow:0 0 6px var(--green);} .dot.down{background:var(--red);box-shadow:0 0 6px var(--red);}
+  .spacer{flex:1;}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;}
+  .nav a,.nav button{font-size:12.5px;color:var(--gray);text-decoration:none;border:1px solid var(--line);border-radius:8px;
+    padding:7px 12px;background:none;cursor:pointer;font-family:inherit;}
+  .nav a:hover,.nav button:hover{color:var(--white);border-color:var(--gray);}
+  .nav button.on{color:#fff;border-color:var(--amber);}
+  .clock{font-size:13px;color:var(--gray);text-align:right;line-height:1.3;}
+  .clock b{color:var(--white);font-size:15px;}
+  main{padding:20px 26px 60px;max-width:1800px;margin:0 auto;}
+
+  /* estado geral */
+  .hero{border-radius:16px;padding:22px 26px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;
+    background:linear-gradient(135deg,#0b3d24,#0e1628 70%);border:1px solid #1f6b41;margin-bottom:18px;}
+  .hero .icon{font-size:46px;line-height:1;}
+  .hero .t{font-size:30px;font-weight:800;letter-spacing:.01em;}
+  .hero .d{font-size:13px;color:#b8c3dc;margin-top:4px;}
+  .hero.fire{background:linear-gradient(135deg,#6b0d17,#2a0f18 70%);border-color:#e5384b;animation:pulse 1.2s ease-in-out infinite;}
+  .hero.unknown{background:linear-gradient(135deg,#1b2740,#0e1628 70%);border-color:#2b3856;}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(229,56,75,0.55);}50%{box-shadow:0 0 0 14px rgba(229,56,75,0);}}
+  .hero .zones{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+  .hero .zones span{background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.3);border-radius:7px;padding:4px 10px;font-size:13px;font-weight:700;}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-left:auto;}
+  .kpi{background:rgba(7,12,24,0.45);border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:10px 14px;min-width:120px;}
+  .kpi .k{font-size:11px;color:#b8c3dc;} .kpi .v{font-size:22px;font-weight:800;}
+  .kpi.bad .v{color:#ff8f9a;} .kpi.warn .v{color:var(--amber);}
+
+  .section-head{display:flex;align-items:baseline;gap:14px;margin:22px 0 12px;flex-wrap:wrap;}
+  .section-head h2{margin:0;font-size:15px;font-weight:800;}
+  .section-head .hint{font-size:12px;color:var(--gray);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;}
+  .card{background:var(--bg-1);border:1px solid var(--line);border-radius:14px;padding:12px 14px;}
+  .card.alarm{border-color:var(--red);background:#1f0d17;}
+  .card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;}
+  .card-head b{font-size:14px;}
+  .chip{font-size:11px;font-weight:700;padding:3px 9px;border-radius:6px;background:#15203a;color:#9aa6c0;border:1px solid #26365a;white-space:nowrap;}
+  .chip.ok{background:rgba(46,204,85,0.12);color:#6fe38e;border-color:rgba(46,204,85,0.4);}
+  .chip.bad{background:rgba(229,56,75,0.15);color:#ff8f9a;border-color:rgba(229,56,75,0.5);}
+  .chip.warn{background:rgba(245,196,81,0.13);color:var(--amber);border-color:rgba(245,196,81,0.45);}
+  .row{display:flex;align-items:center;gap:9px;padding:6px 4px;border-top:1px solid #172340;cursor:pointer;border-radius:6px;}
+  .row:first-of-type{border-top:none;}
+  .row:hover{background:#111b33;}
+  .row .n{flex:1;font-size:12.5px;color:#dbe3f5;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .row .s{font-size:12px;font-weight:700;white-space:nowrap;}
+  .row .when{font-size:10.5px;color:var(--gray);white-space:nowrap;}
+  .row.alarm .s{color:#ff8f9a;} .row.alarm{background:rgba(229,56,75,0.08);}
+  .row.ok .s{color:#6fe38e;} .row.na .s{color:#56627e;font-weight:500;}
+  .row.warn .s{color:var(--amber);}
+  .row .bell{font-size:11px;opacity:.55;}
+
+  .dps{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;}
+  .dp{background:var(--bg-1);border:1px solid var(--line);border-radius:12px;padding:10px 12px;cursor:pointer;}
+  .dp.move{border-color:var(--amber);box-shadow:0 0 0 1px rgba(245,196,81,0.3) inset;}
+  .dp .nm{font-size:12px;color:var(--gray);font-weight:700;}
+  .dp .tp{font-size:24px;font-weight:800;margin:4px 0;}
+  .dp .tp small{font-size:12px;color:var(--gray);margin-left:2px;}
+  .dp .mv{font-size:11.5px;font-weight:700;color:#56627e;}
+  .dp.move .mv{color:var(--amber);}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:24px;}
+  .btn{font-family:inherit;font-size:12.5px;font-weight:700;border-radius:8px;padding:8px 14px;cursor:pointer;border:1px solid var(--line);background:var(--bg-2);color:var(--white);}
+  .btn:hover{border-color:var(--gray);}
+  .note{font-size:11.5px;color:var(--gray);}
+  .empty{color:var(--gray);font-size:13px;padding:20px;border:1px dashed var(--line);border-radius:12px;}
+
+  .modal{position:fixed;inset:0;background:rgba(4,8,18,0.7);display:none;align-items:center;justify-content:center;z-index:60;}
+  .modal.open{display:flex;}
+  .modal-card{background:var(--bg-1);border:1px solid var(--line);border-radius:14px;padding:18px 20px;width:min(440px,92vw);}
+  .modal-card h3{margin:0 0 4px;font-size:16px;}
+  .modal-card label{display:block;font-size:12px;color:var(--gray);margin:12px 0 4px;}
+  .modal-card input[type=text],.modal-card select{width:100%;background:var(--bg-2);color:var(--white);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-family:inherit;}
+  .modal-card .chk{display:flex;align-items:center;gap:8px;color:var(--white);font-size:13px;margin-top:12px;}
+  .modal-card .btns{display:flex;justify-content:flex-end;gap:8px;margin-top:16px;}
+  .rst{margin-top:12px;padding:12px;border:1px solid #2b3856;border-radius:10px;background:#0b1326;display:none;}
+  .rst.show{display:block;}
+  .rst-line{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:12.5px;color:#b8c3dc;}
+  .rst-btn{border-color:#a3172a;color:#ffb3bb;}
+  .rst-btn:hover{background:#3a0f18;}
+  .rst-confirm{display:none;margin-top:10px;font-size:12.5px;color:#dbe3f5;}
+  .rst-confirm p{color:#b8c3dc;margin:6px 0 0;line-height:1.5;}
+  .rst-confirm .btns{margin-top:10px;}
+  .rst-go{background:#c0283c;border-color:#c0283c;color:#fff;}
+  .rst-msg{font-size:12px;margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand-badge gz"><img src="/static/img/logo-gazeta-azul.png" alt="Rede Gazeta"></div>
+  <div>
+    <h1>Alarme de Incêndio — Fonte Grande</h1>
+    <div class="sub"><span class="dot" id="conn-dot"></span><span id="conn-label">conectando...</span></div>
+  </div>
+  <div class="spacer"></div>
+  <div class="nav">
+    <button id="snd-btn" title="Tocar alerta sonoro quando houver alarme de incêndio">&#128264; Som</button>
+    <a href="/mapa-fg">Abrigo Fonte Grande</a>
+    <a href="/energia">Energia</a>
+    <a href="/climatizacao">Climatização</a>
+    <a href="/selecionar">Mapas</a>
+  </div>
+  <div class="clock"><b id="clock">--:--:--</b><br><span id="clock-date"></span></div>
+</div>
+
+<main>
+  <div class="hero unknown" id="hero">
+    <div class="icon" id="hero-icon">&#8987;</div>
+    <div>
+      <div class="t" id="hero-t">Aguardando o barramento KNX…</div>
+      <div class="d" id="hero-d"></div>
+      <div class="zones" id="hero-zones"></div>
+    </div>
+    <div class="kpis" id="kpis"></div>
+  </div>
+
+  <div class="section-head"><h2>Detectores de incêndio</h2><span class="hint">zonas das centrais MT/S — DF = fumaça, DC = calor, A/D = acionador manual</span></div>
+  <div class="grid" id="fire"></div>
+
+  <div class="section-head"><h2>Detectores de presença</h2><span class="hint">movimento e temperatura das salas (6131 — DP)</span></div>
+  <div class="dps" id="dps"></div>
+
+  <div class="section-head"><h2>Intrusão</h2><span class="hint">alarme armado, disparo, sensores e alimentação 12 V de cada central</span></div>
+  <div class="grid" id="intr"></div>
+
+  <div class="section-head"><h2>Quadros elétricos (KNX)</h2><span class="hint">disjuntores e contatores — QTA 1, QTA 2, QGBT e QDAC</span></div>
+  <div class="grid" id="qd"></div>
+
+  <div class="actions">
+    <button class="btn" id="req-btn">&#128260; Solicitar status às centrais</button>
+    <span class="note" id="req-msg">Manda o comando "Request Status" para as 7 centrais MT/S — elas reenviam o estado de todas as zonas. Use se algum ponto ficar "aguardando".</span>
+  </div>
+  <p class="note" style="margin-top:14px;">Clique em qualquer ponto para <b>resetar a central</b> dele, renomear, inverter a lógica (se aparecer ALARME estando normal) ou ligar/desligar o aviso no Telegram.</p>
+</main>
+
+<div class="modal" id="modal">
+  <div class="modal-card">
+    <h3 id="m-title">Ponto KNX</h3>
+    <div class="note" id="m-sub"></div>
+    <div class="rst" id="m-reset">
+      <div class="rst-line"><span id="m-reset-txt"></span><button class="btn rst-btn" id="m-reset-btn">&#128260; Resetar central</button></div>
+      <div class="rst-confirm" id="m-reset-confirm">
+        <b>Confirmar reset da central <span id="m-reset-grp"></span>?</b>
+        <p>Reseta os alarmes e a memória de alarme de <b>todas as zonas</b> desta central (o KNX não reseta zona por zona).
+        Antes, confira no local se não há fumaça ou fogo real — se a causa continuar, o detector volta a disparar.</p>
+        <div class="btns"><button class="btn" id="m-reset-no">Cancelar</button><button class="btn rst-go" id="m-reset-yes">Sim, resetar agora</button></div>
+      </div>
+      <div class="rst-msg" id="m-reset-msg"></div>
+    </div>
+    <label>Nome</label><input type="text" id="m-nome">
+    <label>Em alarme / ativo quando o valor for</label>
+    <select id="m-val"><option value="1">1 (padrão)</option><option value="0">0 (lógica invertida)</option></select>
+    <div class="chk"><input type="checkbox" id="m-tg"> <span>Avisar no grupo do Telegram</span></div>
+    <div class="btns"><button class="btn" id="m-cancel">Cancelar</button><button class="btn" id="m-save" style="border-color:#0a4bb5;background:#0a4bb5;">Salvar</button></div>
+  </div>
+</div>
+
+<script>
+const POLL_MS = 2000;
+let DATA = null, editing = null, lastFireKey = '';
+let sound = localStorage.getItem('incendio_som') === '1';
+const esc = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+function tick(){ const n = new Date(); document.getElementById('clock').textContent = n.toLocaleTimeString('pt-BR');
+  document.getElementById('clock-date').textContent = n.toLocaleDateString('pt-BR'); }
+setInterval(tick, 1000); tick();
+
+function ago(ts){
+  if(!ts) return '';
+  const s = Math.max(0, Math.round(Date.now() / 1000 - ts));
+  if(s < 60) return 'há ' + s + ' s';
+  if(s < 3600) return 'há ' + Math.round(s / 60) + ' min';
+  if(s < 86400) return 'há ' + Math.round(s / 3600) + ' h';
+  return new Date(ts * 1000).toLocaleDateString('pt-BR');
+}
+
+// texto e classe de cada tipo de ponto
+function stateOf(p){
+  if(p.value === undefined || p.value === null) return {txt: 'aguardando', cls: 'na'};
+  const on = !!p.alarme;
+  switch(p.tipo){
+    case 'incendio':        return on ? {txt: 'ALARME', cls: 'alarm'} : {txt: 'Normal', cls: 'ok'};
+    case 'alarme_geral':    return on ? {txt: 'ATIVO', cls: 'alarm'} : {txt: 'Inativo', cls: 'ok'};
+    case 'intrusao_alarme': return on ? {txt: 'DISPARADO', cls: 'alarm'} : {txt: 'Normal', cls: 'ok'};
+    case 'intrusao_armado': return on ? {txt: 'Armado', cls: 'warn'} : {txt: 'Desarmado', cls: 'na'};
+    case 'intrusao_sensor': return on ? {txt: 'Ativo', cls: 'warn'} : {txt: 'Normal', cls: 'ok'};
+    case 'alimentacao':     return on ? {txt: 'FALHA', cls: 'alarm'} : {txt: 'OK', cls: 'ok'};
+    case 'memoria':         return on ? {txt: 'memória de alarme', cls: 'warn'} : {txt: '—', cls: 'na'};
+    case 'disjuntor':       if(/trip/i.test(p.nome)) return on ? {txt: 'TRIP', cls: 'alarm'} : {txt: 'Normal', cls: 'ok'};
+                            return p.value ? {txt: 'Ligado', cls: 'ok'} : {txt: 'Desligado', cls: 'na'};
+    case 'iluminacao':      return p.value ? {txt: 'Ligado', cls: 'warn'} : {txt: 'Desligado', cls: 'na'};
+    default:                return {txt: String(p.value), cls: 'na'};
+  }
+}
+
+function row(p){
+  const st = stateOf(p);
+  return '<div class="row ' + st.cls + '" data-ga="' + p.ga + '" title="' + esc(p.ga + ' · ' + (p.src ? 'origem ' + p.src : 'sem leitura ainda')) + '">' +
+    '<span class="n">' + esc(p.nome) + '</span>' + (p.alerta_telegram ? '<span class="bell" title="avisa no Telegram">&#128276;</span>' : '') +
+    '<span class="when">' + ago(p.since) + '</span><span class="s">' + st.txt + '</span></div>';
+}
+
+function groupBy(list, key){
+  const m = new Map();
+  list.forEach(p => { const k = p[key] || '—'; if(!m.has(k)) m.set(k, []); m.get(k).push(p); });
+  return m;
+}
+
+function render(){
+  if(!DATA) return;
+  const pts = (DATA.points || []).filter(p => !p.oculto);
+  const fire = pts.filter(p => p.tipo === 'incendio' || p.tipo === 'alarme_geral');
+  const fireOn = fire.filter(p => p.tipo === 'incendio' && p.alarme);
+  const withRead = fire.filter(p => p.value !== undefined && p.value !== null).length;
+  const intrOn = pts.filter(p => p.tipo === 'intrusao_alarme' && p.alarme);
+  const armed = pts.filter(p => p.tipo === 'intrusao_armado' && p.alarme).length;
+  const pwrBad = pts.filter(p => p.tipo === 'alimentacao' && p.alarme).length;
+
+  // ---- estado geral ----
+  const hero = document.getElementById('hero');
+  if(fireOn.length){
+    hero.className = 'hero fire';
+    document.getElementById('hero-icon').innerHTML = '&#128293;';
+    document.getElementById('hero-t').textContent = 'ALARME DE INCÊNDIO';
+    document.getElementById('hero-d').textContent = fireOn.length + ' zona(s) em alarme';
+    document.getElementById('hero-zones').innerHTML = fireOn.map(p => '<span>' + esc(p.nome) + ' · ' + esc(p.grupo) + '</span>').join('');
+  } else if(!DATA.connected && !withRead){
+    hero.className = 'hero unknown';
+    document.getElementById('hero-icon').innerHTML = '&#9888;&#65039;';
+    document.getElementById('hero-t').textContent = 'Sem comunicação com o KNX';
+    document.getElementById('hero-d').textContent = DATA.error || 'conectando na interface ' + DATA.gateway + '…';
+    document.getElementById('hero-zones').innerHTML = '';
+  } else {
+    hero.className = 'hero';
+    document.getElementById('hero-icon').innerHTML = '&#9989;';
+    document.getElementById('hero-t').textContent = 'Sem alarme de incêndio';
+    document.getElementById('hero-d').textContent = fire.filter(p => p.tipo === 'incendio').length + ' detectores monitorados · ' + withRead + ' com leitura';
+    document.getElementById('hero-zones').innerHTML = '';
+  }
+  const kpi = (k, v, cls) => '<div class="kpi ' + (cls || '') + '"><div class="k">' + k + '</div><div class="v">' + v + '</div></div>';
+  document.getElementById('kpis').innerHTML =
+    kpi('Zonas em alarme', fireOn.length, fireOn.length ? 'bad' : '') +
+    kpi('Intrusão disparada', intrOn.length, intrOn.length ? 'bad' : '') +
+    kpi('Centrais armadas', armed, armed ? 'warn' : '') +
+    kpi('Falha 12 V', pwrBad, pwrBad ? 'bad' : '');
+
+  // som (so quando aparece um alarme novo)
+  const fireKey = fireOn.map(p => p.ga).join(',');
+  if(fireKey && fireKey !== lastFireKey && sound) beep();
+  lastFireKey = fireKey;
+
+  // ---- incendio por central ----
+  const fireBox = document.getElementById('fire');
+  const byCentral = groupBy(fire, 'grupo');
+  fireBox.innerHTML = byCentral.size ? [...byCentral.entries()].map(([g, list]) => {
+    const on = list.some(p => p.tipo === 'incendio' && p.alarme);
+    const mem = pts.filter(p => p.grupo === g && p.tipo === 'memoria' && p.alarme);
+    return '<div class="card' + (on ? ' alarm' : '') + '"><div class="card-head"><b>' + esc(g) + '</b>' +
+      (on ? '<span class="chip bad">ALARME</span>' : '<span class="chip ok">normal</span>') + '</div>' +
+      list.map(row).join('') +
+      (mem.length ? '<div class="note" style="margin-top:6px;">memória de alarme: ' + mem.map(m => esc(m.nome.replace(/^Alarm Memory - /, ''))).join(', ') + '</div>' : '') +
+      '</div>';
+  }).join('') : '<div class="empty">Nenhum detector cadastrado (rode importar_knx.py).</div>';
+
+  // ---- presenca + temperatura ----
+  const chave = p => p.nome_original || p.nome;   // nome do NETx/ETS - nao muda quando voce renomeia
+  const temps = {}; (DATA.points || []).filter(p => p.tipo === 'temperatura').forEach(p => temps[chave(p)] = p);
+  const dps = pts.filter(p => p.tipo === 'presenca');
+  document.getElementById('dps').innerHTML = dps.map(p => {
+    const t = temps[chave(p)];
+    const mv = p.value === undefined ? 'aguardando' : (p.value ? 'MOVIMENTO' : 'sem movimento');
+    return '<div class="dp' + (p.value ? ' move' : '') + '" data-ga="' + p.ga + '"><div class="nm">' + esc(p.nome) + '</div>' +
+      '<div class="tp">' + (t && t.value !== undefined ? Number(t.value).toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '<small>°C</small>' : '—') + '</div>' +
+      '<div class="mv">' + mv + (p.since ? ' · ' + ago(p.since) : '') + '</div></div>';
+  }).join('') || '<div class="empty">Nenhum detector de presença.</div>';
+
+  // ---- intrusao por central ----
+  const intr = pts.filter(p => ['intrusao_armado', 'intrusao_alarme', 'alimentacao', 'intrusao_sensor'].includes(p.tipo));
+  const byC2 = groupBy(intr, 'grupo');
+  document.getElementById('intr').innerHTML = [...byC2.entries()].map(([g, list]) => {
+    const order = {intrusao_armado: 0, intrusao_alarme: 1, alimentacao: 2, intrusao_sensor: 3};
+    list = list.slice().sort((a, b) => order[a.tipo] - order[b.tipo]);
+    const on = list.some(p => (p.tipo === 'intrusao_alarme' || p.tipo === 'alimentacao') && p.alarme);
+    const arm = list.find(p => p.tipo === 'intrusao_armado');
+    return '<div class="card' + (on ? ' alarm' : '') + '"><div class="card-head"><b>' + esc(g) + '</b>' +
+      (arm && arm.alarme ? '<span class="chip warn">armado</span>' : '<span class="chip">desarmado</span>') + '</div>' + list.map(row).join('') + '</div>';
+  }).join('');
+
+  // ---- quadros eletricos ----
+  const qd = pts.filter(p => p.tipo === 'disjuntor' || p.tipo === 'iluminacao');
+  const byQ = groupBy(qd, 'grupo');
+  document.getElementById('qd').innerHTML = [...byQ.entries()].map(([g, list]) =>
+    '<div class="card"><div class="card-head"><b>' + esc(g) + '</b></div>' + list.map(row).join('') + '</div>').join('');
+
+  // ---- topo ----
+  document.getElementById('conn-dot').className = 'dot ' + (DATA.connected ? 'up' : 'down');
+  document.getElementById('conn-label').textContent = DATA.connected
+    ? 'KNX conectado · ' + DATA.gateway + (DATA.tunnel_address ? ' · túnel ' + DATA.tunnel_address : '') +
+      (DATA.last_rx ? ' · último telegrama ' + ago(DATA.last_rx) : ' · aguardando telegramas')
+    : 'KNX sem conexão · ' + (DATA.error || DATA.gateway);
+
+  document.querySelectorAll('[data-ga]').forEach(el => el.onclick = () => openEdit(el.dataset.ga));
+}
+
+async function poll(){
+  try{
+    const r = await fetch('/api/knx/status', {cache:'no-store'});
+    if(r.status === 401){ location.href = '/login'; return; }
+    DATA = await r.json();
+  }catch(e){
+    DATA = DATA || {connected: false, error: 'sem conexão com o servidor', points: []};
+    DATA.connected = false; DATA.error = 'sem conexão com o servidor do painel';
+  }
+  if(!document.getElementById('modal').classList.contains('open')) render();
+}
+
+// ---- edicao de ponto ----
+function openEdit(ga){
+  const p = (DATA.points || []).find(x => x.ga === ga); if(!p) return;
+  editing = p;
+  document.getElementById('m-title').textContent = p.nome;
+  document.getElementById('m-sub').textContent = 'Endereço de grupo ' + p.ga + ' · ' + p.grupo + ' · tipo: ' + p.tipo.replace('_', ' ') +
+    (p.value !== undefined ? ' · valor atual ' + p.value : '');
+  document.getElementById('m-nome').value = p.nome;
+  document.getElementById('m-val').value = String(p.alarme_valor === 0 ? 0 : 1);
+  document.getElementById('m-tg').checked = !!p.alerta_telegram;
+  // reset: a MT/S reseta a central inteira (todas as zonas dela)
+  const canReset = (DATA.reset_groups || []).includes(p.grupo);
+  const rb = document.getElementById('m-reset');
+  rb.classList.toggle('show', canReset);
+  document.getElementById('m-reset-confirm').style.display = 'none';
+  document.getElementById('m-reset-msg').textContent = '';
+  document.getElementById('m-reset-btn').style.display = '';
+  if(canReset){
+    const emAlarme = (DATA.points || []).filter(x => x.grupo === p.grupo && (x.tipo === 'incendio' || x.tipo === 'alarme_geral') && x.alarme).length;
+    document.getElementById('m-reset-txt').innerHTML = 'Central <b>' + esc(p.grupo) + '</b>' + (emAlarme ? ' · <span style="color:#ff8f9a">' + emAlarme + ' zona(s) em alarme</span>' : ' · sem alarme');
+    document.getElementById('m-reset-grp').textContent = p.grupo;
+  }
+  document.getElementById('modal').classList.add('open');
+}
+document.getElementById('m-reset-btn').onclick = () => {
+  document.getElementById('m-reset-confirm').style.display = 'block';
+  document.getElementById('m-reset-btn').style.display = 'none';
+};
+document.getElementById('m-reset-no').onclick = () => {
+  document.getElementById('m-reset-confirm').style.display = 'none';
+  document.getElementById('m-reset-btn').style.display = '';
+};
+document.getElementById('m-reset-yes').onclick = async () => {
+  const msg = document.getElementById('m-reset-msg');
+  msg.textContent = 'enviando…'; msg.style.color = 'var(--gray)';
+  try{
+    const r = await fetch('/api/knx/reset', {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({grupo: editing.grupo, confirmar: 'RESET'})});
+    const d = await r.json(); if(!d.ok) throw new Error(d.error);
+    document.getElementById('m-reset-confirm').style.display = 'none';
+    document.getElementById('m-reset-btn').style.display = '';
+    msg.textContent = '✓ reset enviado (' + d.ga + '). Acompanhe se as zonas voltam a "Normal" nos próximos segundos.';
+    msg.style.color = 'var(--green)';
+    setTimeout(poll, 4000);
+  }catch(e){ msg.textContent = 'erro: ' + e.message; msg.style.color = 'var(--red)'; }
+};
+document.getElementById('m-cancel').onclick = () => document.getElementById('modal').classList.remove('open');
+document.getElementById('modal').onclick = e => { if(e.target.id === 'modal') e.target.classList.remove('open'); };
+document.getElementById('m-save').onclick = async () => {
+  const body = {ga: editing.ga, nome: document.getElementById('m-nome').value,
+                alarme_valor: +document.getElementById('m-val').value, alerta_telegram: document.getElementById('m-tg').checked};
+  const r = await fetch('/api/knx/point', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+  const d = await r.json();
+  if(!d.ok){ alert('erro: ' + d.error); return; }
+  document.getElementById('modal').classList.remove('open');
+  poll();
+};
+
+document.getElementById('req-btn').onclick = async () => {
+  if(!confirm('Enviar "Request Status" para as centrais MT/S?\n\nÉ só um pedido de reenvio dos estados — não arma, não desarma e não reseta nada.')) return;
+  const msg = document.getElementById('req-msg');
+  try{
+    const r = await fetch('/api/knx/request-status', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+    const d = await r.json(); if(!d.ok) throw new Error(d.error);
+    msg.textContent = 'pedido enviado para ' + d.enviados + ' centrais — os estados chegam em alguns segundos'; msg.style.color = 'var(--green)';
+  }catch(e){ msg.textContent = 'erro: ' + e.message; msg.style.color = 'var(--red)'; }
+};
+
+// ---- som ----
+function updSoundBtn(){ const b = document.getElementById('snd-btn'); b.classList.toggle('on', sound); b.innerHTML = sound ? '&#128266; Som ligado' : '&#128264; Som'; }
+document.getElementById('snd-btn').onclick = () => { sound = !sound; localStorage.setItem('incendio_som', sound ? '1' : '0'); updSoundBtn(); if(sound) beep(); };
+updSoundBtn();
+function beep(){
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.45, 0.9].forEach(t => {
+      const o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = 'square'; o.frequency.value = 880; g.gain.value = 0.15;
+      o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime + t); o.stop(ctx.currentTime + t + 0.3);
+    });
+  }catch(e){}
+}
+
+poll();
+setInterval(poll, POLL_MS);
+</script>
+<link rel="stylesheet" href="/static/theme.css">
+</body>
+</html>

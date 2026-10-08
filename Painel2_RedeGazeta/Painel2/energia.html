@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Energia Fonte Grande — Rede Gazeta</title>
+<style>
+  :root{
+    --bg:#070c18; --bg-1:#0e1628; --bg-2:#121d36; --line:#223050; --line-2:#2c3d63;
+    --green:#2ecc55; --red:#e5384b; --amber:#f5c451; --gray:#8b95ab; --white:#eef2fa;
+    --mono:'Manrope','Segoe UI',sans-serif; --sans:'Manrope','Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;background:var(--bg);color:var(--white);font-family:var(--sans);}
+  a{color:inherit;}
+
+  .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:22px;flex-wrap:wrap;
+    padding:10px 26px;background:rgba(7,12,24,0.94);border-bottom:1px solid var(--line);backdrop-filter:blur(6px);}
+  .topbar h1{margin:0;font-size:17px;font-weight:700;}
+  .topbar .sub{font-size:12px;color:var(--gray);margin-top:2px;display:flex;align-items:center;gap:7px;}
+  .dot{width:8px;height:8px;border-radius:50%;background:#434f6c;display:inline-block;flex-shrink:0;}
+  .dot.up{background:var(--green);box-shadow:0 0 6px var(--green);} .dot.down{background:var(--red);box-shadow:0 0 6px var(--red);}
+  .spacer{flex:1;}
+  .nav{display:flex;gap:8px;flex-wrap:wrap;}
+  .nav a, .nav button{font-size:12.5px;color:var(--gray);text-decoration:none;border:1px solid var(--line);border-radius:8px;
+    padding:7px 12px;background:none;cursor:pointer;font-family:inherit;}
+  .nav a:hover, .nav button:hover{color:var(--white);border-color:var(--gray);}
+  .nav button.active{color:#fff;background:#0a4bb5;border-color:#0a4bb5;}
+  .clock{font-size:13px;color:var(--gray);text-align:right;line-height:1.3;}
+  .clock b{color:var(--white);font-size:15px;}
+
+  main{padding:22px 26px 60px;max-width:1900px;margin:0 auto;}
+  .section-head{display:flex;align-items:baseline;gap:14px;margin:8px 0 14px;}
+  .section-head h2{margin:0;font-size:15px;font-weight:800;letter-spacing:.01em;}
+  .section-head .hint{font-size:12px;color:var(--gray);}
+  section{margin-bottom:34px;}
+
+  /* ---------- geradores ---------- */
+  .gens{display:grid;grid-template-columns:repeat(auto-fill,minmax(420px,1fr));gap:16px;}
+  .gen{background:var(--bg-1);border:1px solid var(--line);border-left:6px solid #434f6c;border-radius:14px;padding:16px 18px;}
+  .gen.up{border-left-color:var(--green);} .gen.down{border-left-color:var(--red);background:#1f0d17;}
+  .gen-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .gen-name{font-size:19px;font-weight:800;}
+  .gen-desc{font-size:12px;color:var(--gray);margin-top:3px;}
+  .gen-site{font-size:11px;color:#9fb7ea;margin-top:2px;}
+  .mode{font-size:12px;font-weight:700;padding:5px 12px;border-radius:999px;background:#18284a;border:1px solid #2c4273;color:#cfe0ff;white-space:nowrap;}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0;}
+  .chip{font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:7px;background:#15203a;color:#9aa6c0;border:1px solid #26365a;}
+  .chip.on{background:rgba(46,204,85,0.13);color:#6fe38e;border-color:rgba(46,204,85,0.45);}
+  .chip.warn{background:rgba(245,196,81,0.13);color:var(--amber);border-color:rgba(245,196,81,0.45);}
+  .chip.off{background:rgba(229,56,75,0.12);color:#ff8f9a;border-color:rgba(229,56,75,0.4);}
+  .tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:7px;}
+  .tile{background:var(--bg-2);border:1px solid #1f2d4d;border-radius:9px;padding:7px 10px;min-width:0;}
+  .tile .k{display:block;font-size:10.5px;color:var(--gray);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .tile b{font-size:19px;font-weight:700;}
+  .tile i{font-style:normal;font-size:11px;color:var(--gray);margin-left:3px;}
+  .tile.alarm{border-color:var(--red);} .tile.alarm b{color:#ff8f9a;}
+  .tile.err b{color:#56627e;}
+  .gen-foot{margin-top:10px;font-size:11.5px;color:var(--gray);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;}
+
+  /* ---------- medidores ---------- */
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:var(--bg-1);}
+  table{border-collapse:collapse;width:100%;min-width:1180px;font-size:13px;}
+  th, td{padding:9px 12px;text-align:right;white-space:nowrap;}
+  th{font-size:11px;font-weight:700;color:var(--gray);background:#0b1326;position:sticky;top:0;}
+  th.grp{text-align:center;color:#9fb7ea;border-bottom:1px solid var(--line);}
+  th.l, td.l{text-align:left;}
+  tbody tr{border-top:1px solid #182442;}
+  tbody tr:hover{background:#111b33;}
+  td.name{font-weight:700;}
+  td.name small{display:block;font-weight:500;color:var(--gray);font-size:11px;}
+  td.sep, th.sep{border-left:1px solid #1d2a48;}
+  td .u{color:var(--gray);font-size:11px;margin-left:2px;}
+  td.na{color:#46526e;}
+  td.alarm{color:#ff8f9a;font-weight:800;}
+  td.pw{font-weight:800;color:#fff;}
+  .bars{display:inline-flex;gap:2px;align-items:flex-end;height:16px;margin-left:8px;vertical-align:middle;}
+  .bars span{width:5px;background:#3d7ff0;border-radius:1px;}
+  .bars span.hi{background:var(--amber);}
+
+  /* ---------- outros equipamentos Modbus ---------- */
+  .others{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px;}
+  .other{background:var(--bg-1);border:1px solid var(--line);border-left:5px solid #434f6c;border-radius:12px;padding:12px 14px;}
+  .other.up{border-left-color:var(--green);} .other.down{border-left-color:var(--red);}
+  .other-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px;}
+  .other-name{font-weight:800;font-size:14px;}
+  .other-meta{font-size:11px;color:var(--gray);}
+  .kv{display:flex;justify-content:space-between;gap:12px;font-size:12.5px;padding:3px 0;border-top:1px solid #172340;}
+  .kv:first-of-type{border-top:none;}
+  .kv span{color:#b8c3dc;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .kv b{font-weight:700;white-space:nowrap;}
+  .kv.alarm b{color:#ff8f9a;} .kv.err b{color:#56627e;font-weight:500;}
+  .more{margin-top:8px;font-size:12px;color:#7fa6ff;background:none;border:none;cursor:pointer;padding:0;font-family:inherit;}
+  .empty{color:var(--gray);font-size:13px;padding:20px;border:1px dashed var(--line);border-radius:12px;}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="brand-badge gz"><img src="/static/img/logo-gazeta-azul.png" alt="Rede Gazeta"></div>
+  <div>
+    <h1>Energia Fonte Grande — geradores e medidores</h1>
+    <div class="sub"><span class="dot" id="conn-dot"></span><span id="conn-label">conectando...</span></div>
+  </div>
+  <div class="nav" id="site-filter"></div>
+  <div class="spacer"></div>
+  <div class="nav">
+    <a href="/mapa-fg">Abrigo Fonte Grande</a>
+    <a href="/selecionar">Abrigos</a>
+    <a href="/graficos-historico">Gráficos</a>
+    <a href="/config">Config</a>
+    <a href="/selecionar">Mapas</a>
+  </div>
+  <div class="clock"><b id="clock">--:--:--</b><br><span id="clock-date"></span></div>
+</div>
+
+<main>
+  <section>
+    <div class="section-head"><h2>Geradores</h2><span class="hint">status da USCA/controlador lido por Modbus TCP</span></div>
+    <div class="gens" id="gens"></div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>Medidores de energia</h2><span class="hint">tensões fase-neutro e fase-fase, correntes por fase, potência e energia</span></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="l" rowspan="2"></th><th class="l" rowspan="2">Medidor</th>
+            <th class="grp sep" colspan="3">Tensão F-N (V)</th>
+            <th class="grp sep" colspan="3">Tensão F-F (V)</th>
+            <th class="grp sep" colspan="3">Corrente (A)</th>
+            <th class="grp sep" colspan="2">Potência / energia</th>
+          </tr>
+          <tr>
+            <th class="sep">R</th><th>S</th><th>T</th>
+            <th class="sep">RS</th><th>ST</th><th>RT</th>
+            <th class="sep">R</th><th>S</th><th>T</th>
+            <th class="sep">Ativa</th><th>Energia</th>
+          </tr>
+        </thead>
+        <tbody id="meters"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head"><h2>CLPs, inversores e outros equipamentos Modbus</h2><span class="hint">refrigeração, CAG, bombas e drives</span></div>
+    <div class="others" id="others"></div>
+  </section>
+</main>
+
+<script>
+const POLL_MS = 5000;
+let DEVICES = [];
+let STATUS = {};
+let siteFilter = localStorage.getItem('energia_site') || 'TODOS';
+const expanded = new Set();
+
+function esc(t){ const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; }
+
+function tickClock(){
+  const n = new Date();
+  document.getElementById('clock').textContent = n.toLocaleTimeString('pt-BR');
+  document.getElementById('clock-date').textContent = n.toLocaleDateString('pt-BR');
+}
+setInterval(tickClock, 1000); tickClock();
+
+async function loadDevices(){
+  const [ab, fg] = await Promise.all([
+    fetch('/api/devices', {cache:'no-store'}),
+    fetch('/api/devices-fg', {cache:'no-store'}),
+  ]);
+  if(ab.status === 401 || fg.status === 401){ location.href = '/login'; return; }
+  const a = await ab.json(), f = await fg.json();
+  DEVICES = []
+    .concat((f.devices || []).map(d => Object.assign({}, d, {_site: 'FONTE GRANDE'})))
+    .concat((a.devices || []).map(d => Object.assign({}, d, {_site: d.site || ''})))
+    .filter(d => d.protocol === 'modbus');
+  buildSiteFilter();
+}
+
+function buildSiteFilter(){
+  const sites = ['TODOS'].concat([...new Set(DEVICES.map(d => d._site))]);
+  if(!sites.includes(siteFilter)) siteFilter = 'TODOS';
+  const el = document.getElementById('site-filter');
+  el.innerHTML = sites.map(s => '<button data-site="' + esc(s) + '" class="' + (s === siteFilter ? 'active' : '') + '">' +
+    (s === 'TODOS' ? 'Todos' : esc(s.toLowerCase().replace(/(^|\s)(\S)/g, (a, b, c) => b + c.toUpperCase()).replace(/ Do /g, ' do '))) + '</button>').join('');
+  el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    siteFilter = b.dataset.site; localStorage.setItem('energia_site', siteFilter); buildSiteFilter(); render();
+  }));
+}
+
+async function pollStatus(){
+  try{
+    const r = await fetch('/api/status', {cache:'no-store'});
+    if(r.status === 401){ location.href = '/login'; return; }
+    const d = await r.json();
+    STATUS = d.devices || {};
+    document.getElementById('conn-dot').className = 'dot up';
+    document.getElementById('conn-label').textContent = 'ao vivo — atualizado ' + new Date().toLocaleTimeString('pt-BR');
+  }catch(e){
+    document.getElementById('conn-dot').className = 'dot down';
+    document.getElementById('conn-label').textContent = 'sem conexão com o servidor';
+  }
+  render();
+}
+
+// ---------------- helpers de leitura ----------------
+function entry(dev, m){ const st = STATUS[dev.id]; return st && st.metrics ? st.metrics[m.label] : null; }
+function find(dev, re){ return (dev.metrics || []).find(m => m.enabled !== false && re.test(m.label)); }
+function num(dev, m){
+  if(!m) return null;
+  const e = entry(dev, m);
+  if(!e || e.value === null || e.value === undefined) return null;
+  const n = (e.scaled !== null && e.scaled !== undefined) ? e.scaled : parseFloat(e.value);
+  return isNaN(n) ? null : n;
+}
+function fmt(n, dec){ return n == null ? '—' : n.toLocaleString('pt-BR', {minimumFractionDigits: dec, maximumFractionDigits: dec}); }
+function decFor(unit){ return /^(A|Hz|kW|kVA|kvar|V)$/.test(unit || '') ? (unit === 'V' ? 0 : 1) : (unit === 'kWh' ? 0 : 1); }
+function shortLabel(t){
+  return t.replace(/^Instrumentação - /i, '')
+    .replace(/^Gerador - Tensão entre as Fases /i, 'Tensão ')
+    .replace(/^Gerador - Corrente Fase /i, 'Corrente ')
+    .replace(/^Gerador - Potência Total Ativa/i, 'Potência ativa')
+    .replace(/^Gerador - Potência Total Aparente/i, 'Potência aparente')
+    .replace(/^Gerador - Frequência/i, 'Frequência')
+    .replace(/^Motor - Tensão Vcc do Bateria/i, 'Bateria')
+    .replace(/^Rede - Tensão /i, 'Rede ')
+    .replace(/^Tensão - Fase /i, 'Tensão F-N ')
+    .replace(/^Nível de combustível \(L\)/i, 'Combustível')
+    .replace(/^Bat Voltage$/i, 'Bateria')
+    .replace(/^Mains - /i, 'Rede ').replace(/^Generator - /i, 'Gerador ');
+}
+function isBoolish(m){ return m.data_type === 'bool' || !!m.value_labels || /coil|discrete/.test(m.register_type || ''); }
+function devState(dev){
+  const st = STATUS[dev.id];
+  if(!st) return '';
+  if(st.disabled) return '';
+  return st.reachable ? 'up' : 'down';
+}
+function visible(dev){ return siteFilter === 'TODOS' || dev._site === siteFilter; }
+
+// ---------------- geradores ----------------
+function isGenerator(dev){ return /GMG|GERADOR/i.test((dev.netx_id || '') + ' ' + dev.name) || dev.category === 'GERADORES'; }
+
+function renderGenerators(){
+  const gens = DEVICES.filter(d => isGenerator(d) && visible(d));
+  const el = document.getElementById('gens');
+  if(!gens.length){ el.innerHTML = '<div class="empty">Nenhum gerador Modbus neste filtro.</div>'; return; }
+  el.innerHTML = gens.map(dev => {
+    const st = STATUS[dev.id];
+    const b = re => { const m = find(dev, re); const n = num(dev, m); return n == null ? null : n !== 0; };
+    const modeM = find(dev, /modo de controle|control mode/i);
+    const modeE = modeM ? entry(dev, modeM) : null;
+    const motor = b(/motor ligado/i), rede = b(/fechado para rede/i), ger = b(/fechado para gerador/i), disp = b(/dispon/i);
+    const chip = (t, c) => '<span class="chip ' + (c || '') + '">' + t + '</span>';
+    let chips = motor === null ? chip('Motor —') : (motor ? chip('Motor ligado', 'on') : chip('Motor parado'));
+    if(rede !== null) chips += rede ? chip('Chave rede fechada', 'on') : chip('Chave rede aberta', ger ? '' : 'warn');
+    if(ger !== null) chips += ger ? chip('Chave gerador fechada', 'warn') : chip('Chave gerador aberta');
+    if(disp !== null) chips += disp ? chip('Disponível', 'on') : chip('Indisponível', 'off');
+    if(ger && motor) chips += chip('Gerador alimentando a carga', 'warn');
+
+    const tiles = (dev.metrics || []).filter(m => m.enabled !== false && !isBoolish(m) && !/digital outputs|modo de controle|control mode/i.test(m.label))
+      .map(m => {
+        const e = entry(dev, m); const n = num(dev, m);
+        const cls = e && e.state === 'alarm' ? 'alarm' : (n == null ? 'err' : '');
+        const label = shortLabel(m.label);
+        return '<div class="tile ' + cls + '"><span class="k" title="' + esc(m.label) + '">' + esc(label) + '</span><b>' +
+          fmt(n, decFor(m.unit)) + '</b><i>' + esc(m.unit || '') + '</i></div>';
+      }).join('');
+    const lat = st && st.latency_ms != null ? ' · ' + st.latency_ms + ' ms' : '';
+    const err = st && !st.reachable && st.error ? '<span style="color:#ff8f9a;">' + esc(st.error) + '</span>' : '';
+    return '<div class="gen ' + devState(dev) + '">' +
+      '<div class="gen-top"><div><div class="gen-name">' + esc(dev.name) + '</div>' +
+      '<div class="gen-desc">' + esc(dev.description || (dev.modbus && dev.modbus.description) || '') + '</div>' +
+      '<div class="gen-site">' + esc(dev._site) + '</div></div>' +
+      '<div class="mode">' + esc((modeE && modeE.display) || (st ? (st.reachable ? '—' : 'sem comunicação') : 'aguardando')) + '</div></div>' +
+      '<div class="chips">' + chips + '</div>' +
+      '<div class="tiles">' + tiles + '</div>' +
+      '<div class="gen-foot">' + (err || '<span></span>') + '<span>' + esc(dev.ip) + ' · porta ' + ((dev.modbus && dev.modbus.port) || 502) +
+      ' · Slave ID ' + (dev.modbus ? dev.modbus.unit_id : '?') + lat + '</span></div>' +
+      '</div>';
+  }).join('');
+}
+
+// ---------------- medidores ----------------
+function isMeter(dev){
+  if(isGenerator(dev)) return false;
+  return !!find(dev, /corrente/i) && !!find(dev, /tens/i);
+}
+function cell(dev, re, dec, extraCls){
+  const m = find(dev, re);
+  if(!m) return '<td class="na' + (extraCls ? ' ' + extraCls : '') + '">·</td>';
+  const e = entry(dev, m); const n = num(dev, m);
+  const cls = (e && e.state === 'alarm' ? 'alarm ' : '') + (extraCls || '');
+  return '<td class="' + cls + '">' + fmt(n, dec) + (n != null && m.unit && !/^(V|A)$/.test(m.unit) ? '<span class="u">' + esc(m.unit) + '</span>' : '') + '</td>';
+}
+function renderMeters(){
+  const meters = DEVICES.filter(d => isMeter(d) && visible(d));
+  const el = document.getElementById('meters');
+  if(!meters.length){ el.innerHTML = '<tr><td class="l" colspan="13" style="color:var(--gray);">Nenhum medidor neste filtro.</td></tr>'; return; }
+  el.innerHTML = meters.map(dev => {
+    const st = STATUS[dev.id];
+    const iR = num(dev, find(dev, /^corrente r$/i)), iS = num(dev, find(dev, /^corrente s$/i)), iT = num(dev, find(dev, /^corrente t$/i));
+    const maxI = Math.max(iR || 0, iS || 0, iT || 0);
+    let bars = '';
+    if(maxI > 0){
+      const avg = ((iR || 0) + (iS || 0) + (iT || 0)) / 3;
+      bars = '<span class="bars" title="equilíbrio entre fases">' + [iR, iS, iT].map(v => {
+        const h = Math.max(2, Math.round(16 * (v || 0) / maxI));
+        const hi = avg > 0 && Math.abs((v || 0) - avg) / avg > 0.2 ? ' class="hi"' : '';
+        return '<span' + hi + ' style="height:' + h + 'px"></span>';
+      }).join('') + '</span>';
+    }
+    const desc = (dev.description || '').replace(/^Multimedidor\s*/i, '');
+    return '<tr>' +
+      '<td class="l"><span class="dot ' + devState(dev) + '" title="' + (st ? (st.reachable ? 'online' : 'sem comunicação') : 'aguardando') + '"></span></td>' +
+      '<td class="l name">' + esc(dev.name) + '<small>' + esc(dev._site) + (desc ? ' — ' + esc(desc) : '') + ' · ID ' + (dev.modbus ? dev.modbus.unit_id : '?') + '</small></td>' +
+      cell(dev, /^tens[aã]o (rn|r-n)$|^tens[aã]o r-n$/i, 1, 'sep') + cell(dev, /^tens[aã]o (sn|s-n)$/i, 1) + cell(dev, /^tens[aã]o (tn|t-n)$/i, 1) +
+      cell(dev, /^tens[aã]o rs$/i, 1, 'sep') + cell(dev, /^tens[aã]o st$/i, 1) + cell(dev, /^tens[aã]o rt$/i, 1) +
+      cell(dev, /^corrente r$/i, 1, 'sep') + cell(dev, /^corrente s$/i, 1) +
+      cell(dev, /^corrente t$/i, 1).replace('</td>', bars + '</td>') +
+      cell(dev, /^pot[eê]ncia ativa$|^w$/i, 1, 'sep pw') + cell(dev, /energia ativa( positiva)?$|^kwh$/i, 0) +
+      '</tr>';
+  }).join('');
+}
+
+// ---------------- outros ----------------
+function renderOthers(){
+  const others = DEVICES.filter(d => !isGenerator(d) && !isMeter(d) && visible(d));
+  const el = document.getElementById('others');
+  if(!others.length){ el.innerHTML = '<div class="empty">Nenhum outro equipamento Modbus neste filtro.</div>'; return; }
+  el.innerHTML = others.map(dev => {
+    const st = STATUS[dev.id];
+    const ativos = (dev.metrics || []).filter(m => m.enabled !== false);
+    const ordered = ativos.filter(m => !m.hide_on_map).concat(ativos.filter(m => m.hide_on_map));
+    const open = expanded.has(dev.id);
+    const list = open ? ordered : ordered.slice(0, 8);
+    const rows = list.map(m => {
+      const e = entry(dev, m);
+      const cls = e && e.state === 'alarm' ? 'alarm' : (!e || e.display == null ? 'err' : '');
+      return '<div class="kv ' + cls + '"><span title="' + esc(m.label) + '">' + esc(m.label) + '</span><b>' + esc(e && e.display != null ? e.display : '—') + '</b></div>';
+    }).join('');
+    const more = ordered.length > 8 ? '<button class="more" data-id="' + dev.id + '">' + (open ? 'mostrar menos' : 'mostrar todas as ' + ordered.length + ' medidas') + '</button>' : '';
+    return '<div class="other ' + devState(dev) + '"><div class="other-head"><span class="other-name">' + esc(dev.name) + '</span>' +
+      '<span class="other-meta">' + esc(dev._site) + ' · ' + esc(dev.ip) + ' · ID ' + (dev.modbus ? dev.modbus.unit_id : '?') + '</span></div>' +
+      rows + more + '</div>';
+  }).join('');
+  el.querySelectorAll('.more').forEach(b => b.addEventListener('click', () => {
+    const id = parseInt(b.dataset.id, 10);
+    if(expanded.has(id)) expanded.delete(id); else expanded.add(id);
+    renderOthers();
+  }));
+}
+
+function render(){ renderGenerators(); renderMeters(); renderOthers(); }
+
+(async function init(){
+  try{ await loadDevices(); }catch(e){
+    document.getElementById('conn-label').textContent = 'não foi possível carregar os dispositivos';
+  }
+  render();
+  pollStatus();
+  setInterval(pollStatus, POLL_MS);
+  setInterval(async () => { try{ await loadDevices(); render(); }catch(e){} }, 120000);
+})();
+</script>
+<link rel="stylesheet" href="/static/theme.css">
+</body>
+</html>

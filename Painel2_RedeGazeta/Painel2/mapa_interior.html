@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mapa Abrigos — Rede Gazeta</title>
+<style>
+  :root{
+    --device-font-scale:1;
+    --device-name-weight:700;
+    --device-text-weight:600;
+    --bg:#070c18;
+    --line:#232f4b;
+    --green:#2ecc55;
+    --green-d:#1c7a34;
+    --red:#e5384b;
+    --red-d:#8f1e29;
+    --gray:#8b95ab;
+    --gray-d:#434f6c;
+    --ink:#111318;
+    --white:#f3f3f3;
+    --amber:#f5c451;
+    --mono: 'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+    --sans: 'IBM Plex Sans','Segoe UI',sans-serif;
+  }
+  html[data-theme="light"]{
+    --bg:#eef0f3;
+    --line:#d7dbe2;
+    --green:#1ea34a;
+    --green-d:#bfead0;
+    --red:#d1293b;
+    --red-d:#f6c6cb;
+    --gray:#667085;
+    --gray-d:#c7cbd1;
+    --ink:#12151c;
+    --white:#12151c;
+    --amber:#b9790f;
+  }
+  html[data-theme="light"] .device.st-unknown .dname{color:#3a3f47;}
+  html[data-theme="light"] .device.st-disabled{background:#e3e5e9;}
+  html[data-theme="light"] .device.st-disabled .dname{color:#6a6f78;}
+  html[data-theme="light"] .canvas-wrap{background-image:radial-gradient(circle, #d7dbe2 1px, transparent 1px);}
+  html[data-theme="light"] .search-box,
+  html[data-theme="light"] .history-panel{background:rgba(255,255,255,0.92);}
+  html[data-theme="light"] .legend{background:rgba(255,255,255,0.9);}
+  html[data-theme="light"] .tooltip{background:#fff;border-color:#d7dbe2;box-shadow:0 12px 30px rgba(0,0,0,0.15);}
+  html[data-theme="light"] .tooltip .tt-name{color:#12151c;}
+  html[data-theme="light"] .tooltip .tt-metric{color:#4a4f58;}
+  html[data-theme="light"] .tooltip .tt-metric b{color:#12151c;}
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--white);font-family:var(--sans);}
+
+  .topbar{
+    display:flex;align-items:center;justify-content:flex-start;
+    padding:5px 20px;border-bottom:1px solid var(--line);
+    flex-wrap:wrap;gap:26px;position:sticky;top:0;z-index:80;background:var(--bg);
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-badge{
+    background:#fff;border-radius:10px;padding:4px 10px;display:flex;flex-direction:column;
+    align-items:center;line-height:1.05;box-shadow:0 4px 14px rgba(0,0,0,0.4);
+  }
+  .brand-badge .r1{color:#0b3d91;font-weight:700;font-size:12px;letter-spacing:.01em;}
+  .brand-badge .r2{color:#0b3d91;font-weight:700;font-size:12px;letter-spacing:.01em;}
+  .brand-badge .r2 span{color:#e0362e;}
+  .brand-badge .r3{color:#0b3d91;font-weight:700;font-size:10.5px;margin-top:0px;}
+  .title-block h1{margin:0;font-size:14px;font-weight:600;letter-spacing:.02em;color:var(--white);}
+  .title-block .sub{font-family:var(--mono);font-size:10.5px;color:var(--gray);display:flex;align-items:center;gap:7px;margin-top:2px;}
+  .conn-dot{width:7px;height:7px;border-radius:50%;background:var(--gray-d);}
+  .conn-dot.live{background:var(--green);box-shadow:0 0 6px 1px var(--green);}
+  .conn-dot.down{background:var(--red);box-shadow:0 0 6px 1px var(--red);}
+
+  .stats{display:flex;gap:18px;align-items:center;}
+  .stat{text-align:right;font-family:var(--mono);}
+  .stat .n{font-size:19px;font-weight:700;line-height:1;}
+  .stat .n.ok{color:var(--green);} .stat .n.bad{color:var(--red);}
+  .stat .l{font-size:9px;color:var(--gray);letter-spacing:.08em;text-transform:uppercase;margin-top:2px;}
+
+  .status-group{
+    display:flex;align-items:center;gap:12px;background:#0f172a;border-radius:8px;padding:7px 14px;
+  }
+  .status-item{display:flex;align-items:baseline;gap:5px;font-family:var(--mono);}
+  .status-item .n{font-size:15px;font-weight:700;line-height:1;}
+  .status-item .n.ok{color:var(--green);} .status-item .n.bad{color:var(--red);}
+  .status-item .l{font-size:9px;color:var(--gray);letter-spacing:.06em;text-transform:uppercase;}
+  .status-sep{width:1px;height:14px;background:var(--line);}
+
+  .clock{font-family:var(--mono);font-size:11.5px;color:var(--gray);border-left:1px solid var(--line);padding-left:16px;line-height:1.3;}
+  .clock-date{font-size:9.5px;color:var(--gray);opacity:.75;}
+
+  .appearance-group{
+    display:flex;align-items:center;gap:4px;background:#0f172a;border-radius:7px;padding:4px;
+  }
+  .appearance-group button{
+    width:20px;height:20px;border-radius:5px;border:none;background:none;
+    color:var(--white);cursor:pointer;font-size:10.5px;line-height:1;padding:0;
+  }
+  .appearance-group button:hover{background:#1b2740;}
+  .appearance-sep{width:1px;height:16px;background:var(--line);margin:0 2px;}
+
+  .config-link{
+    font-family:var(--mono);font-size:11.5px;color:var(--gray);text-decoration:none;
+    border:1px solid var(--line);border-radius:7px;padding:6px 11px;margin-left:14px;
+    transition:all .15s ease;white-space:nowrap;
+  }
+  .config-link:hover{color:var(--white);border-color:var(--gray);}
+  button.config-link{background:none;cursor:pointer;font-family:var(--mono);}
+  button.config-link.muted{color:var(--red);border-color:var(--red);}
+  .config-link-stack{display:flex;flex-direction:column;gap:4px;}
+  .config-link-stack .config-link{padding:4px 12px;}
+
+  .lock-toggle-isolated{
+    margin-left:18px;border-color:#5a3a1a;background:#241a08;color:var(--amber);font-weight:700;
+  }
+  .lock-toggle-isolated:hover{border-color:var(--amber);color:var(--amber);}
+  .lock-toggle-isolated.muted{background:#3a0f0f;border-color:var(--red);color:var(--red);}
+
+  .banner{
+    display:none;background:rgba(229,56,75,0.1);border-bottom:1px solid rgba(229,56,75,0.4);
+    color:#ff8f9a;font-family:var(--mono);font-size:11.5px;padding:7px 22px;
+  }
+  .banner.show{display:block;}
+
+  .canvas-wrap{
+    overflow:auto;height:calc(100vh - 58px);position:relative;
+    background-image: radial-gradient(circle, #111a2e 1px, transparent 1px);
+    background-size:22px 22px;
+  }
+  .canvas{
+    position:absolute;left:50%;top:20px;margin-left:-1000px;
+    transform-origin:50% 0%;
+    width:2000px;height:1220px;
+  }
+  svg.wires{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:1;}
+  .wire{stroke:#555;stroke-width:1.4;fill:none;}
+
+  .site{position:absolute;display:flex;flex-direction:column;align-items:center;gap:8px;z-index:2;width:157px;}
+  .site-label{
+    font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+    color:#0c1325;background:#e9e9e9;padding:7px 16px;
+    clip-path:polygon(10% 0,90% 0,100% 50%,90% 100%,10% 100%,0 50%);
+    white-space:nowrap;position:relative;
+  }
+  .site-label.circle{
+    clip-path:none;border-radius:50%;width:118px;height:118px;display:flex;align-items:center;justify-content:center;
+    text-align:center;padding:0;font-size:12.5px;line-height:1.3;
+  }
+  .pendencia-dot-overlay{
+    position:fixed;width:14px;height:14px;border-radius:50%;
+    background:#f5c451;border:2px solid #070c18;box-shadow:0 0 6px rgba(245,196,81,0.8);
+    animation:pendencia-pulse 2s ease-in-out infinite;cursor:help;
+  }
+  @keyframes pendencia-pulse{
+    0%,100%{opacity:1;} 50%{opacity:.55;}
+  }
+  .pendencia-popup{
+    position:fixed;z-index:100;background:#151e34;border:1px solid #f5c451;border-radius:8px;
+    padding:11px 14px;font-family:var(--mono);font-size:11px;min-width:220px;max-width:320px;
+    pointer-events:none;box-shadow:0 12px 30px rgba(0,0,0,0.6);display:none;color:#eee;
+  }
+  .pendencia-popup-title{font-size:12px;font-weight:700;margin-bottom:8px;color:#f5c451;text-transform:uppercase;letter-spacing:.02em;}
+  .pendencia-popup-item{padding:6px 0;border-top:1px solid #232f4b;line-height:1.5;}
+  .pendencia-popup-item:first-of-type{border-top:none;}
+  .pendencia-popup-date{color:#8b95ab;font-size:10px;margin-bottom:2px;}
+  .pendencia-popup-detail{color:#f5c451;margin-top:3px;}
+  .pendencia-popup-resp{color:#8b95ab;font-size:10px;margin-top:3px;}
+
+  .device{
+    width:100%;border-radius:5px;padding:7px 10px;text-align:center;cursor:pointer;
+    font-family:var(--mono);font-size:calc(13px * var(--device-font-scale));line-height:1.55;font-weight:var(--device-text-weight);
+    background:var(--gray-d);color:#0c1325;border:1px solid rgba(0,0,0,0.25);
+    transition:background .3s ease,transform .1s ease,box-shadow .3s ease;
+    text-decoration:none;display:block;
+  }
+  .device:hover{transform:scale(1.035);box-shadow:0 4px 14px rgba(0,0,0,0.5);z-index:10;position:relative;}
+  .device .dname{font-size:calc(13px * var(--device-font-scale));font-weight:var(--device-name-weight);letter-spacing:.01em;color:#0c1a0c;}
+  .device.st-up{background:var(--green);}
+  .device.st-up .dname{color:#0a2b13;}
+  .device.st-down{background:var(--red);}
+  .device.st-down .dname{color:#3a0b10;}
+  .device.st-unknown{background:var(--gray-d);}
+  .device.st-unknown .dname{color:#e6e6e6;}
+  .device.st-disabled{background:#162036;opacity:.55;border-style:dashed;}
+  .device.st-disabled .dname{color:#888;}
+  .device .metric-row{font-size:calc(12.5px * var(--device-font-scale));font-weight:var(--device-text-weight);opacity:.92;}
+  .device .no-metrics{font-size:calc(12px * var(--device-font-scale));opacity:.7;font-style:italic;}
+  .device .metric-alarm{color:#4a0a0e;font-weight:800;}
+  .device .metric-error{opacity:.65;font-style:italic;}
+
+  .legend{
+    position:fixed;bottom:14px;left:22px;z-index:60;display:flex;gap:14px;flex-wrap:wrap;
+    background:rgba(7,12,24,0.85);border:1px solid var(--line);border-radius:8px;padding:8px 14px;
+    font-family:var(--mono);font-size:10.5px;color:var(--gray);backdrop-filter:blur(4px);
+  }
+  .legend .li{display:flex;align-items:center;gap:6px;}
+  .legend .sw{width:10px;height:10px;border-radius:3px;}
+
+  .other-pendencias-badge{
+    display:flex;align-items:center;gap:8px;cursor:pointer;
+    background:#241a08;border:1px solid #5a3a1a;border-radius:8px;padding:6px 12px;
+  }
+  .other-pendencias-badge:hover{border-color:var(--amber);}
+  .other-pendencias-icon{color:var(--amber);font-size:15px;}
+  #other-pendencias-count{color:var(--amber);font-weight:800;font-size:16px;font-family:var(--mono);}
+  .other-pendencias-label{color:var(--gray);font-size:9px;line-height:1.25;text-transform:uppercase;letter-spacing:.02em;}
+  html[data-theme="light"] .other-pendencias-badge{background:#fff6e0;}
+
+  .other-pendencias-popup{
+    position:fixed;z-index:100;background:#151e34;border:1px solid #f5c451;border-radius:8px;
+    padding:11px 14px;font-family:var(--mono);font-size:11px;min-width:230px;max-width:320px;
+    max-height:340px;overflow-y:auto;box-shadow:0 12px 30px rgba(0,0,0,0.6);display:none;color:#eee;
+  }
+  .other-pendencias-popup-title{font-size:12px;font-weight:700;margin-bottom:8px;color:#f5c451;text-transform:uppercase;letter-spacing:.02em;}
+  .other-pendencias-popup-city{padding:6px 0;border-top:1px solid #232f4b;}
+  .other-pendencias-popup-city:first-of-type{border-top:none;}
+  .other-pendencias-popup-city b{color:#fff;}
+
+  .history-panel{
+    position:fixed;top:70px;right:22px;z-index:85;width:320px;
+    background:rgba(10,16,32,0.92);border:1px solid var(--line);border-radius:10px;
+    padding:14px 16px;backdrop-filter:blur(6px);
+    resize:both;overflow:auto;min-width:260px;min-height:200px;max-width:90vw;max-height:85vh;
+  }
+  .history-head{cursor:move;display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:4px;}
+  .history-head .h-name{font-size:13px;font-weight:700;color:var(--white);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .history-head .h-close{font-family:var(--mono);font-size:11px;color:var(--gray);cursor:pointer;background:none;border:none;flex-shrink:0;}
+  .history-head .h-close:hover{color:var(--white);}
+  .history-ip{font-family:var(--mono);font-size:10.5px;color:var(--amber);margin-bottom:8px;}
+  .history-select{
+    width:100%;background:var(--bg-1,#0f172a);border:1px solid var(--line);border-radius:6px;
+    color:var(--white);font-size:11.5px;font-family:var(--mono);padding:5px 7px;margin-bottom:10px;
+  }
+  .history-chart-wrap{position:relative;height:120px;}
+  .history-hover-tip{
+    position:absolute;display:none;pointer-events:none;z-index:20;
+    background:#0b1223;border:1px solid #2b3856;border-radius:5px;
+    padding:4px 8px;font-size:10.5px;font-family:var(--mono);color:var(--white);
+    white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,0.5);
+  }
+  .history-hover-dot{position:absolute;width:6px;height:6px;border-radius:50%;background:var(--green);pointer-events:none;z-index:19;transform:translate(-50%,-50%);display:none;}
+  .history-gauge-wrap{position:relative;height:0;overflow:hidden;transition:height .2s ease;}
+  .history-gauge-wrap.show{height:96px;margin-bottom:6px;}
+  .history-gauge-wrap svg{width:100%;height:100%;}
+  .gauge-value-text{font-family:var(--mono);font-weight:700;}
+  .gauge-unit-text{font-family:var(--mono);fill:var(--gray);}
+  .gauge-label-text{font-family:var(--mono);fill:var(--gray);}
+  .history-chart-wrap svg{width:100%;height:100%;overflow:visible;}
+  .history-line{fill:none;stroke:var(--teal,#35d0c0);stroke-width:1.6;}
+  .history-area{fill:url(#historyGrad);opacity:.5;}
+  .history-grid line{stroke:var(--line);stroke-width:1;}
+  .history-axis-label{font-family:var(--mono);font-size:9px;fill:var(--gray);}
+  .history-empty{
+    height:120px;display:flex;align-items:center;justify-content:center;
+    font-family:var(--mono);font-size:11px;color:var(--gray);text-align:center;padding:0 10px;
+  }
+  .history-latest{font-family:var(--mono);font-size:15px;font-weight:700;color:var(--white);margin-top:8px;}
+  .history-latest span{font-size:10.5px;color:var(--gray);font-weight:400;margin-left:6px;}
+
+  .tooltip{
+    position:fixed;z-index:100;background:#151e34;border:1px solid #2b3856;border-radius:8px;
+    padding:10px 13px;font-family:var(--mono);font-size:11px;min-width:190px;pointer-events:none;
+    box-shadow:0 12px 30px rgba(0,0,0,0.6);display:none;
+  }
+  .tooltip .tt-name{font-size:12px;font-weight:700;margin-bottom:4px;color:#fff;}
+  .tooltip .tt-ip{color:var(--amber);margin-bottom:2px;}
+  .tooltip .tt-mac{color:var(--gray);font-size:10px;margin-bottom:6px;}
+  .tooltip .tt-metric{display:flex;justify-content:space-between;gap:14px;color:#ccc;padding:1px 0;}
+  .tooltip .tt-metric b{color:#fff;}
+
+  .tooltip .tt-status{margin-top:6px;padding-top:6px;border-top:1px solid #2b3856;display:flex;align-items:center;gap:6px;}
+  .tooltip .tt-status .sd{width:7px;height:7px;border-radius:50%;}
+
+  ::-webkit-scrollbar{width:10px;height:10px;}
+  ::-webkit-scrollbar-track{background:#070c18;}
+  ::-webkit-scrollbar-thumb{background:#232f4b;border-radius:8px;}
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+</head>
+<body>
+
+<div class="banner" id="banner">
+  backend indisponível — inicie <code>python3 server.py</code> para status em tempo real.
+</div>
+
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-badge gz"><img src="/static/img/logo-gazeta-azul.png" alt="Rede Gazeta"></div>
+    <div class="title-block">
+      <h1>Mapa Abrigos — Rede Gazeta</h1>
+      <div class="sub"><span class="conn-dot" id="conn-dot"></span><span id="conn-label">conectando ao backend...</span></div>
+    </div>
+  </div>
+  <div class="stats">
+    <div class="other-pendencias-badge" id="other-pendencias-badge" style="display:none;" title="Municípios com pendência aberta que não estão neste mapa">
+      <span class="other-pendencias-icon">&#9888;</span>
+      <span id="other-pendencias-count">0</span>
+      <span class="other-pendencias-label">pendência(s)<br>outras localidades</span>
+    </div>
+    <div class="status-group">
+      <div class="status-item"><span class="n ok" id="stat-up">–</span><span class="l">online</span></div>
+      <div class="status-sep"></div>
+      <div class="status-item"><span class="n bad" id="stat-down">–</span><span class="l">offline</span></div>
+      <div class="status-sep"></div>
+      <div class="status-item"><span class="n" id="stat-total">0</span><span class="l">total</span></div>
+    </div>
+    <div class="clock"><div id="clock">--:--:--</div><div class="clock-date" id="clock-date">--/--/----</div></div>
+    <div class="appearance-group" title="Aparência do mapa">
+      <button id="font-scale-dec">A&#8595;</button>
+      <button id="font-scale-reset-btn">A</button>
+      <button id="font-scale-inc">A&#8593;</button>
+      <span class="appearance-sep"></span>
+      <button id="zoom-out">–</button>
+      <button id="zoom-reset">⤢</button>
+      <button id="zoom-in">+</button>
+    </div>
+    <div class="config-link-stack">
+      <a href="/config" class="config-link" title="Ativar/desativar dispositivos">&#9881; Config</a>
+      <a href="/selecionar" class="config-link" title="Escolher outro mapa">&#8617; Mapas</a>
+    </div>
+    <div class="config-link-stack">
+      <a href="/dashboard" class="config-link" title="Dashboard de falhas dos últimos 30 dias">&#128202; Falhas</a>
+      <a href="/logs" class="config-link" title="Log dos últimos 1000 eventos">&#128220; Relatórios</a>
+    </div>
+    <div class="config-link-stack">
+      <button id="history-toggle-btn" class="config-link" title="Mostrar/esconder o painel de histórico">&#128200; Gráficos</button>
+      <button id="sound-toggle" class="config-link" title="Ativar/desativar aviso sonoro de falha">&#128266; Som</button>
+    </div>
+    <a href="/logout" class="config-link" title="Sair">&#128274; Sair</a>
+    <button id="lock-toggle" class="config-link lock-toggle-isolated" title="Destravar para mover os dispositivos direto no mapa">&#128274; Bloqueado</button>
+    <button id="save-positions-btn" class="config-link" style="display:none;background:var(--green);color:#062712;font-weight:700;" title="Salvar as novas posições">&#128190; Salvar posições</button>
+  </div>
+</div>
+
+<div class="history-panel" id="history-panel" style="display:none;">
+  <div class="history-head">
+    <div class="h-name" id="history-name">Histórico (12h)</div>
+    <button class="h-close" id="history-close" title="fechar">&times;</button>
+  </div>
+  <div id="history-body">
+    <div class="history-empty">passe o mouse sobre um dispositivo<br>no mapa para ver o histórico</div>
+  </div>
+</div>
+
+<div id="pendencia-overlay" style="position:fixed;inset:0;pointer-events:none;z-index:50;"></div>
+
+<div class="canvas-wrap" id="canvas-wrap">
+  <div class="canvas" id="canvas">
+    <svg class="wires" id="wires"></svg>
+    <div id="sites-layer"></div>
+  </div>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// a lista de dispositivos vem sempre do servidor (/api/devices) - ver syncLiveDeviceFlags()
+const NET = {"sites_order": [], "edges": [], "devices": [], "sites": {}, "anchor_id": {}};
+const POLL_MS = 30000;
+
+const LAYOUT = {
+  'SEDE':             {x: 40,   y: 60, shape:'hex'},
+  'SERRA':            {x: 700,  y: 60, shape:'hex'},
+  'MORRO DO CÉU':     {x: 920,  y: 60, shape:'hex'},
+  'MORRO DO MORENO':  {x: 1140, y: 60, shape:'hex'},
+  'VIANA':            {x: 1360, y: 60, shape:'hex'},
+  'DOMINGOS MARTINS': {x: 1580, y: 60, shape:'hex'},
+  'PEDRA AZUL':       {x: 1800, y: 60, shape:'hex'},
+};
+
+const sitesLayer = document.getElementById('sites-layer');
+const wiresSvg = document.getElementById('wires');
+let liveStatus = {};
+const deviceEls = {};
+const anchorEls = {};
+
+function buildSiteDom(site){
+  const layout = LAYOUT[site];
+  if(!layout) return;
+  const devices = NET.sites[site] || [];
+  const wrap = document.createElement('div');
+  wrap.className = 'site';
+  wrap.style.left = layout.x + 'px';
+  wrap.style.top = layout.y + 'px';
+
+  const label = document.createElement('div');
+  label.className = 'site-label ' + (layout.shape === 'circle' ? 'circle' : '');
+  label.textContent = site;
+  attachSiteLabelClick(label, site);
+  wrap.appendChild(label);
+
+  devices.forEach(dev=>{
+    const a = document.createElement('a');
+    a.className = 'device st-unknown';
+    a.href = dev.ip ? ('http://' + dev.ip) : '#';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.dataset.id = dev.id;
+    a.addEventListener('click', function(e){ e.preventDefault(); openDeviceWebpage(a.href, dev.name); });
+    a.innerHTML = '<div class="dname">' + dev.name + '</div><div class="metrics-holder"><div class="no-metrics">aguardando...</div></div>';
+    a.addEventListener('mouseenter', function(e){ showTooltip(e, dev); scheduleHistorySelect(dev); stopVoiceAlarm(dev.id); });
+    a.addEventListener('mousemove', moveTooltip);
+    a.addEventListener('mouseleave', function(){ hideTooltip(); cancelHistorySelect(); });
+    wrap.appendChild(a);
+    deviceEls[dev.id] = a;
+    if(dev.id === NET.anchor_id[site]) anchorEls[site] = a;
+  });
+
+  sitesLayer.appendChild(wrap);
+}
+
+localStorage.setItem('painel_last_map', 'interior');
+
+(function applyThemePreference(){
+  const theme = localStorage.getItem('painel_theme') || 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+
+(function applyFontScalePreference(){
+  const saved = localStorage.getItem('painel_font_scale_interior');
+  if(saved) document.documentElement.style.setProperty('--device-font-scale', saved);
+})();
+
+(function applyBoldPreference(){
+  // so muda o PESO da fonte (negrito), nunca o tamanho da caixa - a caixa
+  // do dispositivo tem largura fixa (definida pelo .site) e padding fixo,
+  // que nao dependem dessas variaveis
+  const bold = localStorage.getItem('painel_bold') === 'bold';
+  if(bold){
+    document.documentElement.style.setProperty('--device-name-weight', '900');
+    document.documentElement.style.setProperty('--device-text-weight', '800');
+  }
+})();
+
+// ---------------- controle de tamanho de fonte direto no mapa ----------------
+(function setupFontScaleButtons(){
+  const KEY = 'painel_font_scale_interior';
+  function currentScale(){
+    const saved = parseFloat(localStorage.getItem(KEY));
+    return isNaN(saved) ? 1 : saved;
+  }
+  function applyScale(value){
+    value = Math.max(0.7, Math.min(1.8, value));
+    localStorage.setItem(KEY, value);
+    document.documentElement.style.setProperty('--device-font-scale', value);
+  }
+  document.getElementById('font-scale-dec').addEventListener('click', () => applyScale(currentScale() - 0.1));
+  document.getElementById('font-scale-inc').addEventListener('click', () => applyScale(currentScale() + 0.1));
+  document.getElementById('font-scale-reset-btn').addEventListener('click', () => applyScale(1));
+})();
+
+document.getElementById('stat-total').textContent = NET.devices.length;
+
+async function tryApplyCustomLayout(){
+  let layout;
+  try{
+    const res = await fetch('/api/layout/interior', {cache:'no-store'});
+    if(!res.ok) return;
+    layout = await res.json();
+  }catch(e){ return; }
+  if(!layout || !layout.devices || Object.keys(layout.devices).length === 0) return;
+  renderCustomLayout(layout);
+}
+
+function renderCustomLayout(layout){
+  usingCustomLayout = true;
+  window._customLayoutEdges = layout.edges || [];
+  sitesLayer.innerHTML = '';
+  wiresSvg.innerHTML = '';
+  Object.keys(deviceEls).forEach(k => delete deviceEls[k]);
+  Object.keys(anchorEls).forEach(k => delete anchorEls[k]);
+
+  if(layout.colors){
+    const root = document.documentElement;
+    if(layout.colors.online) root.style.setProperty('--green', layout.colors.online);
+    if(layout.colors.offline) root.style.setProperty('--red', layout.colors.offline);
+    if(layout.colors.unknown) root.style.setProperty('--gray-d', layout.colors.unknown);
+  }
+
+  const posLookup = {};
+  let fallbackCol = 0;
+
+  NET.devices.forEach(function(dev){
+    const pos = layout.devices[dev.id] || layout.devices[String(dev.id)];
+    let x, y, scale;
+    if(pos){
+      x = pos.x; y = pos.y; scale = pos.scale || 1;
+    } else {
+      x = 40 + (fallbackCol % 6) * 210;
+      y = 40 + Math.floor(fallbackCol / 6) * 90;
+      scale = 1;
+      fallbackCol++;
+    }
+    const a = document.createElement('a');
+    a.className = 'device st-unknown';
+    a.href = dev.ip ? ('http://' + dev.ip) : '#';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.dataset.id = dev.id;
+    a.addEventListener('click', function(e){ e.preventDefault(); openDeviceWebpage(a.href, dev.name); });
+    a.style.position = 'absolute';
+    a.style.left = x + 'px';
+    a.style.top = y + 'px';
+    a.style.width = '196px';
+    a.style.transform = 'scale(' + scale + ')';
+    a.style.transformOrigin = 'top left';
+    a.style.zIndex = '5';
+    a.innerHTML = '<div class="dname">' + dev.name + '</div><div class="metrics-holder"><div class="no-metrics">aguardando...</div></div>';
+    a.addEventListener('mouseenter', function(e){ showTooltip(e, dev); scheduleHistorySelect(dev); stopVoiceAlarm(dev.id); });
+    a.addEventListener('mousemove', moveTooltip);
+    a.addEventListener('mouseleave', function(){ hideTooltip(); cancelHistorySelect(); });
+    sitesLayer.appendChild(a);
+    deviceEls[dev.id] = a;
+    posLookup[dev.id] = {x: x + 98, y: y + 20};
+  });
+
+  (layout.labels || []).forEach(function(lbl){
+    const el = document.createElement('div');
+    el.className = 'site-label';
+    el.dataset.labelId = lbl.id;
+    el.style.position = 'absolute';
+    el.style.left = lbl.x + 'px';
+    el.style.top = lbl.y + 'px';
+    el.style.transform = 'scale(' + (lbl.scale || 1) + ')';
+    el.style.transformOrigin = 'top left';
+    el.style.zIndex = '5';
+    el.textContent = lbl.text;
+    attachSiteLabelClick(el, lbl.text);
+    sitesLayer.appendChild(el);
+    posLookup[lbl.id] = {x: lbl.x + 40, y: lbl.y + 15};
+  });
+
+  (layout.edges || []).forEach(function(pair){
+    const pa = posLookup[pair[0]], pb = posLookup[pair[1]];
+    if(!pa || !pb) return;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', pa.x); line.setAttribute('y1', pa.y);
+    line.setAttribute('x2', pb.x); line.setAttribute('y2', pb.y);
+    line.setAttribute('class', 'wire');
+    wiresSvg.appendChild(line);
+  });
+
+  applyStatus();
+}
+
+function getScale(){
+  const t = document.getElementById('canvas').style.transform;
+  const m = /scale\(([^)]+)\)/.exec(t);
+  return m ? parseFloat(m[1]) : 1;
+}
+
+function computeAnchorPoint(site){
+  const el = anchorEls[site];
+  if(!el) return null;
+  const canvas = document.getElementById('canvas');
+  const er = el.getBoundingClientRect();
+  const cr = canvas.getBoundingClientRect();
+  const scale = getScale();
+  return {
+    x: (er.left - cr.left) / scale + er.width/scale/2,
+    y: (er.top - cr.top) / scale + er.height/scale/2
+  };
+}
+
+let usingCustomLayout = false;
+
+function drawWires(){
+  if(usingCustomLayout) return; // layout personalizado ja desenhou suas proprias linhas (estaticas)
+  wiresSvg.innerHTML = '';
+  NET.edges.forEach(function(pair){
+    const a = pair[0], b = pair[1];
+    const pa = computeAnchorPoint(a), pb = computeAnchorPoint(b);
+    if(!pa || !pb) return;
+    const line = document.createElementNS('http://www.w3.org/2000/svg','line');
+    line.setAttribute('x1', pa.x); line.setAttribute('y1', pa.y);
+    line.setAttribute('x2', pb.x); line.setAttribute('y2', pb.y);
+    line.setAttribute('class', 'wire');
+    wiresSvg.appendChild(line);
+  });
+}
+
+const CANVAS_W = 2000, CANVAS_H = 1220;
+const canvasWrapEl = document.getElementById('canvas-wrap');
+const canvasEl = document.getElementById('canvas');
+let scale = 0.55;
+
+function adjustCanvasWrapHeight(){
+  const topbar = document.querySelector('.topbar');
+  if(!topbar) return;
+  const topbarHeight = topbar.getBoundingClientRect().height;
+  canvasWrapEl.style.height = (window.innerHeight - topbarHeight) + 'px';
+}
+
+function fitToScreen(){
+  adjustCanvasWrapHeight();
+  const availW = canvasWrapEl.clientWidth - 24;
+  const availH = canvasWrapEl.clientHeight - 24;
+  // usa o MAXIMO possivel dentro do espaco disponivel, sem cortar nada
+  // (o Math.min ja garante que largura e altura cabem inteiras)
+  // altura real ocupada pelos dispositivos (o mapa nao precisa reservar
+  // espaco vazio embaixo - assim tudo fica maior na tela)
+  let maxBottom = 0;
+  document.querySelectorAll('#sites-layer > *').forEach(el => {
+    const b = (el.offsetTop || 0) + (el.offsetHeight || 0);
+    if(b > maxBottom) maxBottom = b;
+  });
+  const contentH = maxBottom > 0 ? Math.min(CANVAS_H, maxBottom + 40) : CANVAS_H;
+  scale = Math.min(availW / CANVAS_W, availH / contentH);
+  scale = Math.max(0.28, scale);
+  applyScale();
+}
+
+function applyScale(){
+  canvasEl.style.transform = 'scale(' + scale + ')';
+  drawWires();
+  applyPendenciaIndicators();
+}
+document.getElementById('zoom-in').addEventListener('click', function(){ scale = Math.min(3.0, scale+0.1); applyScale(); });
+document.getElementById('zoom-out').addEventListener('click', function(){ scale = Math.max(0.2, scale-0.1); applyScale(); });
+document.getElementById('zoom-reset').addEventListener('click', fitToScreen);
+fitToScreen();
+
+let resizeTimer;
+window.addEventListener('resize', function(){
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(fitToScreen, 150);
+});
+
+const tooltip = document.getElementById('tooltip');
+function showTooltip(e, dev){
+  const st = liveStatus[dev.id];
+  const macLine = (st && st.mac) ? '<div class="tt-mac">MAC: ' + st.mac + '</div>' : '';
+  let html = '<div class="tt-name">' + dev.name + '</div><div class="tt-ip">' + (dev.ip || 'sem IP configurado') + '</div>' + macLine;
+  if(dev.metrics && dev.metrics.length){
+    // metricas com "pair_with" (ex: SNR) nao ganham linha propria no popup -
+    // o valor delas e' anexado na linha da metrica referenciada (ex: RSSI),
+    // mas continuam aparecendo separadas no seletor do grafico de historico
+    const pairedValueByTarget = {};
+    dev.metrics.forEach(function(m){
+      if(!m.pair_with) return;
+      const me = st && st.metrics ? st.metrics[m.label] : null;
+      const val = me && me.display ? me.display : (me && me.state==='error' ? 'sem leitura' : null);
+      if(val) pairedValueByTarget[m.pair_with] = {label: m.label.replace(/^SNR\s*/i,'SNR'), val};
+    });
+
+    if(dev.protocol === 'modbus' && dev.modbus){
+      html += '<div class="tt-mac">Modbus TCP · porta ' + (dev.modbus.port || 502) + ' · Slave ID ' + dev.modbus.unit_id + '</div>';
+    }
+    const ativos = dev.metrics.filter(m => m.enabled !== false && !m.pair_with);
+    const ordered = ativos.filter(m => !m.hide_on_map).concat(ativos.filter(m => m.hide_on_map));
+    const LIMITE = 18;
+        ordered.slice(0, LIMITE).forEach(function(m){
+      if(m.pair_with) return; // ja foi incorporada na linha da metrica-alvo
+      const me = st && st.metrics ? st.metrics[m.label] : null;
+      const val = me && me.display ? me.display : (me && me.state==='error' ? 'sem leitura' : '—');
+      const flag = me && me.state === 'alarm' ? ' <span style="color:var(--red, #e5384b);">&#9888;</span>' : '';
+      const paired = pairedValueByTarget[m.label];
+      const pairedHtml = paired ? ' <span style="color:var(--gray, #8b95ab);">(SNR: ' + paired.val + ')</span>' : '';
+      html += '<div class="tt-metric"' + (m.hide_on_map ? ' style="font-size:10px;opacity:.75"' : '') + '><span>' + m.label + '</span><b>' + val + flag + pairedHtml + '</b></div>';
+    });
+    if(ordered.length > LIMITE) html += '<div class="tt-mac">+ ' + (ordered.length - LIMITE) + ' medidas — veja em Energia / Gráficos</div>';
+  }
+  const statusClass = st ? (st.reachable ? 'up' : 'down') : 'unknown';
+  const statusText = st ? (st.reachable ? 'online' + (st.latency_ms!=null?' · '+st.latency_ms+'ms':'') : 'offline') : 'sem dados';
+  const color = statusClass==='up' ? 'var(--green)' : statusClass==='down' ? 'var(--red)' : 'var(--gray)';
+  html += '<div class="tt-status"><span class="sd" style="background:' + color + '"></span>' + statusText + '</div>';
+  tooltip.innerHTML = html;
+  tooltip.style.display = 'block';
+  moveTooltip(e);
+}
+function moveTooltip(e){
+  const pad = 16;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  if(x + 220 > window.innerWidth) x = e.clientX - 220 - pad;
+  if(y + 160 > window.innerHeight) y = e.clientY - 160 - pad;
+  tooltip.style.left = x + 'px';
+  tooltip.style.top = y + 'px';
+}
+function hideTooltip(){ tooltip.style.display = 'none'; }
+
+// ---------------- clique no nome da cidade -> abre nova tarefa em Relatorios Sites ----------------
+let pendenciasSites = new Map(); // nome (minusculo) -> lista de pendencias {descricao, pendencia_descricao, responsavel, data}
+
+async function loadPendenciasSites(){
+  try{
+    const res = await fetch('/api/relatorios-sites/pendencias', {cache:'no-store'});
+    const data = await res.json();
+    const municipios = data.municipios || {};
+    pendenciasSites = new Map(
+      Object.entries(municipios).map(([nome, lista]) => [nome.toLowerCase(), lista])
+    );
+
+    // separa as pendencias de municipios que NAO correspondem a nenhum
+    // site deste mapa (ex: cidades cadastradas em Relatorios Sites que
+    // nao tem rotulo/grupo de dispositivos aqui no Interior)
+    const mapSiteNamesLower = new Set(Object.keys(LAYOUT).map(s => s.toLowerCase()));
+    otherLocalitiesPendencias = Object.entries(municipios)
+      .filter(([nome]) => !mapSiteNamesLower.has(nome.toLowerCase()))
+      .map(([nome, lista]) => ({nome, lista}));
+  }catch(e){ /* mantem o que tinha antes se a busca falhar */ }
+  applyPendenciaIndicators();
+  applyOtherLocalitiesBadge();
+}
+
+let otherLocalitiesPendencias = [];
+
+function applyOtherLocalitiesBadge(){
+  const badge = document.getElementById('other-pendencias-badge');
+  const countEl = document.getElementById('other-pendencias-count');
+  if(!badge) return;
+  const total = otherLocalitiesPendencias.reduce((sum, o) => sum + o.lista.length, 0);
+  if(total === 0){
+    badge.style.display = 'none';
+    return;
+  }
+  countEl.textContent = total;
+  badge.style.display = 'flex';
+}
+
+function showOtherLocalitiesPopup(e){
+  let popup = document.getElementById('other-pendencias-popup');
+  if(!popup){
+    popup = document.createElement('div');
+    popup.id = 'other-pendencias-popup';
+    popup.className = 'other-pendencias-popup';
+    document.body.appendChild(popup);
+  }
+  const itens = otherLocalitiesPendencias.map(o => `
+    <div class="other-pendencias-popup-city">
+      <b>${escapeHtmlPend(o.nome)}</b> — ${o.lista.length} pendência(s)
+    </div>`).join('');
+  popup.innerHTML = '<div class="other-pendencias-popup-title">&#9888; Outras Localidades</div>' + itens +
+    '<div style="margin-top:8px;color:var(--gray);font-size:10px;">clique para abrir Relatórios Sites</div>';
+  popup.style.display = 'block';
+  const rect = e.currentTarget.getBoundingClientRect();
+  popup.style.left = rect.left + 'px';
+  popup.style.top = (rect.bottom + 8) + 'px';
+}
+function hideOtherLocalitiesPopup(){
+  const popup = document.getElementById('other-pendencias-popup');
+  if(popup) popup.style.display = 'none';
+}
+
+document.getElementById('other-pendencias-badge').addEventListener('mouseenter', showOtherLocalitiesPopup);
+document.getElementById('other-pendencias-badge').addEventListener('mouseleave', hideOtherLocalitiesPopup);
+document.getElementById('other-pendencias-badge').addEventListener('click', () => {
+  window.open('/relatorios-sites', '_blank');
+});
+
+function formatPendenciaDate(dataStr){
+  if(!dataStr) return '';
+  const d = new Date(dataStr + 'T00:00:00');
+  return isNaN(d) ? dataStr : d.toLocaleDateString('pt-BR');
+}
+
+function showPendenciaPopup(e, nome, lista){
+  let popup = document.getElementById('pendencia-popup');
+  if(!popup){
+    popup = document.createElement('div');
+    popup.id = 'pendencia-popup';
+    popup.className = 'pendencia-popup';
+    document.body.appendChild(popup);
+  }
+  const itens = lista.map(p => `
+    <div class="pendencia-popup-item">
+      ${p.data ? '<div class="pendencia-popup-date">' + formatPendenciaDate(p.data) + '</div>' : ''}
+      ${p.pendencia_descricao ? '<div class="pendencia-popup-detail">Pendência: ' + escapeHtmlPend(p.pendencia_descricao) + '</div>' : ''}
+      ${p.responsavel ? '<div class="pendencia-popup-resp">Responsável: ' + escapeHtmlPend(p.responsavel) + '</div>' : ''}
+    </div>`).join('');
+  popup.innerHTML = '<div class="pendencia-popup-title">&#9888; ' + escapeHtmlPend(nome) + '</div>' + itens;
+  popup.style.display = 'block';
+  movePendenciaPopup(e);
+}
+function movePendenciaPopup(e){
+  const popup = document.getElementById('pendencia-popup');
+  if(!popup) return;
+  const pad = 14;
+  let x = e.clientX + pad, y = e.clientY + pad;
+  const rect = popup.getBoundingClientRect();
+  if(x + rect.width > window.innerWidth) x = e.clientX - rect.width - pad;
+  if(y + rect.height > window.innerHeight) y = e.clientY - rect.height - pad;
+  popup.style.left = x + 'px';
+  popup.style.top = y + 'px';
+}
+function hidePendenciaPopup(){
+  const popup = document.getElementById('pendencia-popup');
+  if(popup) popup.style.display = 'none';
+}
+function escapeHtmlPend(s){
+  const div = document.createElement('div');
+  div.textContent = s || '';
+  return div.innerHTML;
+}
+
+function applyPendenciaIndicators(){
+  const overlay = document.getElementById('pendencia-overlay');
+  if(!overlay) return;
+  overlay.innerHTML = '';
+  document.querySelectorAll('.site-label').forEach(el => {
+    const nome = (el.dataset.siteName || el.textContent || '').toLowerCase();
+    const lista = pendenciasSites.get(nome);
+    if(!lista) return;
+    // usa getBoundingClientRect (posicao real na tela, ja considerando
+    // zoom/rolagem do mapa) e desenha a bolinha numa camada por cima de
+    // tudo, com position:fixed - assim ela nunca fica cortada pelo
+    // formato hexagonal/seta do rotulo (clip-path), que cortaria
+    // qualquer coisa desenhada dentro do proprio rotulo
+    const rect = el.getBoundingClientRect();
+    const dot = document.createElement('div');
+    dot.className = 'pendencia-dot-overlay';
+    dot.style.left = (rect.right - 7) + 'px';
+    dot.style.top = (rect.top - 7) + 'px';
+    dot.style.pointerEvents = 'auto';
+    dot.addEventListener('mouseenter', (e) => showPendenciaPopup(e, el.dataset.siteName || el.textContent, lista));
+    dot.addEventListener('mousemove', movePendenciaPopup);
+    dot.addEventListener('mouseleave', hidePendenciaPopup);
+    overlay.appendChild(dot);
+  });
+}
+
+function attachSiteLabelClick(el, site){
+  el.dataset.siteName = site;
+  el.style.cursor = 'pointer';
+  el.title = 'Clique para adicionar um relatório de serviço em ' + site;
+  el.addEventListener('click', function(e){
+    if(mapUnlocked) return; // em modo de edicao/arrastar, o clique nao deve navegar
+    e.preventDefault();
+    e.stopPropagation();
+    window.open('/relatorios-sites?municipio=' + encodeURIComponent(site) + '&novo=1', '_blank');
+  });
+}
+
+// ---------------- aviso sonoro de falha ----------------
+const SOUND_KEY = 'painel_sound_interior';
+let soundEnabled = localStorage.getItem(SOUND_KEY) !== 'false';
+let audioCtx = null;
+
+function getAudioCtx(){
+  if(!audioCtx){
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if(Ctx) audioCtx = new Ctx();
+  }
+  return audioCtx;
+}
+
+const ALARM_SOUND_DATA_URI = 'data:audio/wav;base64,UklGRsAjAABXQVZFZm10IBAAAAABAAEAESsAABErAAABAAgAZGF0YZsjAAB/fXiGnXxlWYOTqoBsVH+LpZBmYKVuZKxmbq1laK1yYap8VaWLUJ2UTZefToqnd2Nkh5ijemRZhZOngWxSgI+ohm9Se42kj3JZcYSFi5SkgHt4dnNpVnyChomQlaOIfXp6c2hVe4OKoZx5X2SImKV9aFSGkKiHbk59jqKSc1VujqJdhKxXeqpdca5pZKl0XKmDUqCOT5uXS5GhUX2NlJNuYWqGl6l8Y1aEkKqEalKAjaWNb1V3ipuhfXx4b2hXf4SFiI+WpI98enh2blVygISJi5WkgXhZdImgmHRXZYeZo3hhV4WTqIBrUoCMpY5kYqZsZqxkcK5ka65vY6x5WKiHUqGST5mcTIyndmNkiZeje2RXhZehfnJLfZmkiW1Sfoqkkm5ZcIKIi5WdiH1wfHdgWIF5iY+Hk6eQfHtwb21Xf4WHm5l8ZV+In6F6bVKAmKeBclB8kKCRdVNwj55fhalXf6VcealkbKdvY6d8WKSLS5mXT5iiT3qKlZJyX2eMmKN/ZVGIk6ODbU9/jqSNclN5jJiifXp7a2lae4OJhY2aoY9/e3V2cVZtgYGIjJengnVVdY2flXdYY4qZoHljVYeRqX9rVH+Mpo1kZaFpbq1cdq1jZ7FwXq57VKyGUaONU5OiUISreVpokY+jg15TiZmlgGZKhJSti25LdJCqi3BfaYCOiY2shnN9dnVtT3uDgouMkqaNfHx7bWxfbn+SnZeBYFyQnKR1ZFeHmaqDaUl8kaqQbGBthKhierFccq1kaq9oY612WKuBUKWLTqGRTJycTIWLjZtrXHGHjqqEbFOAhqeHc1h8iZuPeVdtkZqahIFwcnNRdYSKhI6Xl56AeXx1bl5giYGAkJadinlTeJCYmntWYoGVpYBoVYWKo4RyVHqLq4piaKJob6lfdatkZ7FvXbF8U62ITaSTTpSjT4Ope2Flj4ylfmNTiZWjhm5JgZOkjnVNb5Gik3JfaIGJiYyllHN+d3VuWmt/hoeGlp6Xf351dHNnYH6GmaCBa1mIk6OCcE6Dl6KKd0p0k5+Ud19kjKNifaxddKpmaatxYqN8XKCGVpuQUpSXVJKiSXWSlKBvYmGCla2JZ06HiKCRcUx/jJmYd1RtjJGfj3p5dGtjZIGLfIyajqWMdXeAbWJfe3qHj5KliWxedo+inHFSYY+TnoNnS4qSnIl0SH6JppJkYqNvZ6hpbatrYbRwWbOASqyQRqOdQ5eoTIWkeW5fio2kfGpRho+clHlIeJOXl3xSZpKVoHZiXoGCiIyVo4Z8eXhvc1Rrh4V+k5mWl350eXt4VHF+kaeBcViFj6GJeEp+lZ2PfVFvkZqZemBgjaFpd61gcqdqaKh3Yp+AXJyMV5WSU5abUYqjT3GXk51tYGSGkayLY0+JiJ+Ubkt9jJubdVZvh46dknx6cW5qWIOMfYiZj6KUd3OAd2hTdX6Hj5Oli25cdZCcnHpYWY+TnINrSoiRnYd0T3iLn5VqXaVxX69ma7JmYLN0WbF/TKqPSJ6hT4+iSYSuf3RWfoSkk29Lf42Xn3pMcZCPonhhXoiVoH5xU3qCgY2NmpyEgX1weW1IeId8i5SQmot7f398YFd9jKmGc02FlJ6Pe011k5qWf1hqh5SneWhdg6F4Z7JpaaJxZ6R9XpqFWpqTVY+VTpqoS4GeU3Sdl5drWGqPjKeKYlCKh6CUbkx9iqCaclpwhJGckn94bXNrU4aKe4qYkKSUdHR+fWxPbYCHj5Wlimted5KVm35aXI+PnIRpS4eRn4dzT3qNm5ZrW6duYbBma7RkYLJ0WrB+TqqSSpiaUpelToCpd3Vcf4aflm9NfIuXoHhRbo2UoXpkW4iToYNyVnF/hImQmI+XgXl3e2hUZoB/iY+UlJt6fnx7bVB+haWMck+EjZuad1F0j5OjemRhgpOofnFTgKGAYK15WaR7W6WHVZmPUpidU5CZRo6rVYKmV2aWl6BrV3GLi6uDXliHhKaQaFZ4hqWXcl5sg5WWl4R0aXVnVo2Dd5CUjq2Qbnh7fndSb3WCjJeviXBTeZOTnXxUYpOOnoNjUImRn4dxT3+LnJVnYqdja6thdbRdaLNsYrJzT62RUJiQTJqrVIqla3Bch4iik2lQgIuXnnNScoqVn3tiXYqOo4RtW295iIiPl4+bgHt7emhYXoGBiImSl6KCdnl1cVN/jKCGcVV+jZ+YdllvjJOmdmlchJOng3FPgpuDZql7XaN3X6iCVJqIU6CgUo2YRo6tV36lWmObmphsWW6NlaN8Y1eHi6eHa1Z7i6SPcldvipGhk3t3b21pYoSBfoeVnK2GbXR8fnlTcnV/jpmvgHFedpKhkXJdZYycmnliVYqOpYVrU36Jpo5qX6ZmZK1pcq5hZK52aKlvVrGKWJ6CSKCmVZKeZ3dWgJihfndVdpWih3ZVc46Yn3haZ4mTpnpqWHh3hpiKjqKNc4h8bG1XZH6DiImUn5yAdXVzalSFnaNxdFp7l6x/c1pzjqKYdGBijJuifmdSjpt1dqpgdKZcc7JoY6ZsWbCTVZaLRZqlT4ueTXWgmIlqYmqOoJx1aVaHlqd+bFV7kaOJdFJzkoyilHV9c2RpZX6Dg3+WpKmFbXJ9gHdTdHF/j5axg25deI+nk2pcZYygnHZeV4yPpoJnVICOpotnYKZpaahmdaxiaa1wZqxwVrSGVqKERqGiT5ymY3FafJipenBZeZKhinJTdJGYnXhYa46Tn35qUnZ/fZaSip6cb36BdnFYWnuGiYqUlp+Bf3xrZViElap2bF2Ajq2IcFhykaSWdGNdkZyffmxJjKd0abNjaLBhZrd2WZ1vWLKaUZeKQp6rUn+dV3aZnJBgXHSJn6ByYF2Mk6Z8alh/jqaCd012lY2cm3pzdGheaod8fYicoamDbHR9f3RTcXCNj462h2JchYilmmNVbJWbmnVcWZGRon5kUYCZoIVsaJxmdZ9igqNaeaxibbJqXLN8WqSDSKeYTKWoXm1ffZereW1ZfZOijXBOc5KcmnhYapCYmoBsTXeDfJGWjaGabXeCenJQX3mEjJGTlJuBgoBpWVuJlqt1ZFyCkrOEald1lKmRcF1mjaKic2lUialzaLBjbatdbblvYaFmWbOSVZ+EQaajSo+cSIGak5doUHaPnqFvX1uLmaV8bVR/kKh7cFhzjpmYjoR1bXVkXYN9gIuYnaiIcXd5e29TfXh8kJeqi3BOgpObmGtLbpiXn3ZXW5CUpntdU4iSqolWbadbfatQfqxbfqpbbrNqXbV5WaeKSZeVVpynbWVajZKigGtSh5GgkmdLfo2cnGxdboyhpG1pX2yDioKLmaCacHd/e3ZXW3l/iZGSjJ+PfHp5W0yRkp6AbFZ/mKuCcFpwmaOPcF5niaOnaGtegamAXKhyZ6NoarZ1XqNqVK2WWJyHQaKjSZKdR4CekZhqR3uTnp1rYF6Oo55yblCFnKlva1x0lJ+QgYl3bnpcW4aBgoyVmqmJdHJ5d2VaiHd9kpephnNNgpWbkWpKd5iZnW1aX4yepXBiVISYrX1WeaZXf6VMia1VgaRUfLpnYLVyV6yHSZ6QTqOqaWhciJekeGlXiZKjimdLfpShkW5UcZSkl3FmVnyEh4uMkqSKdHyCdG1KbYB+ipiOmZaAfIJxUV6JlaZ3Z16Fma54aVd4nKyDbltpk6uXbGdei65qc6JVfqpfe65eaaxjZqp8ZqV6UqGQV5uNS4WXk5NmUXqRmqNtXmCLpJl1c0uBo6B2dFF0nZeNioJ7eHhcUIaIhI+QkKOTfmp8d2BeiG+Ak5CxhnNRf5ebjG5Jc52bmm9iVIqooW9rS3+jqXtcdqJafKRSja5QfKJVfcBmWbV0VbKJQqOQSKOsZm1bgpeneWlYhpWgiWxMd5ifkHRSa5uilXZjVHmHh46Fi5mdfH9/dW9PYIN5jZaDlqN5hYVrX1OAk615bVyBlayCaFptmaqPbmFblKifb2hXi6x5YJ9kcrNtaaZuY6V0XaSMXpuGTpifVY2aTniampBpT3iVm5ZwW16TppVxb06Hp55wcFd4lZaYg4l1cnhRZImJfZCZlKSLeHB9dFxjgXd+kZ+qf29Rh5adh2dPcqGni3BaXJCpmXBlSYShqoZWc5pUj6VRkp9Ghq9NfrtaZrlqYLl5Sax+VKyaaWVmipmldVxgjJqfe2pOgpuhhnBLd5qrlG5KXI2KjY6Ih6SBgH5wdGROgYZ+kZiFo4R5h3xkUG+EqZ1qYmmKpadrYl5+n7R2ZlZ1l7aMZVV0lqdah5hQkKdSi6FXhJ9TeqxpcadlXquCW6OFSJGZloJqVnqXmpF1W1uXo5N0bk+GpZ50blh4jpighYhwbHdYZYuJdo6ckqmOc29+c2Fhf3aAkZ+pgGxUiJidhGhOc6Smh3NXXZOnlnRlSYeiqYRQcJtalKRPi5xKibJLf7pYZ7llYrt1Sq9+U6qaaGdlh5iqdGFfipqcf2lLhZyajHJHeZ6ikXFbWoqGhIWGjKqVeHpyd2xGd4N9kZWEopZ1iXxtVl+JnKRxYmSLm6tyaVV+oK2BbVJsmq6Ub19iiaNmf6lZgKVOgrBjdKFkbaV5Yp96Vp6SV5iSRomhk4NpUn2bmJJxWGGan5R1Z1KMo556aEt9l5+lgHpmbX5laoGAc5KdkayLcnWAb2NhfXWFkpqsfWdaiJaif2dOdqajhXVUXJamlXlhSIikq4BMcJtdm6VNhpZMj7NKgrhTbbpjZLpwT7B9VKmYZmZnh5ipc2RdjJyZgWlIhp6ZjnZEd56iknFfWISJhYeFi6Wdenp2emdLcoF/kI6Copt3h3puWluLmaZyZWKJnKV4alN+oKeIcFNomKaZc2JfiadodalZfqlVfLFnbKJpZqiAWp6CU5uYT5qXRYmelIlkT4aWmI1wVGuanZN1YleMn514aFR9jZ2mgYJtZ3NdcImEdZOelKiHcHZ/bWBofHiFj6Gpd2taipydfWhLfKWkgXZPY5ikk3xbTIqfrIVRe41QnqFWlZU/lK9GjLZKdbpYbb1kWLN1WrGOYGhuiJ+eb2JemZmXfGRJjJ6bh3VDf56rjGtPWYiSipCHhqGGf3h7d1RPhYGGlI2Frn9+gnpnSXmJo5xoWHaMrJxsX1qKpqp2akt8nbGHalF2l6RYjpVLmZ9Ok6JWhZ1Sf6tmcqNjZ6p6WK95Sp2Yj4NlUYaVmYp0UG2dnJV2YFiOnJx3aVh/jZqhgoNxanRcZ4yHcpOek6uHbnd+bGNlfniBkaCreGldiZqfeWtIfKamgHVNY5qklHtbUYqaqYJSgpJRmZxSmJo/la5FjbZId7pXbb1iYK5yXbCPZGNtipikb2RamZuWemRIi5+ahnRHepqrlXJaT3uMiJWNh52Mfnt6eWRGeIGDkY+Dp4yAh3drUWWNn55vXmaRqKBvZVKFo6l8bk1ynLSUZU5olbNihZpDjKVXi6pafKJZc61vZ6NvW6qBWKaCTpKcln9lUoSek4hxUW+enpVzW16QnJpzYmKHkZaYfIB5b3dYYouKcZGglaiJb3d+bmFihnR/lp2nfmJejpaidmpGf6aof3RNZ5qllHdYW4uTpX5UjJRPmZZPoJk9maxEkbREerlVcbxeZq1tYrGLZWFujZmhcGBdmp2XemBJjqCbhXJJfJWqlHReTnqHh5eRjJmMfXl8eV5JfXyFlYmHp4qCiHZpUWqMoZtsYGWVqp5uY1WHpaV7bUx2mrWVaVBnkK1gk5lFip1Wj6pYgKJWea9pa6VqXa97V6p9TZqckYBlUImdkYhzTnGgnZN1WF+SopxtWV2ImpufenZ1bn9ZZouGcpKelqmGb3l8cV9lgHWEkKKod2Zei56beGpFgqakgHRIap6ik3NSYJWYo3ROiZhXn5RJoZY8m6hGlLJDf7ZQd7VkZa9tX7aLX2Vth6GZdVtinJyXe15Kj5+chG9Pf42mj3dpU3yAgZOSj5mRfHl/eV1Md3mHlIaPnYyHhHhtTmmLnp9rY2CVqKFwYFGJo6d/bEtxl7WcbFNliqpglJtKiZlUj6lWgqRUeK9qa6VsW69+VKuASJyej4JjUIqek4FuUHegn5JtVmaTpJ1oU2CImJ+hdXl2an1baYmGd46bnaKGc3Z7dFlsfXiCj6elcmdhiaGecmZMh6Gggm9IdpqhknBNZZaYpndJjpVPpZNKoZU8oZ5JnKlChq9TgLFda7Fha7d+Y2dqi6WWbmBmlJuie1dTiZWihG1RhY6pk2pcYnx/jZCIlqF/fIB+dVxPeHuMkIaQooOIiW9qVWiJrZBmZ2iOraplVlmLorV7Yk91lreUZVF3kZ9glotRmotRnqNKkKNHh7Fad6leZrB1Vq57S5yhjXhsU4Khm3pnVn6fopJhVmyVppxqUmKJj5yocn95ZnljZoKIgIeapZ2De3B6eVhpfH5/j6micGlhiKGjcGJRiJyghWtKe5iikm9PYpSbp3tIjZFNp5RQn5JBnplOnKNIhatVga9ebbBgbLV/ZWVrjaGVa2RolJykeFRUiZijhG5OhJSnj21hWHyEjI2Gk56PeIJ+dGNPa4OFjYqKnpWBhXlpVmSInZxrbmSMo6ZsX1qInK1/a1BsmrCVbV1jka1aiplRi5lSkaxUf6dSdbZka6VnYa16Wqd8UJmWmYReUISbnYBrUnyVpZFtVGqYpZFuWluMnJSefnd0bHJcdoCLfomepZeHdG1/dk95f2+ImJ6ge1dhlKKldVlFi6GpiWdBcpyqjHNQXZKrmHBaj4Jbq4Ncp39OoJBVn55Hh61PhLdVbbNgariCWV2CjKOOYVp6nqGcZ0hik6WceWdPiqGmf3NQZYeDio+OmpGAdoCAbU9keIqGj5SLnYN/gHtaTYiOpIZoXYKSrJBiVXWRp6JoY1p9o7V1ald2nppVqnxTpH5UrJJOnpNElqtLjaBIg7FSdrJbaqSMjntjWYyYmYBvUXaZp4tyWGSXpo1xXVmKoqWEfnZpaWGBgYCQhI2wj32Fcml0XG+Ig3qMmJ6Re2FckJiddmBMiaWVd3V1do+Ie354b4uGeoZ7dX6Bh4WBgX13eIaFe4Z9cIqGeYeEcoCAg4t6boCAf4OEd32Hi4l5cnZ9g417eH5/fo2Cgnx4en59hYd3fH9+f459g4ByeIiAhIBzfIOMiHZugoCKi3tsfISJlXpogn95loVqfX9ykJB4c4R8eo6BfH95fIB8jH9+h3V2i4N8hntyhYd0gIZ9hJF6aoZ/goyFbmx/f32Wh3J6g3iLjm92eYF/iYN9fYN1g4x8fH6EcnmLhH2IfXOIjHeHgXB3hYWGh3d6h3t5gnl2h5KBfHtxgo2BhXxweYiFgIF6eHyGhYGEgXp4gX6BiIB4fYV8goR8eoZ8hINxc4mFe4SAcYCOiYCBdG2EhYd6fnZ+iYiAgnh7fnuFfYZ9dYKHdoqLfHeBdn2JhX56fnqCiH97gn19goJwg4uEhYRsdYqDhYdxeIB6jY12eYJ6goWAf4F2eYR8go57eIN4e4+Eenh2fYuFgIFufZOCeoN1g4t9eHR3goKQg3d2f4CJh3V1en2CiX2Cfn96goaBe36Ad3qEhYSEe3mAiICDfHN9iYOCgHl8iIJ4fHZ5iZB9gHl0gI5/g3xxeYuDfYR6eX6CgoSDf313fIKBhoV3eYN/hId7eIJ9hIZ1coWDfYR+coGMioOAc3GChIZ9fHWAh4aEgHh8fXuChIR4e4KAeouHf3t6eIOJg3d4f3+MiHp1fXyEiXxyiIOEjn9qeIV/jIVzdn58i416dIB8f4mDfXt8eoB/hYh8fnx3g4t9fX93fYh7gIF0gpR9dIV9eouGcnR3f4SPg3h3f4CJh3lzenuAioJ/fYB4got/eoF8dH+Fg4WBeXqChoGDenN/ioODfXZ9i4N4fHN5jY98gHhzgo6CgnxweYuGfoR5d36EhIOCfn12foKBhIN2eoV/hIV7eYJ/hYR0coaFf4J9dIGNjIB+dHGBiIR8fXSAiYiCgHh8fX2Ag4V6eoJ/e4uHf3h6eIKKg3Z7gH2LiXh1gHyDiXpzhoSGjHxpeoSAjoRxeH99jI13dYB7f4qBfXt9e39/hoh8f3x4gYp/fX55f4h9gH90hpJ9dYR5fYyEc3J2goSPg3l0gYKJhnZzeX6Cin6AfYB6hIeAeYB+d3yFhIODfHmDiX+Be3N/jICBf3h8jIJ3fHV4jo59gXhzhIyAhHtwfIuEgIJ5eH6EhISBf3t4gIKAhYJ4e4V9hYR5eoN8hoRxdYmCfoR7c4SMioB/c3KChYR9fXWBiYaDgHd8fH6ChIF4eoOAe4mGf3l8eoOHgnd6gH6Ih3l4gH2DhXp1iYGGintqfoOAjIJzeX59jYt4doB7gYiCfXx8e4CAhoZ7fnx3hIl8foB4foh8gIF1g5F9dYV8e4mEc3Z5gIOPg3h4gH6LhnV1e3uCjH+AfH56hoh9eoF9eX2EhIWAfHqBhoCDe3V/iIGDf3h8ioB6fHV7jYx7gHh0g4x/hXlwe4yDgIN4eIGDg4R/fX94fYOAhoR3e4N9hIZ7e4B8hYVzdYaBf4V8c4SLiYJ+cHSBhoZ+enSBh4eGfnd8fX+Dg4B5fIKAfYiEgHt6e4KFgnp8fn2Ihnt5fnyEh3t3hYKHiHtteYKDjoF0eHyAjYt5dHx9g4qCe3l+foB/hoV7gX13gol8f355foZ9goB1hpB8eIN6e4qFcXV4gYWRgnd2f4GKh3ZzeX2EjH98e399hYl9eYJ+eH6DgISDfHuDhYGEenSAh4GDfXd+ioF7enR8jYx+f3R3hIuDg3ZwfoqGgX90e4GGhYF8gXx4gYJ9hYR3fIZ9god5eoF9hINzdoeDf4J9dIONinx/cXOBiYR8fHWBi4mDfXR8f4OCgnx5fId/e4eGf318eoCGgnd8f32Jh3l7f3yDhnl3h4CFiXtrf4OAjIJxeH9/jop1c4B9g4uBeHp9foOAgoN7gn94gYd8f4F3fYZ7goN3g456d4Z+eYmDcXZ9gISRfnZ4f3+MhXV0eXyIjH59eH5/iId9dX+Ben+Ff3+Ef3uDhHyEfXWBhn6Df3h+iH57fXZ9i4h+gXV2hYiEhXZwfomFgn5zeYOHhYN8fX16gYF+gYN9foN9gIN/f358gn92fYd+fYN9eYaHhH9+c3eBhYZ/enaAh4mEenV+fYSGgXt4e4aDfYOCgH9/fH6CgXuBgHyDhXt9gHyAhHt7hoCFiXlwf4CCjoFxenx/kIl0doB7h41+dnt7f4WAgYN8gYJ7fYN9f4J6fIF8hIN5hop1e4Z7e4l/c3l+gIWMf3h3f4KJg3d1e4CGh357eYCAhod6dYSDen6BfIOGgXqCgH2FgHZ/g36Eg3l9h3x8gHd8jIV6gnh3hoeBgnpygYuDfn5zfIaGg4N4f4F8f4B4goh9fYN4f4l+foB5foJ6fYd+e4KBeISJg3yBdXmChoJ8fHeCiYSAfHd+gIOCgnt6f4eAeoKDgH99e3yCg3uAgXqCh3uAgXl+hHp7in6BhXpyg4N+iX51fX6AioV3eYF9hIh+eXx7gYV+goB8hYN4fIR8goN6fH96hoZ7goZ2e4h+e4d/cX2CgIKIent7f4CJg3h6fH2HhX18en6Ah4Z6d4KBfYB/fISDgn1/f3+CgH1/gH6Bf39/g317fnuAiIR6gHl6g4aBgnp0f4qCfYN1eoOFg4R7fH9+f4F9fYaAe4N9eoSEgX98fH17f4eAe36AeoWIgX2Bd3yAhIJ/fnl/g4WBe3mAfYOEgXx6fIOBfoKBf39/fHyDg3uCgXmChnx/g3p+gnp8iH+Ahnp1g4F9iIF3fH59iIV4eYJ9g4p+eHx8foZ/gIJ/goN8eoR9f4N+enx/hYJ/hoJ1foR/f4V8dXyAgoOFfXx5gIKHgnl5eoGIhXx7en2CiYR5eICCf36AfoCEgnqAgHuDhHp+f3yChH6BhHl7gHt/iYB8gnt3g4SDg3t2gIeCf390fYWFg4N7fn99gIJ6fYV+foV7fYSAgIF7e396gol/eH59e4qHfnx+dXyEhIN+enqDhYKAeXmBfoKDgXx8fIOAf4OCe36AfX6EfXqEgHuBgXqDgn58fXmCiYKCf3Z4hIOBg3x6fn+Bh4B5fYF+hYR9e358fYSAgoJ9f4J+fYR+fX+Bf319gX6Dh4F2eoKCgoR7c32BgoWHeXl6foOJfHh/e4CKf3yBenyDgn+Afn9/e36DgYGCfHuFgXyAgHyCgX1+gYGAgXx7fH6Eh4B8fX19goGAgH58f4J/foN8foCAgIR+fX58fYWAfoR9fIN+fH+AgoJ8fX57g4d6eH98fYqDfIB7d4SDf4J+eoKEe4CDen+DeX+EgX5+fIB9gISDfH58foCFf3qBgn6Ag3t+gn58gn5/hYJ/gXt5gYN9gYJ9fn5+goJ+f4B8gISAfn55fYSAg4J6foJ9gYR8foB+gX17gYB+hIN1f4WCf4J4eIF/gIZ9eoB+foN/eoKBe4CBe4SDe32AfYWDe39/eoGFgIGBe3yGgX1/f3uCgn+BgHx/gX18f32Bh359g317g35/gn55gYB/goJ5f4B/hIV8gH15gYR9gYF3fYN/gIJ6f4KAf4B5fYV9e39+fYeCgH98e4OBf399fYKBfYKCfIKBeX+CgIKAen6Af4SEfH1+eoGJfXiAf4CEgXl/gYCCgXqAg4F+gnl7g4J8hH97gYB8hIF6gX96goV8f4J5foR9goR6fYF9gIZ/fH18gYJ8fH9+hoV4fYSAfoR5d35+goWAfIB+foWCe39/e4GEeoCEfYGBe3+CfYCBfH2EgoKAe3yEg358fn6Eg359fX6Bgn1+gH2BhH1/gXl8hn59g317hYF7gYJ7goF7gIV8f396fYR+gIJ7fISBgn96f4N/gH92f4R8fYJ7f4eAf4F9e4OAfYJ+eoKDe4OCeoKEeHyCf4KDfH1/f4OGfHx7fISGfHx/foODfXuCgH+DfXyDgnqAgnl/hX1/hX18hnt7hX18hYF4goB8hIV3fIB8hIZ6fYB6goZ8fIB+goB8fH9/h4J4f4N/f4J5fIB/f4N/fYJ/foN9eYOBe4KBeIODfX+BeYCCfoSCdn2EgYWBd3yFf3+Bfn2FfnyBf3yDf3yDgHyCg3p/gnp+hHt/hX5+g358gYF9goB5gYR+g4F3foN+g4R5fIJ/gIF8f4N/fX57goN8fYB9gYN/gIF8fIN/foJ+e4SCe4KBeYSEen6Ce4GFe36Ae4OGe31+fIKEfH6CfX6Afn6EgH6BfX2DgH2Bf3uCgn6Ag3x/gXp+g36AhH58gn58goF7gX57hIJ7gX97gIJ9gH+AgYB7f4CAhIB4gYN+gIB7fX9+gIJ/foN+fIOAfIKBeYGBe4CDfICCfIKCfYGBeX6Df4B/fICCfoGAfn+BfH+BfYCDfX2CgH6Cf3qAg3x/gnyBhX18gX9+g4B7goF6g4N8goB6gIN9gYN7foN+foF8gIN9fn58hIJ7fX59goN+f39+f4N7fIKAfoR/eYOCe4KCen+CfIKCe35+fIKFfX1/f4KBfH1/f3+Af36CgYB/fn2BgX1+gH6Bg318g39+gnx7goB+g399gn98g4N6gH97g4J8gIB5gYN9gYB9gIB9gIB/gn56goKAgH96f4GAgIB9f4SAfIF+fYOAe4CBe4GAfYGCe3+BfoKCenyCgYGAfX2BgYCBfnyAfn6BgICBfn2BgoB/fHqAg35/gXyChH1+gn5+gXx8hIF7gX99hoF5gIB9hIN5foB9gIJ8gIJ9foB8g4N7fH9+gYN+fYF/gIJ9fIGAfYJ/fYOAeoGCfYF/eoKEfn9+eoKFfX5+fYGCfX+AfX+Bf3+CgH19fX6CgH1/gYGCgXt+gn6AgXl+hH99gn5+hX56g4J8gn55g4J+gn57goN/gH59gYF9gYB+g397g4J9f399goJ+fn9+gIJ+e4CBgIF/fIGCfX5/foGCfH6Af4OBe36BgYF/fH6BgIGCfXyAfX+CgH9/fX2Bgn99fXyAg39/gH2Cgn19gH9+gH59hIF8gH9/hIB8f35+g4B7foB/goB8f4F9f39+goB7foB/gX99f4J/f4F+foN/fH9/f4KAfICCgIB+e4CCgH99fIKDf399f4CAfn9/fn+Af3+AgH9+f4CAgH1+gYGBgHt+gYCAgHt/hH9/gX9/gX58gYF9gX1//w==';
+let alarmAudioEl = null;
+
+function openDeviceWebpage(url, deviceName){
+  if(!url || url === '#') return;
+  const msg = deviceName ? 'Abrir a página web de "' + deviceName + '"?' : 'Abrir a página web deste dispositivo?';
+  if(!confirm(msg)) return;
+  // forca a janela nova a abrir ancorada em (0,0) - na grande maioria das
+  // configuracoes do Windows com varios monitores, o monitor PRINCIPAL
+  // comeca em (0,0) e os secundarios ficam posicionados antes/depois dele.
+  // Isso evita que a janela abra "perdida" num monitor secundario.
+  const w = window.open(url, '_blank', 'left=0,top=0,width=1360,height=860');
+  if(w){ try{ w.focus(); }catch(e){} }
+}
+
+function playAlertBeep(){
+  if(!soundEnabled) return;
+  try{
+    if(!alarmAudioEl){
+      alarmAudioEl = new Audio(ALARM_SOUND_DATA_URI);
+    }
+    alarmAudioEl.currentTime = 0;
+    alarmAudioEl.play().catch(function(){ /* autoplay bloqueado ate o primeiro clique na pagina */ });
+  }catch(e){ /* falha ao tocar o som: ignora silenciosamente */ }
+}
+
+function playRecoveryBeep(){
+  // som de "voltou ao normal" - propositalmente diferente do alarme:
+  // dois tons curtos e ascendentes (sobe), em vez do som grave de alarme
+  if(!soundEnabled) return;
+  try{
+    const ctx = getAudioCtx();
+    if(!ctx) return;
+    const now = ctx.currentTime;
+    [[0, 660], [0.11, 990]].forEach(function(pair){
+      const offset = pair[0], freq = pair[1];
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.0001, now + offset);
+      gain.gain.exponentialRampToValueAtTime(0.22, now + offset + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + offset + 0.14);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now + offset);
+      osc.stop(now + offset + 0.15);
+    });
+  }catch(e){ /* autoplay bloqueado ate o primeiro clique na pagina */ }
+}
+
+function updateSoundButton(){
+  const btn = document.getElementById('sound-toggle');
+  btn.classList.toggle('muted', !soundEnabled);
+  btn.innerHTML = soundEnabled ? '&#128266; Som' : '&#128263; Mudo';
+}
+document.getElementById('sound-toggle').addEventListener('click', function(){
+  soundEnabled = !soundEnabled;
+  localStorage.setItem(SOUND_KEY, soundEnabled);
+  updateSoundButton();
+  if(soundEnabled) playAlertBeep(); // confirma audivelmente que ligou
+});
+updateSoundButton();
+
+// ---------------- destravar para mover dispositivos direto no mapa ----------------
+let mapUnlocked = false;
+let dragItem = null;
+let dragOffset = {x:0, y:0};
+let dragMoved = false;
+const positionsDirty = new Set(); // ids que mudaram de posicao desde o ultimo save
+
+function updateLockButton(){
+  const btn = document.getElementById('lock-toggle');
+  btn.innerHTML = mapUnlocked ? '&#128275; Destravado' : '&#128274; Bloqueado';
+  btn.classList.toggle('muted', mapUnlocked);
+  document.getElementById('save-positions-btn').style.display = mapUnlocked ? 'inline-block' : 'none';
+}
+
+function attachDragHandlers(){
+  Object.values(deviceEls).forEach(el => {
+    el.style.cursor = 'grab';
+    el.addEventListener('mousedown', onDeviceMouseDown);
+  });
+  document.querySelectorAll('.site-label').forEach(el => {
+    el.style.cursor = 'grab';
+    el.addEventListener('mousedown', onDeviceMouseDown);
+  });
+}
+
+function onDeviceMouseDown(e){
+  if(!mapUnlocked) return;
+  e.preventDefault();
+  e.stopPropagation();
+  dragItem = e.currentTarget;
+  dragMoved = false;
+  const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+  const curLeft = parseFloat(dragItem.style.left) || 0;
+  const curTop = parseFloat(dragItem.style.top) || 0;
+  dragOffset.x = (e.clientX - canvasRect.left) / scale - curLeft;
+  dragOffset.y = (e.clientY - canvasRect.top) / scale - curTop;
+}
+
+document.addEventListener('mousemove', function(e){
+  if(!dragItem) return;
+  const canvasRect = document.getElementById('canvas').getBoundingClientRect();
+  const newX = Math.max(0, (e.clientX - canvasRect.left) / scale - dragOffset.x);
+  const newY = Math.max(0, (e.clientY - canvasRect.top) / scale - dragOffset.y);
+  dragMoved = true;
+  dragItem.style.left = newX + 'px';
+  dragItem.style.top = newY + 'px';
+  if(dragItem.dataset.id) positionsDirty.add(dragItem.dataset.id);
+  drawWiresCustom();
+});
+document.addEventListener('mouseup', function(){
+  if(dragItem && dragMoved){
+    document.getElementById('save-positions-btn').classList.add('pending-save');
+  }
+  dragItem = null;
+});
+
+function drawWiresCustom(){
+  // redesenha as linhas de conexao quando algo e arrastado, se o mapa
+  // atual tiver linhas salvas (mesma logica do renderCustomLayout)
+  if(!usingCustomLayout || !window._customLayoutEdges) return;
+  wiresSvg.innerHTML = '';
+  window._customLayoutEdges.forEach(function(pair){
+    const elA = document.querySelector('[data-id="'+pair[0]+'"], [data-label-id="'+pair[0]+'"]');
+    const elB = document.querySelector('[data-id="'+pair[1]+'"], [data-label-id="'+pair[1]+'"]');
+    if(!elA || !elB) return;
+    const ax = (parseFloat(elA.style.left)||0) + elA.offsetWidth/2;
+    const ay = (parseFloat(elA.style.top)||0) + elA.offsetHeight/2;
+    const bx = (parseFloat(elB.style.left)||0) + elB.offsetWidth/2;
+    const by = (parseFloat(elB.style.top)||0) + elB.offsetHeight/2;
+    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    line.setAttribute('x1', ax); line.setAttribute('y1', ay);
+    line.setAttribute('x2', bx); line.setAttribute('y2', by);
+    line.setAttribute('class', 'wire');
+    wiresSvg.appendChild(line);
+  });
+}
+
+document.getElementById('lock-toggle').addEventListener('click', function(){
+  if(!mapUnlocked && !usingCustomLayout){
+    alert('Esse mapa ainda não tem uma disposição personalizada salva.\n\n' +
+          'Abra "⚙ Config → Editor de Mapa" uma vez pra criar a disposição inicial ' +
+          '(só precisa fazer isso uma vez). Depois disso, você pode destravar e arrastar ' +
+          'os dispositivos direto aqui, sem precisar abrir o Editor de novo.');
+    return;
+  }
+  mapUnlocked = !mapUnlocked;
+  updateLockButton();
+  if(mapUnlocked) attachDragHandlers();
+});
+updateLockButton();
+
+document.getElementById('save-positions-btn').addEventListener('click', async function(){
+  const btn = this;
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'salvando...';
+  try{
+    const positions = {};
+    Object.entries(deviceEls).forEach(([id, el]) => {
+      positions[id] = {x: parseFloat(el.style.left)||0, y: parseFloat(el.style.top)||0, scale: 1};
+    });
+    const labels = Array.from(document.querySelectorAll('.site-label')).map(el => ({
+      id: el.dataset.labelId, text: el.textContent,
+      x: parseFloat(el.style.left)||0, y: parseFloat(el.style.top)||0, scale: 1,
+    }));
+    const res = await fetch('/api/layout/interior', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({devices: positions, labels: labels, edges: window._customLayoutEdges || []})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+    positionsDirty.clear();
+    btn.classList.remove('pending-save');
+    btn.textContent = 'salvo ✓';
+    setTimeout(() => { btn.textContent = originalText; }, 1500);
+  }catch(err){
+    alert('Erro ao salvar posições: ' + err.message);
+    btn.textContent = originalText;
+  }finally{
+    btn.disabled = false;
+  }
+});
+
+// ---------------- anuncio de voz do alarme (repete ate passar o mouse) ----------------
+const VOICE_REPEAT_MS = 60000;   // 1 minuto
+const VOICE_MAX_TIMES = 10;      // repete no maximo 10 vezes
+let activeVoiceAlarms = {};      // dev.id -> {count, intervalId}
+
+function speakAlarm(deviceName){
+  if(!soundEnabled) return;
+  if(!('speechSynthesis' in window)) return;
+  try{
+    const utter = new SpeechSynthesisUtterance('Alarme ' + deviceName);
+    utter.lang = 'pt-BR';
+    utter.rate = 1;
+    window.speechSynthesis.speak(utter);
+  }catch(e){ /* speechSynthesis indisponivel ou bloqueado */ }
+}
+
+function startVoiceAlarm(dev){
+  stopVoiceAlarm(dev.id); // reinicia caso ja houvesse um ciclo antigo
+  let count = 0;
+  const fire = function(){
+    speakAlarm(dev.name);
+    count++;
+    if(count >= VOICE_MAX_TIMES) stopVoiceAlarm(dev.id);
+  };
+  fire();
+  const intervalId = setInterval(fire, VOICE_REPEAT_MS);
+  activeVoiceAlarms[dev.id] = { count: count, intervalId: intervalId };
+}
+
+function stopVoiceAlarm(devId){
+  const entry = activeVoiceAlarms[devId];
+  if(entry){
+    clearInterval(entry.intervalId);
+    delete activeVoiceAlarms[devId];
+  }
+  if('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+let confirmedState = {};  // dev.id -> ultimo estado CONFIRMADO (true=ok/verde, false=queda/vermelho)
+let badStreak = {};   // dev.id -> quantas leituras RUINS seguidas, sem confirmar ainda a queda
+let goodStreak = {};   // dev.id -> quantas leituras BOAS seguidas, sem confirmar ainda a recuperacao
+let SOUND_ALARM_CONFIRM_COUNT = 2; // valor padrao ate carregar a configuracao real do servidor -
+                                       // evita alarme falso por um unico timeout de ping (comum
+                                       // em enlaces de radio com latencia mais alta/variavel)
+
+async function loadVisualConfirmConfig(){
+  try{
+    const res = await fetch('/api/alarm-confirm-config', {cache:'no-store'});
+    const data = await res.json();
+    if(data.visual_confirm_count) SOUND_ALARM_CONFIRM_COUNT = data.visual_confirm_count;
+  }catch(e){ /* mantem o padrao se a busca falhar */ }
+}
+
+function applyStatus(){
+  let up=0, down=0, active=0;
+  NET.devices.forEach(function(dev){
+    const el = deviceEls[dev.id];
+    if(!el) return;
+    const st = liveStatus[dev.id];
+    el.classList.remove('st-up','st-down','st-unknown','st-disabled');
+    const holder = el.querySelector('.metrics-holder');
+
+    if(st && st.disabled){
+      el.classList.add('st-disabled');
+      holder.innerHTML = '<div class="no-metrics">desativado</div>';
+      return;
+    }
+
+    if(!st){
+      el.classList.add('st-unknown');
+      holder.innerHTML = '<div class="no-metrics">aguardando...</div>';
+      return;
+    }
+    active++;
+
+    let hasAlarm = false;
+    let hiddenMetricHadData = false;
+    let rows = '';
+    if(dev.metrics && dev.metrics.length && st.metrics){
+      dev.metrics.forEach(function(m){
+        const me = st.metrics[m.label];
+        if(!me) return;
+        if(me.state === 'alarm'){
+          hasAlarm = true;
+          if(m.hide_on_map){ hiddenMetricHadData = true; }
+          else rows += '<div class="metric-row metric-alarm">&#9888; ' + m.label + ': ' + me.display + '</div>';
+        } else if(me.state === 'error'){
+          if(m.hide_on_map){ hiddenMetricHadData = true; }
+          else rows += '<div class="metric-row metric-error">' + m.label + ': ' + (dev.protocol==='modbus'?'MODBUS OFF':'SNMP OFF') + '</div>';
+        } else if(me.display){
+          if(m.hide_on_map){ hiddenMetricHadData = true; }
+          else rows += '<div class="metric-row">' + m.label + ': ' + me.display + '</div>';
+        }
+      });
+    }
+
+    const boxOk = st.reachable && !hasAlarm;
+    if(st.reachable) up++; else down++;
+
+    if(boxOk){
+      goodStreak[dev.id] = (goodStreak[dev.id] || 0) + 1;
+      badStreak[dev.id] = 0;
+    } else {
+      badStreak[dev.id] = (badStreak[dev.id] || 0) + 1;
+      goodStreak[dev.id] = 0;
+    }
+
+    // a cor da caixa (e o alarme sonoro) so mudam de estado quando o streak
+    // (bom OU ruim) bate o limite configurado - isso vale nos dois sentidos:
+    // uma falha isolada nao pinta de vermelho, e uma unica leitura boa no
+    // meio de uma queda tambem nao volta pro verde sozinha (pode ser so uma
+    // oscilacao passageira do proprio problema, nao a normalizacao de verdade)
+    if(badStreak[dev.id] === SOUND_ALARM_CONFIRM_COUNT && confirmedState[dev.id] !== false){
+      confirmedState[dev.id] = false;
+      if(dev.sound_enabled !== false){
+        playAlertBeep();
+        startVoiceAlarm(dev);
+      }
+    } else if(goodStreak[dev.id] === SOUND_ALARM_CONFIRM_COUNT && confirmedState[dev.id] !== true){
+      confirmedState[dev.id] = true;
+      stopVoiceAlarm(dev.id);
+      playRecoveryBeep();
+    }
+    // antes da primeira confirmacao (recem carregou a pagina), usa o valor
+    // cru direto, sem atraso artificial no primeiro carregamento
+    if(confirmedState[dev.id] === undefined) confirmedState[dev.id] = boxOk;
+
+    el.classList.add(confirmedState[dev.id] ? 'st-up' : 'st-down');
+
+    if(rows){
+      holder.innerHTML = rows;
+    } else if(hiddenMetricHadData){
+      // as unicas metricas com dado de verdade estao marcadas para nao
+      // aparecer na caixinha do mapa (hide_on_map) - mostra o ping/latencia
+      // no lugar, em vez de dizer "SNMP OFF" por engano
+      holder.innerHTML = st.reachable
+        ? '<div class="metric-row">' + (st.latency_ms!=null ? st.latency_ms+' ms' : 'online') + '</div>'
+        : '<div class="no-metrics">sem resposta</div>';
+    } else if(dev.metrics && dev.metrics.length){
+      holder.innerHTML = '<div class="no-metrics">' + (dev.protocol==='modbus'?'MODBUS OFF':'SNMP OFF') + '</div>';
+    } else {
+      holder.innerHTML = st.reachable
+        ? '<div class="metric-row">' + (st.latency_ms!=null ? st.latency_ms+' ms' : 'online') + '</div>'
+        : '<div class="no-metrics">sem resposta</div>';
+    }
+  });
+  document.getElementById('stat-up').textContent = up;
+  document.getElementById('stat-down').textContent = down;
+  document.getElementById('stat-total').textContent = active;
+}
+
+function tickClock(){
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('pt-BR');
+  document.getElementById('clock-date').textContent = now.toLocaleDateString('pt-BR');
+}
+tickClock(); setInterval(tickClock, 1000);
+
+async function pollStatus(){
+  try{
+    const res = await fetch('/api/status', {cache:'no-store'});
+    if(res.status === 401){
+      window.location.href = '/login';
+      return;
+    }
+    if(!res.ok) throw new Error('bad');
+    const data = await res.json();
+    liveStatus = data.devices || {};
+    document.getElementById('banner').classList.remove('show');
+    document.getElementById('conn-dot').className = 'conn-dot live';
+    document.getElementById('conn-label').textContent = 'backend conectado · atualiza a cada ' + Math.round(data.refresh_interval||8) + 's';
+    applyStatus();
+    drawWires();
+    if(selectedDevice) refreshHistory();
+  }catch(err){
+    document.getElementById('banner').classList.add('show');
+    document.getElementById('conn-dot').className = 'conn-dot down';
+    document.getElementById('conn-label').textContent = 'backend offline';
+  }
+}
+
+// ---------------- painel de historico (12h) ----------------
+let selectedDevice = null;
+let selectedSeriesKey = null; // 'latency' ou o nome da metrica
+let historyHoverTimer = null;
+const HISTORY_HOVER_DELAY_MS = 250;
+
+function scheduleHistorySelect(dev){
+  clearTimeout(historyHoverTimer);
+  historyHoverTimer = setTimeout(function(){ selectDeviceForHistory(dev); }, HISTORY_HOVER_DELAY_MS);
+}
+function cancelHistorySelect(){
+  clearTimeout(historyHoverTimer);
+}
+
+function selectDeviceForHistory(dev){
+  if(selectedDevice && selectedDevice.id === dev.id) return;
+  selectedDevice = dev;
+  const options = [];
+  if(dev.metrics && dev.metrics.length){
+    dev.metrics.forEach(m => options.push({key: m.label, label: m.label + (m.unit ? ' ('+m.unit+')' : '')}));
+  }
+  options.push({key: 'latency', label: 'Latência (ms)'});
+  selectedSeriesKey = options[0].key;
+
+  document.getElementById('history-name').textContent = dev.name;
+  const body = document.getElementById('history-body');
+  const ipLine = dev.ip ? '<div class="history-ip">' + dev.ip + '</div>' : '';
+  const selectHtml = options.length > 1
+    ? '<select class="history-select" id="history-select">' +
+        options.map(o => '<option value="'+o.key+'">'+o.label+'</option>').join('') +
+      '</select>'
+    : '';
+  body.innerHTML = ipLine + selectHtml +
+    '<div class="history-gauge-wrap" id="history-gauge-wrap"></div>' +
+    '<div class="history-chart-wrap" id="history-chart-wrap"><div class="history-empty">carregando histórico...</div></div>' +
+    '<div class="history-latest" id="history-latest"></div>';
+
+  const sel = document.getElementById('history-select');
+  if(sel){
+    sel.addEventListener('change', function(){ selectedSeriesKey = sel.value; refreshHistory(); });
+  }
+  refreshHistory();
+}
+
+document.getElementById('history-close').addEventListener('click', function(){
+  selectedDevice = null;
+  document.getElementById('history-name').textContent = 'Histórico (12h)';
+  document.getElementById('history-body').innerHTML =
+    '<div class="history-empty">passe o mouse sobre um dispositivo<br>no mapa para ver o histórico</div>';
+  document.getElementById('history-panel').style.display = 'none';
+  updateHistoryToggleButton();
+});
+
+let historyPanelVisible = false;
+function updateHistoryToggleButton(){
+  historyPanelVisible = document.getElementById('history-panel').style.display !== 'none';
+  document.getElementById('history-toggle-btn').classList.toggle('muted', historyPanelVisible);
+}
+document.getElementById('history-toggle-btn').addEventListener('click', function(){
+  historyPanelVisible = !historyPanelVisible;
+  document.getElementById('history-panel').style.display = historyPanelVisible ? 'block' : 'none';
+  updateHistoryToggleButton();
+});
+
+async function refreshHistory(){
+  if(!selectedDevice) return;
+  try{
+    const res = await fetch('/api/history?id=' + selectedDevice.id, {cache:'no-store'});
+    if(!res.ok) throw new Error('bad');
+    const data = await res.json();
+    const series = selectedSeriesKey === 'latency'
+      ? (data.latency || [])
+      : ((data.metrics && data.metrics[selectedSeriesKey]) || []);
+    renderHistoryChart(series);
+  }catch(err){
+    const wrap = document.getElementById('history-chart-wrap');
+    if(wrap) wrap.innerHTML = '<div class="history-empty">sem conexão com o backend</div>';
+  }
+}
+
+function isPowerMetric(label){
+  const norm = (label || '').toLowerCase()
+    .replace(/[áàâã]/g,'a').replace(/[éê]/g,'e').replace(/[íî]/g,'i')
+    .replace(/[óôõ]/g,'o').replace(/[úû]/g,'u').replace(/ç/g,'c');
+  return norm.includes('potencia') || norm.includes('refletida');
+}
+
+function renderGauge(value, metricCfg, unit){
+  const gaugeWrap = document.getElementById('history-gauge-wrap');
+  if(!gaugeWrap) return;
+
+  if(value == null || !isFinite(value)){
+    gaugeWrap.classList.remove('show');
+    gaugeWrap.innerHTML = '';
+    return;
+  }
+
+  const cm = metricCfg ? metricCfg.compare_method : null;
+  const cv = metricCfg ? metricCfg.compare_value : null;
+  let divisor = metricCfg && metricCfg.divisor ? metricCfg.divisor : 1;
+  const threshold = (cv != null) ? cv / divisor : null;
+
+  let dangerAbove = true;
+  if(cm === 5 || cm === 6) dangerAbove = false;
+
+  let maxV;
+  if(threshold != null){
+    maxV = dangerAbove ? threshold * 1.4 : Math.max(threshold * 1.6, value * 1.2);
+  } else {
+    maxV = Math.max(value * 1.4, 10);
+  }
+  let minV = 0;
+  if(value > maxV) maxV = value * 1.15;
+
+  const cx = 100, cy = 88, r = 58, sw = 13;
+  function angleFor(v){
+    const frac = Math.max(0, Math.min(1, (v - minV) / (maxV - minV)));
+    return 180 - frac * 180;
+  }
+  function pointAt(angleDeg, radius){
+    const rad = angleDeg * Math.PI / 180;
+    return { x: cx + radius * Math.cos(rad), y: cy - radius * Math.sin(rad) };
+  }
+  function arcPath(a1, a2, radius){
+    const p1 = pointAt(a1, radius), p2 = pointAt(a2, radius);
+    const largeArc = Math.abs(a1 - a2) > 180 ? 1 : 0;
+    return 'M ' + p1.x.toFixed(1) + ' ' + p1.y.toFixed(1) +
+           ' A ' + radius + ' ' + radius + ' 0 ' + largeArc + ' 1 ' + p2.x.toFixed(1) + ' ' + p2.y.toFixed(1);
+  }
+
+  const isDanger = (threshold != null) &&
+    (dangerAbove ? value > threshold : value < threshold);
+  const fillColor = isDanger ? '#e5384b' : '#35a7f5';
+
+  const valueAngle = angleFor(value);
+  const bgArc = '<path d="' + arcPath(180, 0, r) + '" stroke="#232f4b" stroke-width="'+sw+'" fill="none" stroke-linecap="round"/>';
+  const progressArc = '<path d="' + arcPath(180, valueAngle, r) + '" stroke="'+fillColor+'" stroke-width="'+sw+'" fill="none" stroke-linecap="round"/>';
+
+  let marker = '';
+  if(threshold != null && threshold > minV && threshold < maxV){
+    const mAngle = angleFor(threshold);
+    const p1 = pointAt(mAngle, r - sw*0.9);
+    const p2 = pointAt(mAngle, r + sw*0.9);
+    marker = '<line x1="'+p1.x.toFixed(1)+'" y1="'+p1.y.toFixed(1)+'" x2="'+p2.x.toFixed(1)+'" y2="'+p2.y.toFixed(1)+'" stroke="var(--amber)" stroke-width="2.5"/>';
+  }
+
+  const minLabel = pointAt(180, r + 14);
+  const maxLabel = pointAt(0, r + 14);
+  const displayVal = (value % 1 === 0) ? value.toFixed(0) : value.toFixed(2);
+
+  gaugeWrap.innerHTML =
+    '<svg viewBox="0 0 200 100">' +
+      bgArc + progressArc + marker +
+      '<text class="gauge-label-text" x="'+minLabel.x.toFixed(1)+'" y="'+(minLabel.y).toFixed(1)+'" text-anchor="start" font-size="9">' + minV.toFixed(0) + '</text>' +
+      '<text class="gauge-label-text" x="'+maxLabel.x.toFixed(1)+'" y="'+(maxLabel.y).toFixed(1)+'" text-anchor="end" font-size="9">' + maxV.toFixed(0) + '</text>' +
+      '<text class="gauge-value-text" x="'+cx+'" y="'+(cy-4)+'" text-anchor="middle" font-size="21" fill="var(--white)">' + displayVal + '<tspan font-size="11" fill="var(--gray)" dx="3">' + (unit||'') + '</tspan></text>' +
+    '</svg>';
+  gaugeWrap.classList.add('show');
+}
+
+function setupChartHover(wrap, pts, xFor, yFor, viewW, viewH){
+  const svgEl = wrap.querySelector('svg');
+  const dot = document.getElementById('history-hover-dot');
+  const tip = document.getElementById('history-hover-tip');
+  if(!svgEl || !dot || !tip) return;
+
+  svgEl.addEventListener('mousemove', function(e){
+    const rect = svgEl.getBoundingClientRect();
+    const scaleX = viewW / rect.width;
+    const mouseXView = (e.clientX - rect.left) * scaleX;
+
+    let closest = pts[0], closestDist = Infinity;
+    pts.forEach(function(p){
+      const dist = Math.abs(xFor(p[0]) - mouseXView);
+      if(dist < closestDist){ closestDist = dist; closest = p; }
+    });
+
+    const px = xFor(closest[0]), py = yFor(closest[1]);
+    const scaleY = rect.height / viewH;
+    const dotLeft = px / scaleX, dotTop = py * scaleY;
+
+    dot.style.left = dotLeft + 'px';
+    dot.style.top = dotTop + 'px';
+    dot.style.display = 'block';
+
+    const val = closest[1];
+    const valTxt = val.toFixed(val % 1 === 0 ? 0 : 2);
+    const timeTxt = new Date(closest[0]*1000).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    tip.textContent = valTxt + ' às ' + timeTxt;
+
+    const wrapRect = wrap.getBoundingClientRect();
+    let tipLeft = (e.clientX - wrapRect.left) + 14;
+    let tipTop = (e.clientY - wrapRect.top) - 12;
+    if(tipLeft + 90 > wrapRect.width) tipLeft = (e.clientX - wrapRect.left) - 100;
+    tip.style.left = tipLeft + 'px';
+    tip.style.top = tipTop + 'px';
+    tip.style.display = 'block';
+  });
+
+  svgEl.addEventListener('mouseleave', function(){
+    dot.style.display = 'none';
+    tip.style.display = 'none';
+  });
+}
+
+function renderHistoryChart(series){
+  const wrap = document.getElementById('history-chart-wrap');
+  const latestEl = document.getElementById('history-latest');
+  if(!wrap) return;
+
+  if(!series || series.length < 2){
+    wrap.innerHTML = '<div class="history-empty">ainda sem dados suficientes<br>(aguardando leituras)</div>';
+    if(latestEl) latestEl.textContent = '';
+    return;
+  }
+
+  const now = Date.now()/1000;
+  const windowStart = now - 12*3600;
+  const pts = series.filter(p => p[0] >= windowStart);
+  if(pts.length < 2){
+    wrap.innerHTML = '<div class="history-empty">ainda sem dados suficientes<br>(aguardando leituras)</div>';
+    if(latestEl) latestEl.textContent = '';
+    return;
+  }
+
+  const W = 288, H = 120, PAD_L = 34, PAD_B = 16, PAD_T = 6, PAD_R = 4;
+  const plotW = W - PAD_L - PAD_R, plotH = H - PAD_T - PAD_B;
+
+  const values = pts.map(p => p[1]);
+  let minV = Math.min(...values), maxV = Math.max(...values);
+  if(minV === maxV){ minV -= 1; maxV += 1; }
+  const rangePad = (maxV - minV) * 0.1;
+  minV -= rangePad; maxV += rangePad;
+
+  function xFor(ts){ return PAD_L + ((ts - windowStart) / (now - windowStart)) * plotW; }
+  function yFor(v){ return PAD_T + (1 - (v - minV)/(maxV - minV)) * plotH; }
+
+  let d = 'M ' + xFor(pts[0][0]).toFixed(1) + ' ' + yFor(pts[0][1]).toFixed(1);
+  for(let i=1;i<pts.length;i++){
+    d += ' L ' + xFor(pts[i][0]).toFixed(1) + ' ' + yFor(pts[i][1]).toFixed(1);
+  }
+
+  const gridLines = [0,0.5,1].map(f => {
+    const y = PAD_T + f*plotH;
+    const val = maxV - f*(maxV-minV);
+    return '<line x1="'+PAD_L+'" y1="'+y+'" x2="'+(W-PAD_R)+'" y2="'+y+'"/>' +
+           '<text class="history-axis-label" x="2" y="'+(y+3)+'">'+val.toFixed(val<10?1:0)+'</text>';
+  }).join('');
+
+  const timeLabels = ['-12h','-6h','agora'].map((lbl,i) => {
+    const x = PAD_L + (i/2)*plotW;
+    const anchor = i===0 ? 'start' : (i===2 ? 'end' : 'middle');
+    return '<text class="history-axis-label" x="'+x+'" y="'+(H-2)+'" text-anchor="'+anchor+'">'+lbl+'</text>';
+  }).join('');
+
+  wrap.innerHTML =
+    '<svg viewBox="0 0 '+W+' '+H+'">' +
+      '<g class="history-grid">'+gridLines+'</g>' +
+      '<path class="history-line" d="'+d+'"></path>' +
+      timeLabels +
+    '</svg>' +
+    '<div class="history-hover-dot" id="history-hover-dot"></div>' +
+    '<div class="history-hover-tip" id="history-hover-tip"></div>';
+
+  setupChartHover(wrap, pts, xFor, yFor, W, H);
+
+  const last = pts[pts.length-1][1];
+  const lastText = last.toFixed(last % 1 === 0 ? 0 : 2);
+  const temGauge = isPowerMetric(selectedSeriesKey) && selectedDevice;
+
+  if(temGauge){
+    const metricCfg = (selectedDevice.metrics || []).find(m => m.label === selectedSeriesKey);
+    renderGauge(last, metricCfg, metricCfg ? metricCfg.unit : '');
+    // o gauge ja mostra o valor bem grande no centro dele - o texto de
+    // "ultimo valor" embaixo do grafico fica reservado pra quando NAO tem
+    // gauge, pra nao repetir a mesma informacao duas vezes na tela
+    if(latestEl){ latestEl.innerHTML = ''; }
+  } else {
+    const gaugeWrap = document.getElementById('history-gauge-wrap');
+    if(gaugeWrap){ gaugeWrap.classList.remove('show'); gaugeWrap.innerHTML=''; }
+    if(latestEl){
+      const unidade = (selectedDevice && (selectedDevice.metrics || []).find(m => m.label === selectedSeriesKey)?.unit) || '';
+      latestEl.innerHTML = lastText + (unidade ? ' ' + unidade : '') + '<span>último valor</span>';
+    }
+  }
+}
+
+function positionFloatingPanels(){
+  const topbar = document.querySelector('.topbar');
+  if(!topbar) return;
+  const bottom = topbar.getBoundingClientRect().bottom;
+  const historyPanel = document.getElementById('history-panel');
+  if(historyPanel && !historyPanel.dataset.userMoved) historyPanel.style.top = (bottom + 12) + 'px';
+}
+window.addEventListener('resize', positionFloatingPanels);
+
+// ---------------- painel de historico: arrastar e redimensionar ----------------
+const HISTORY_GEOM_KEY = 'painel_history_geom_interior';
+
+function saveHistoryGeom(){
+  const panel = document.getElementById('history-panel');
+  const rect = panel.getBoundingClientRect();
+  localStorage.setItem(HISTORY_GEOM_KEY, JSON.stringify({
+    left: rect.left, top: rect.top, width: rect.width, height: rect.height,
+  }));
+}
+
+function restoreHistoryGeom(){
+  const panel = document.getElementById('history-panel');
+  const saved = localStorage.getItem(HISTORY_GEOM_KEY);
+  if(!saved) return;
+  try{
+    const g = JSON.parse(saved);
+    panel.style.left = g.left + 'px';
+    panel.style.top = g.top + 'px';
+    panel.style.right = 'auto';
+    panel.style.width = g.width + 'px';
+    panel.style.height = g.height + 'px';
+    panel.dataset.userMoved = '1';
+  }catch(e){ /* ignora geometria invalida */ }
+}
+
+(function setupHistoryPanelDragResize(){
+  const panel = document.getElementById('history-panel');
+  const head = panel.querySelector('.history-head');
+  let dragging = false, offsetX = 0, offsetY = 0;
+
+  head.addEventListener('mousedown', function(e){
+    if(e.target.closest('.h-close')) return; // nao arrasta ao clicar no X
+    dragging = true;
+    const rect = panel.getBoundingClientRect();
+    offsetX = e.clientX - rect.left;
+    offsetY = e.clientY - rect.top;
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', function(e){
+    if(!dragging) return;
+    const maxLeft = window.innerWidth - 60;
+    const maxTop = window.innerHeight - 40;
+    const newLeft = Math.min(maxLeft, Math.max(0, e.clientX - offsetX));
+    const newTop = Math.min(maxTop, Math.max(0, e.clientY - offsetY));
+    panel.style.left = newLeft + 'px';
+    panel.style.top = newTop + 'px';
+    panel.style.right = 'auto';
+    panel.dataset.userMoved = '1';
+  });
+  document.addEventListener('mouseup', function(){
+    if(dragging){ dragging = false; saveHistoryGeom(); }
+  });
+
+  if(typeof ResizeObserver !== 'undefined'){
+    const ro = new ResizeObserver(function(){
+      if(panel.dataset.userMoved) saveHistoryGeom();
+    });
+    ro.observe(panel);
+  }
+
+  restoreHistoryGeom();
+})();
+
+async function syncLiveDeviceFlags(){
+  // o NET acima e uma copia fixa gravada no arquivo - aqui buscamos os
+  // interruptores mais recentes (Monitorar/Alarme/Ping/Som/Relatorio)
+  // direto do servidor, pra nao depender de regravar o arquivo toda vez
+  // que alguem mexe em Configuracoes. Tambem REMOVE da copia fixa
+  // qualquer dispositivo que nao exista mais no servidor (ex: foi movido
+  // pra Biblioteca ou excluido) - senao ele continua aparecendo "fantasma"
+  // no mapa, com leitura zerada.
+  try{
+    const res = await fetch('/api/devices', {cache:'no-store'});
+    if(!res.ok) return;
+    const data = await res.json();
+    const liveById = {};
+    (data.devices || []).forEach(d => { liveById[d.id] = d; });
+
+    NET.devices.forEach(dev => {
+      const live = liveById[dev.id];
+      if(!live) return;
+      dev.enabled = live.enabled !== false;
+      dev.alert_enabled = live.alert_enabled !== false;
+      dev.ping_enabled = live.ping_enabled !== false;
+      dev.sound_enabled = live.sound_enabled !== false;
+      dev.name = live.name || dev.name;
+      dev.ip = live.ip || dev.ip; // corrige IP desatualizado na copia fixa deste arquivo
+      if(Array.isArray(live.metrics)){
+        // substitui a lista de metricas inteira pela versao do servidor -
+        // assim, metricas/servicos novos adicionados (ex: "Porta" no VOLT
+        // CACHOEIRO) aparecem no mapa, alem de atualizar enabled/limites
+        dev.metrics = live.metrics.map(lm => ({...lm}));
+      }
+    });
+
+    // remove os que sumiram do servidor (movidos pra Biblioteca, excluidos, etc.)
+    NET.devices = NET.devices.filter(dev => liveById[dev.id]);
+    Object.keys(NET.sites || {}).forEach(siteName => {
+      NET.sites[siteName] = NET.sites[siteName].filter(dev => liveById[dev.id]);
+    });
+
+    // adiciona os dispositivos NOVOS (cadastrados em Configuracoes/Editor
+    // de Mapa depois que esse arquivo foi gerado) - sem isso, um
+    // dispositivo novo nunca aparecia no mapa, so no servidor.
+    const existingIds = new Set(NET.devices.map(d => d.id));
+    (data.devices || []).forEach(liveDev => {
+      if(existingIds.has(liveDev.id)) return;
+      const site = liveDev.site || 'SEM SITE';
+      NET.devices.push(liveDev);
+      NET.sites[site] = NET.sites[site] || [];
+      NET.sites[site].push(liveDev);
+      if(!LAYOUT[site]){
+        // site novo que ainda nao tem posicao definida no layout fixo -
+        // usa uma posicao de fallback pra garantir que ele apareca em
+        // algum lugar (o ideal e depois reposicionar no Editor de Mapa)
+        const idx = Object.keys(LAYOUT).length;
+        LAYOUT[site] = {x: 72 + (idx % 6) * 280, y: 1160 + Math.floor(idx / 6) * 420, shape: 'hex'};
+      }
+    });
+  }catch(e){ /* sem conexao com o backend ainda: segue com a copia fixa */ }
+}
+
+(async function startup(){
+  await syncLiveDeviceFlags();
+  await loadVisualConfirmConfig();
+  Object.keys(LAYOUT).forEach(buildSiteDom);
+  drawWires();
+  positionFloatingPanels();
+  await tryApplyCustomLayout();
+  fitToScreen();
+  setTimeout(fitToScreen, 2500);
+  await loadPendenciasSites();
+  pollStatus();
+  setInterval(pollStatus, POLL_MS);
+  setInterval(loadPendenciasSites, POLL_MS);
+
+  // a bolinha de pendencia usa position:fixed calculada a partir da
+  // posicao real na tela do rotulo - precisa recalcular sempre que o
+  // mapa rolar/der zoom, senao ela fica "flutuando" no lugar errado
+  const canvasWrapEl = document.getElementById('canvas-wrap');
+  if(canvasWrapEl) canvasWrapEl.addEventListener('scroll', applyPendenciaIndicators);
+  window.addEventListener('resize', applyPendenciaIndicators);
+})();
+</script>
+</body>
+</html>

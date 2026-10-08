@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatório Mensal de Ocorrências — Rede Gazeta</title>
+<style>
+  :root{
+    --bg:#070c18;
+    --bg-1:#0f172a;
+    --line:#232f4b;
+    --green:#2ecc55;
+    --red:#e5384b;
+    --amber:#f5c451;
+    --gray:#8b95ab;
+    --white:#f3f3f3;
+    --mono: 'IBM Plex Mono','SFMono-Regular',Consolas,monospace;
+    --sans: 'IBM Plex Sans','Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box;}
+
+  @media print{
+    :root{
+      --bg:#ffffff; --bg-1:#f7f8fb; --line:#cccccc;
+      --green:#1a9c42; --red:#c62838; --amber:#b8860b;
+      --gray:#555555; --white:#0c1325;
+    }
+    body{background:#fff !important;}
+    .topbar, .toolbar, #devices-panel, #content, #history-panel-1, #history-panel-2{display:none !important;}
+    #dashboard-content{display:block !important;}
+    .dash-map-section{page-break-inside:avoid;break-inside:avoid;border-top:1px solid #ccc;}
+    .dash-panel, .dash-cards, .dash-summary-bar, .dash-grid-2{page-break-inside:avoid;break-inside:avoid;}
+    .dash-panel{border:1px solid #ccc;background:#f7f8fb;}
+    .dash-card{border:1px solid #ccc;background:#fff;box-shadow:none;}
+    .dash-summary-bar{background:#eef2fb !important;color:#0c1325 !important;border:1px solid #ccc;}
+    .dash-summary-bar h2, .dash-summary-bar .sub{color:#0c1325 !important;}
+    .dash-summary-stats .v, .dash-summary-stats .l{color:#0c1325 !important;}
+    .bar-track{background:#e5e5e5;}
+    a[href]{color:inherit;text-decoration:none;}
+  }
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--white);font-family:var(--sans);}
+
+  .topbar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:16px 26px;border-bottom:1px solid var(--line);
+    position:sticky;top:0;background:var(--bg);z-index:20;flex-wrap:wrap;gap:10px;
+  }
+  .topbar h1{margin:0;font-size:15px;font-weight:600;}
+  .topbar-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .btn{
+    font-family:var(--mono);font-size:12px;color:var(--gray);text-decoration:none;
+    border:1px solid var(--line);border-radius:7px;padding:7px 12px;transition:all .15s ease;
+    background:var(--bg-1);cursor:pointer;
+  }
+  .btn:hover{color:var(--white);border-color:var(--gray);}
+  .btn-primary{
+    font-family:var(--mono);font-size:12px;color:#062712;background:var(--green);
+    border:none;border-radius:7px;padding:7px 14px;cursor:pointer;font-weight:700;
+  }
+  .btn-primary:hover{filter:brightness(1.08);}
+
+  .toolbar{
+    display:flex;gap:10px;align-items:center;padding:14px 26px;border-bottom:1px solid var(--line);
+    flex-wrap:wrap;
+  }
+  .toolbar select{
+    background:var(--bg-1);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;color:var(--white);font-size:13px;font-family:var(--sans);
+  }
+  .summary{font-family:var(--mono);font-size:12px;color:var(--gray);margin-left:auto;}
+  .summary b{color:var(--white);}
+
+  .content{max-width:1200px;margin:0 auto;padding:20px 26px 60px;}
+
+  .site-section{margin-bottom:22px;border:1px solid var(--line);border-radius:10px;overflow:hidden;}
+  .map-block{margin-bottom:32px;}
+  .map-head{
+    font-size:17px;font-weight:800;color:var(--white);letter-spacing:.02em;
+    padding:10px 0 12px;border-bottom:2px solid var(--line);margin-bottom:14px;
+    text-transform:uppercase;
+  }
+  .site-head{
+    background:linear-gradient(135deg,#1c3fae,#274bc9);color:#fff;font-weight:700;
+    padding:10px 16px;font-size:13.5px;letter-spacing:.02em;
+    display:flex;justify-content:space-between;align-items:center;text-transform:uppercase;
+  }
+  .site-head .count-badge{
+    font-family:var(--mono);font-size:11px;background:rgba(255,255,255,0.18);
+    padding:2px 9px;border-radius:999px;
+  }
+  .site-head .count-badge.front{margin-right:10px;background:var(--amber);color:#3a2a00;font-weight:800;}
+  .add-manual-btn{
+    background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;
+    border-radius:6px;padding:4px 10px;font-size:11px;font-family:var(--mono);cursor:pointer;
+  }
+  .add-manual-btn:hover{background:rgba(255,255,255,0.25);}
+
+  .manual-form{padding:14px 16px;background:rgba(255,255,255,0.02);border-bottom:1px solid var(--line);}
+  .manual-form-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:10px;}
+  .manual-form label{display:block;font-size:10.5px;color:var(--gray);margin-bottom:3px;font-family:var(--mono);}
+  .manual-form input{
+    width:100%;background:var(--bg);border:1px solid var(--line);border-radius:6px;
+    padding:7px 9px;color:var(--white);font-size:12.5px;font-family:var(--sans);
+  }
+  .manual-form-field{margin-bottom:10px;}
+  .manual-form-actions{display:flex;gap:8px;}
+  .manual-tag{
+    font-style:normal;font-size:9px;color:var(--amber);background:rgba(245,196,81,0.15);
+    padding:1px 6px;border-radius:999px;margin-left:4px;
+  }
+  .delete-manual-btn{
+    background:none;border:none;color:var(--gray);cursor:pointer;font-size:13px;padding:2px 6px;
+  }
+  .delete-manual-btn:hover{color:var(--red);}
+
+  .devices-panel{
+    position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:150;
+    display:flex;align-items:center;justify-content:center;padding:20px;
+  }
+  .devices-panel-inner{
+    background:var(--bg-1);border:1px solid var(--line);border-radius:12px;
+    max-width:760px;width:100%;max-height:85vh;overflow-y:auto;padding:22px 26px;
+  }
+  .devices-panel-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;}
+  .devices-panel-head h2{margin:0;font-size:16px;}
+  .devices-panel-note{font-size:12.5px;color:var(--gray);line-height:1.7;margin:0 0 16px;}
+  .devices-map-group{margin-bottom:18px;}
+  .devices-map-title{
+    font-size:13px;font-weight:700;color:var(--white);text-transform:uppercase;
+    letter-spacing:.03em;border-bottom:1px solid var(--line);padding-bottom:6px;margin-bottom:8px;
+  }
+  .device-toggle-row{
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    padding:6px 4px;font-size:12.5px;border-bottom:1px solid #151e34;
+  }
+  .device-toggle-row .dt-name{color:var(--white);}
+  .device-toggle-row .dt-site{color:var(--gray);font-family:var(--mono);font-size:10.5px;margin-left:6px;}
+  .switch{position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0;}
+  .switch input{opacity:0;width:0;height:0;}
+  .switch .slider{
+    position:absolute;cursor:pointer;inset:0;background:var(--line);border-radius:22px;transition:background .2s ease;
+  }
+  .switch .slider::before{
+    content:"";position:absolute;width:16px;height:16px;left:3px;bottom:3px;
+    background:#fff;border-radius:50%;transition:transform .2s ease;
+  }
+  .switch input:checked + .slider{background:var(--green);}
+  .switch input:checked + .slider::before{transform:translateX(16px);}
+  .switch input:disabled + .slider{opacity:.5;cursor:wait;}
+  .switch.small{width:30px;height:18px;}
+  .switch.small .slider::before{width:12px;height:12px;left:3px;bottom:3px;}
+  .switch.small input:checked + .slider::before{transform:translateX(12px);}
+  tr.row-excluded{opacity:.45;}
+  tr.row-excluded .col-desc{text-decoration:line-through;}
+  table{width:100%;border-collapse:collapse;font-size:12.5px;}
+  thead th{
+    text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--gray);
+    padding:8px 12px;border-bottom:1px solid var(--line);background:var(--bg-1);font-family:var(--mono);
+  }
+  tbody td{padding:9px 12px;border-bottom:1px solid #151e34;vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:var(--bg-1);}
+  .col-date{white-space:nowrap;font-family:var(--mono);color:var(--gray);width:100px;}
+  .col-desc{max-width:340px;}
+  .col-time{white-space:nowrap;font-family:var(--mono);width:100px;}
+  .col-time.ongoing{color:var(--amber);}
+  .col-obs textarea{
+    width:100%;min-height:38px;background:none;border:1px solid transparent;border-radius:6px;
+    color:var(--white);font-family:var(--sans);font-size:12px;padding:5px 7px;resize:vertical;
+  }
+  .col-obs textarea:hover{border-color:var(--line);}
+  .col-obs textarea:focus{outline:none;border-color:var(--green);background:var(--bg-1);}
+  .col-obs .saved-tick{font-size:10px;color:var(--green);margin-left:4px;display:none;}
+  .empty-row{padding:16px;text-align:center;color:var(--gray);font-family:var(--mono);font-size:12px;font-style:italic;}
+
+  .loading{padding:60px;text-align:center;color:var(--gray);font-family:var(--mono);font-size:13px;}
+
+  .dash-map-section{margin-top:8px;margin-bottom:28px;padding-top:16px;border-top:2px solid var(--line);}
+  .dash-map-title{font-size:16px;font-weight:800;color:var(--white);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+  .dash-map-title::before{content:"";width:10px;height:10px;border-radius:50%;background:#5b8def;}
+
+  .dash-summary-bar{
+    background:linear-gradient(135deg,#1c3fae,#274bc9);border-radius:12px;padding:18px 22px;
+    display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;
+  }
+  .dash-summary-bar h2{margin:0;font-size:17px;color:#fff;}
+  .dash-summary-bar .sub{font-size:12px;color:rgba(255,255,255,0.75);margin-top:2px;}
+  .dash-summary-stats{display:flex;gap:24px;flex-wrap:wrap;}
+  .dash-summary-stats .stat-box{text-align:right;}
+  .dash-summary-stats .stat-box .v{font-size:22px;font-weight:800;color:#fff;line-height:1;}
+  .dash-summary-stats .stat-box .l{font-size:9.5px;color:rgba(255,255,255,0.7);text-transform:uppercase;letter-spacing:.04em;margin-top:3px;}
+
+  .dash-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px;}
+  .dash-card{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:var(--bg-1);border-top:3px solid var(--gray);}
+  .dash-card.card-total{border-top-color:#5b8def;}
+  .dash-card.card-fail{border-top-color:var(--red);}
+  .dash-card.card-ok{border-top-color:var(--green);}
+  .dash-card.card-rate{border-top-color:var(--amber);}
+  .dash-card .label{font-size:10px;color:var(--gray);text-transform:uppercase;letter-spacing:.04em;font-family:var(--mono);}
+  .dash-card .value{font-size:26px;font-weight:800;margin:6px 0 2px;}
+  .dash-card .note{font-size:10.5px;color:var(--gray);}
+
+  .dash-panel{border:1px solid var(--line);border-radius:10px;padding:18px 20px;margin-bottom:20px;background:var(--bg-1);}
+  .dash-panel-title{font-size:13.5px;font-weight:700;margin:0 0 4px;color:var(--white);}
+  .dash-panel-sub{font-size:11px;color:var(--gray);margin:0 0 14px;font-family:var(--mono);}
+  .dash-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  @media(max-width:800px){ .dash-grid-2{grid-template-columns:1fr;} }
+
+  .dash-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;font-size:12px;}
+  .dash-bar-row .bar-label{width:150px;flex-shrink:0;color:var(--white);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .dash-bar-row .bar-track{flex:1;height:16px;background:#151e34;border-radius:4px;overflow:hidden;}
+  .dash-bar-row .bar-fill{height:100%;border-radius:4px;transition:width .3s ease;}
+  .dash-bar-row .bar-val{width:34px;text-align:right;color:var(--gray);font-family:var(--mono);font-size:11px;}
+
+  ::-webkit-scrollbar{width:10px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:8px;}
+</style>
+<link rel="stylesheet" href="/static/theme.css">
+</head>
+<body>
+
+<div class="topbar">
+  <h1>Relatório Mensal de Ocorrências</h1>
+  <div class="topbar-right">
+    <a class="btn" href="/logs">&#128220; logs</a>
+    <a class="btn" href="/relatorio-anual">&#128197; relatório anual</a>
+    <a class="btn" href="/nobreak">&#128267; nobreak</a>
+    <a class="btn" href="/refrigeracao">&#10052; refrigeração</a>
+    <a class="btn" href="/graficos-historico">&#128200; gráficos histórico</a>
+    <a class="btn" href="/relatorios-sites">&#128203; relatórios sites</a>
+    <a class="btn" href="/dashboard">&#128202; falhas</a>
+    <a class="btn" href="/config">&#9881; config</a>
+    <a class="btn" href="/" id="back-to-map-link">&larr; mapa</a>
+    <a class="btn" href="/logout">&#128274; sair</a>
+  </div>
+</div>
+
+<div class="toolbar">
+  <select id="month-select"></select>
+  <select id="year-select"></select>
+  <button class="btn" id="reload-btn">&#8635; Atualizar</button>
+  <button class="btn" id="manage-devices-btn">&#9881; Dispositivos no Relatório</button>
+  <button class="btn-primary" id="pdf-btn">&#8681; Baixar PDF</button>
+  <button class="btn" id="dashboard-toggle-btn">&#128202; Dashboard</button>
+  <button class="btn" id="print-dashboard-btn" title="Imprimir ou salvar como PDF" style="display:none;">&#128424; Imprimir</button>
+  <div class="summary" id="summary-label"></div>
+</div>
+
+<div class="devices-panel" id="devices-panel" style="display:none;">
+  <div class="devices-panel-inner">
+    <div class="devices-panel-head">
+      <h2>Dispositivos incluídos no Relatório Mensal</h2>
+      <button class="btn" id="close-devices-panel">Fechar</button>
+    </div>
+    <p class="devices-panel-note">
+      Desligue um dispositivo aqui pra excluir as ocorrências dele de todos os relatórios (PDF, tela e Power BI).
+      Isso não afeta o monitoramento, alarme, ping ou qualquer outra função — só decide se ele aparece no relatório.
+    </p>
+    <div id="devices-panel-body"><div class="loading">carregando...</div></div>
+  </div>
+</div>
+
+<div class="content" id="dashboard-content" style="display:none;">
+  <div class="loading">carregando dashboard...</div>
+</div>
+
+<div class="content" id="content">
+  <div class="loading">carregando relatório...</div>
+</div>
+
+<script>
+const monthNames = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const monthSelect = document.getElementById('month-select');
+const yearSelect = document.getElementById('year-select');
+
+monthNames.forEach((name, i) => {
+  const opt = document.createElement('option');
+  opt.value = i + 1;
+  opt.textContent = name;
+  monthSelect.appendChild(opt);
+});
+
+const now = new Date();
+// mostra o mes ATUAL/vigente por padrao ao abrir a pagina
+let defaultMonth = now.getMonth() + 1; // getMonth() e 0-indexed, entao +1 para bater com o valor do select
+let defaultYear = now.getFullYear();
+
+for(let y = now.getFullYear(); y >= now.getFullYear() - 3; y--){
+  const opt = document.createElement('option');
+  opt.value = y;
+  opt.textContent = y;
+  yearSelect.appendChild(opt);
+}
+
+monthSelect.value = defaultMonth;
+yearSelect.value = defaultYear;
+
+function formatSiteName(name){
+  return name.replace(/_/g, ' ');
+}
+
+let lastReportData = null;
+
+async function loadReport(){
+  const content = document.getElementById('content');
+  const summary = document.getElementById('summary-label');
+  content.innerHTML = '<div class="loading">carregando relatório...</div>';
+  const year = monthSelect_year();
+  const month = monthSelect.value;
+
+  try{
+    // busca a lista de mapas primeiro (resposta pequena e rapida), depois
+    // pede o relatorio de CADA MAPA separadamente - respostas bem menores
+    // que pedir tudo de uma vez, o que ajuda em conexoes mais instaveis.
+    const mapsRes = await fetch('/api/maps', {cache:'no-store'});
+    const mapsRegistry = await mapsRes.json();
+    const mapIds = Object.entries(mapsRegistry)
+      .filter(([id, m]) => m.kind !== 'library')
+      .map(([id]) => id);
+
+    const combinedMaps = {};
+    for(const mapId of mapIds){
+      const res = await fetch(`/api/monthly-report?year=${yearSelect.value}&month=${monthSelect.value}&map=${encodeURIComponent(mapId)}`, {cache:'no-store'});
+      if(!res.ok) throw new Error('erro ao carregar o mapa "' + mapId + '" (status ' + res.status + ')');
+      const partial = await res.json();
+      Object.assign(combinedMaps, partial.maps);
+    }
+
+    const data = {year: parseInt(yearSelect.value), month: parseInt(monthSelect.value), maps: combinedMaps};
+    lastReportData = data;
+    renderReport(data);
+    await loadOtherSystemsSection(data.year, data.month);
+    if(document.getElementById('dashboard-content').style.display !== 'none'){
+      await renderDashboard(data);
+    }
+  }catch(err){
+    content.innerHTML = '<div class="loading">erro ao carregar o relatório: ' + err.message + '</div>';
+  }
+}
+function monthSelect_year(){ return yearSelect.value; }
+
+async function loadOtherSystemsSection(year, month){
+  const content = document.getElementById('content');
+  let wrap = document.getElementById('other-systems-section');
+  if(wrap) wrap.remove();
+
+  wrap = document.createElement('div');
+  wrap.id = 'other-systems-section';
+  wrap.className = 'map-block';
+  wrap.innerHTML = '<div class="loading" style="padding:20px;">carregando outras localidades...</div>';
+  content.appendChild(wrap);
+
+  try{
+    const res = await fetch(`/api/monthly-report/outros-sistemas?year=${year}&month=${month}`, {cache:'no-store'});
+    if(!res.ok) throw new Error('status ' + res.status);
+    const data = await res.json();
+    renderOtherSystemsTable(wrap, data.cities, year, month);
+  }catch(err){
+    wrap.innerHTML = '<div class="loading" style="padding:20px;">erro ao carregar outras localidades: ' + err.message + '</div>';
+  }
+}
+
+function renderOtherSystemsTable(wrap, cities, year, month){
+  wrap.innerHTML = `
+    <div class="map-head" style="margin-top:8px;">Situação em Outras Localidades</div>
+    <div style="font-size:11.5px;color:var(--gray);margin-bottom:10px;">
+      Cidades acompanhadas por outro sistema (sem equipamento monitorado por aqui) — atualize a situação manualmente
+    </div>
+    <table>
+      <thead><tr><th style="width:220px;">Localidade</th><th style="width:110px;">Situação</th><th>Observação</th></tr></thead>
+      <tbody></tbody>
+    </table>`;
+  const tbody = wrap.querySelector('tbody');
+
+  cities.forEach(c => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="col-date">${c.city}</td>
+      <td>
+        <select class="other-sys-situacao" data-city="${c.city}" style="background:${c.situacao==='Fora'?'#3a1418':'#0f2a16'};color:${c.situacao==='Fora'?'var(--red)':'var(--green)'};border:1px solid var(--line);border-radius:5px;padding:5px 8px;font-family:var(--mono);font-size:11.5px;font-weight:700;">
+          <option value="ok" ${c.situacao==='ok'?'selected':''}>OK</option>
+          <option value="Fora" ${c.situacao==='Fora'?'selected':''}>Fora</option>
+        </select>
+      </td>
+      <td class="col-obs">
+        <textarea placeholder="observação..." data-city="${c.city}">${c.observacao || ''}</textarea>
+        <span class="saved-tick">salvo &#10003;</span>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+
+  async function saveCity(city){
+    const situacao = wrap.querySelector(`.other-sys-situacao[data-city="${city}"]`).value;
+    const observacao = wrap.querySelector(`textarea[data-city="${city}"]`).value;
+    const select = wrap.querySelector(`.other-sys-situacao[data-city="${city}"]`);
+    select.style.background = situacao === 'Fora' ? '#3a1418' : '#0f2a16';
+    select.style.color = situacao === 'Fora' ? 'var(--red)' : 'var(--green)';
+    try{
+      const res = await fetch('/api/monthly-report/outros-sistemas', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({year, month, city, situacao, observacao})
+      });
+      const data = await res.json();
+      if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+      const tick = wrap.querySelector(`textarea[data-city="${city}"]`).nextElementSibling;
+      tick.style.display = 'inline';
+      setTimeout(() => { tick.style.display = 'none'; }, 1500);
+    }catch(err){
+      alert('Erro ao salvar "' + city + '": ' + err.message);
+    }
+  }
+
+  wrap.querySelectorAll('.other-sys-situacao').forEach(sel => {
+    sel.addEventListener('change', () => saveCity(sel.dataset.city));
+  });
+  let obsTimer = null;
+  wrap.querySelectorAll('textarea[data-city]').forEach(ta => {
+    ta.addEventListener('input', () => {
+      clearTimeout(obsTimer);
+      obsTimer = setTimeout(() => saveCity(ta.dataset.city), 700);
+    });
+  });
+}
+
+
+function renderReport(data){
+  const content = document.getElementById('content');
+  const summary = document.getElementById('summary-label');
+  content.innerHTML = '';
+
+  const mapIds = Object.keys(data.maps);
+  let totalSites = 0, totalIncidents = 0;
+  mapIds.forEach(mapId => {
+    const sites = data.maps[mapId].sites;
+    totalSites += Object.keys(sites).length;
+    Object.values(sites).forEach(s => totalIncidents += s.failure_count);
+  });
+  summary.innerHTML = '<b>' + totalSites + '</b> locais · <b>' + totalIncidents + '</b> ocorrências no período';
+
+  mapIds.forEach(mapId => {
+    const mapData = data.maps[mapId];
+    const mapBlock = document.createElement('div');
+    mapBlock.className = 'map-block';
+
+    const mapHead = document.createElement('div');
+    mapHead.className = 'map-head';
+    mapHead.textContent = mapData.name;
+    mapBlock.appendChild(mapHead);
+
+    Object.keys(mapData.sites).forEach(site => {
+      const siteData = mapData.sites[site];
+      const rows = siteData.incidents;
+      const count = siteData.failure_count;
+      const section = document.createElement('div');
+      section.className = 'site-section';
+
+      const head = document.createElement('div');
+      head.className = 'site-head';
+      head.innerHTML = '<span><span class="count-badge front">' + count + ' falha' + (count===1?'':'s') + '</span>' + formatSiteName(site) + '</span>' +
+        '<button type="button" class="add-manual-btn" data-map="' + mapId + '" data-site="' + site.replace(/"/g,'&quot;') + '">&#10133; ocorrência</button>';
+      section.appendChild(head);
+
+      const manualForm = document.createElement('div');
+      manualForm.className = 'manual-form';
+      manualForm.style.display = 'none';
+      manualForm.innerHTML = `
+        <div class="manual-form-grid">
+          <div><label>Data</label><input type="date" class="mf-date"></div>
+          <div><label>Início</label><input type="time" class="mf-start"></div>
+          <div><label>Normalização (opcional)</label><input type="time" class="mf-end"></div>
+        </div>
+        <div class="manual-form-field"><label>Descrição da ocorrência</label><input type="text" class="mf-desc" placeholder="Ex: Queda de sinal por queima de fonte no PA do TX"></div>
+        <div class="manual-form-field"><label>Observação (opcional)</label><input type="text" class="mf-obs" placeholder="Ex: Normalizado pela equipe técnica"></div>
+        <div class="manual-form-actions">
+          <button type="button" class="btn-primary mf-save">Salvar ocorrência</button>
+          <button type="button" class="btn mf-cancel">Cancelar</button>
+        </div>`;
+      section.appendChild(manualForm);
+
+      if(rows.length === 0){
+        const emptyDiv = document.createElement('div');
+        emptyDiv.className = 'empty-row';
+        emptyDiv.textContent = 'Sem Ocorrências';
+        section.appendChild(emptyDiv);
+      } else {
+        const table = document.createElement('table');
+        table.innerHTML = `
+          <thead><tr>
+            <th style="width:56px;">Incluir</th><th>Data</th><th>Descrição da Ocorrência</th><th>Início</th><th>Normalização</th><th>Observação</th><th></th>
+          </tr></thead>
+          <tbody></tbody>`;
+        const tbody = table.querySelector('tbody');
+
+        rows.forEach(row => {
+          const tr = document.createElement('tr');
+          if(row.excluded) tr.classList.add('row-excluded');
+          const endCell = row.ongoing
+            ? '<span class="col-time ongoing">em aberto</span>'
+            : '<span class="col-time">' + row.end_time + '</span>';
+          const deleteCell = row.is_manual
+            ? '<button type="button" class="delete-manual-btn" data-id="' + row.id + '" title="Excluir ocorrência manual">&#128465;</button>'
+            : '';
+          tr.innerHTML = `
+            <td style="text-align:center;">
+              <label class="switch small">
+                <input type="checkbox" class="include-toggle" data-id="${row.id}" ${row.excluded ? '' : 'checked'} title="Incluir esta ocorrência no relatório e no dashboard">
+                <span class="slider"></span>
+              </label>
+            </td>
+            <td class="col-date">${row.date_display}${row.is_manual ? ' <i class="manual-tag">manual</i>' : ''}</td>
+            <td class="col-desc">${row.description}</td>
+            <td class="col-time">${row.start_time}</td>
+            <td>${endCell}</td>
+            <td class="col-obs">
+              <textarea placeholder="adicionar observação..." data-id="${row.id}">${row.observation || ''}</textarea>
+              <span class="saved-tick">salvo &#10003;</span>
+            </td>
+            <td>${deleteCell}</td>`;
+          tbody.appendChild(tr);
+        });
+        section.appendChild(table);
+      }
+
+      mapBlock.appendChild(section);
+    });
+
+    content.appendChild(mapBlock);
+  });
+
+  content.querySelectorAll('.include-toggle').forEach(input => {
+    input.addEventListener('change', async function(){
+      const id = this.dataset.id;
+      const excluded = !this.checked;
+      this.disabled = true;
+      const scrollY = window.scrollY; // guarda a posicao atual da rolagem
+      try{
+        const res = await fetch('/api/monthly-report/exclude-incident', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({id, excluded})
+        });
+        const data = await res.json();
+        if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+        await loadReport(); // recarrega pra atualizar contagens e o dashboard
+        window.scrollTo(0, scrollY); // volta pra onde estava, sem subir pro topo
+      }catch(err){
+        alert('Erro ao salvar: ' + err.message);
+        this.checked = !this.checked;
+        this.disabled = false;
+      }
+    });
+  });
+
+  content.querySelectorAll('.col-obs textarea').forEach(ta => {
+    let saveTimeout = null;
+    ta.addEventListener('input', () => {
+      clearTimeout(saveTimeout);
+      saveTimeout = setTimeout(() => saveObservation(ta), 700);
+    });
+    ta.addEventListener('blur', () => {
+      clearTimeout(saveTimeout);
+      saveObservation(ta);
+    });
+  });
+
+  content.querySelectorAll('.add-manual-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const form = btn.closest('.site-section').querySelector('.manual-form');
+      form.style.display = form.style.display === 'none' ? 'block' : 'none';
+    });
+  });
+
+  content.querySelectorAll('.manual-form .mf-cancel').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.closest('.manual-form').style.display = 'none';
+    });
+  });
+
+  content.querySelectorAll('.manual-form .mf-save').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const form = btn.closest('.manual-form');
+      const section = btn.closest('.site-section');
+      const addBtn = section.querySelector('.add-manual-btn');
+      const mapId = addBtn.dataset.map;
+      const site = addBtn.dataset.site;
+
+      const date = form.querySelector('.mf-date').value;
+      const start = form.querySelector('.mf-start').value;
+      const end = form.querySelector('.mf-end').value;
+      const desc = form.querySelector('.mf-desc').value.trim();
+      const obs = form.querySelector('.mf-obs').value.trim();
+
+      if(!date || !desc){
+        alert('Preencha ao menos a data e a descrição da ocorrência.');
+        return;
+      }
+      btn.disabled = true;
+      try{
+        const res = await fetch('/api/monthly-report/manual-entry', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({map: mapId, site, date, description: desc, start_time: start, end_time: end, observation: obs})
+        });
+        const data = await res.json();
+        if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+        loadReport();
+      }catch(err){
+        alert('Erro ao salvar: ' + err.message);
+      }finally{
+        btn.disabled = false;
+      }
+    });
+  });
+
+  content.querySelectorAll('.delete-manual-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if(!confirm('Excluir essa ocorrência manual?')) return;
+      try{
+        const res = await fetch('/api/monthly-report/manual-entry/delete', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({id: btn.dataset.id})
+        });
+        const data = await res.json();
+        if(!data.ok) throw new Error(data.error || 'falha ao excluir');
+        loadReport();
+      }catch(err){
+        alert('Erro ao excluir: ' + err.message);
+      }
+    });
+  });
+}
+
+async function saveObservation(ta){
+  const id = ta.dataset.id;
+  const text = ta.value;
+  try{
+    const res = await fetch('/api/monthly-report/observation', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id, text})
+    });
+    const data = await res.json();
+    if(data.ok){
+      const tick = ta.parentElement.querySelector('.saved-tick');
+      tick.style.display = 'inline';
+      setTimeout(() => { tick.style.display = 'none'; }, 1500);
+    }
+  }catch(err){ /* falha silenciosa - o usuario pode tentar de novo editando */ }
+}
+
+// ---------------- dashboard visual (substitui o Power BI) ----------------
+const CATEGORY_KEYWORDS = [
+  ['Ping / Conectividade', /resposta de ping|falha de comunica|sem leitura snmp/i],
+  ['Bateria', /bateria/i],
+  ['Potência', /potencia|potência/i],
+  ['Refletida', /refletida/i],
+  ['Porta', /porta/i],
+  ['Temperatura', /temperatura/i],
+  ['Rede AC', /rede ac/i],
+  ['Sinal', /sinal/i],
+  ['Frequência', /frequencia|frequência/i],
+  ['Carga', /carga/i],
+];
+function categorizeReason(description){
+  for(const [label, re] of CATEGORY_KEYWORDS){
+    if(re.test(description)) return label;
+  }
+  return 'Outro';
+}
+const BAR_PALETTE = ['#e5384b','#5b8def','#2ecc55','#f5c451','#9b6bde','#e0894a','#4ac3c9','#d65fa0'];
+
+function svgLineChart(dayCounts, width, height){
+  const days = Object.keys(dayCounts).map(Number).sort((a,b)=>a-b);
+  if(!days.length) return '<div class="loading" style="padding:20px;">sem dados no período</div>';
+  const maxDay = Math.max(...days), minDay = Math.min(...days);
+  const maxVal = Math.max(1, ...Object.values(dayCounts));
+  const padL = 30, padB = 20, padT = 10, padR = 10;
+  const innerW = width - padL - padR, innerH = height - padT - padB;
+  const xFor = d => padL + ((d - minDay) / Math.max(1, (maxDay - minDay))) * innerW;
+  const yFor = v => padT + innerH - (v / maxVal) * innerH;
+
+  let points = '';
+  for(let d = minDay; d <= maxDay; d++){
+    const v = dayCounts[d] || 0;
+    points += `${xFor(d)},${yFor(v)} `;
+  }
+  const gridLines = [0, 0.5, 1].map(f => {
+    const y = padT + innerH * (1-f);
+    const val = Math.round(maxVal * f);
+    return `<line x1="${padL}" y1="${y}" x2="${width-padR}" y2="${y}" stroke="#232f4b" stroke-width="1"/>
+            <text x="${padL-6}" y="${y+3}" font-size="9" fill="#8b95ab" text-anchor="end" font-family="monospace">${val}</text>`;
+  }).join('');
+  const xLabels = [minDay, Math.round((minDay+maxDay)/2), maxDay].map(d =>
+    `<text x="${xFor(d)}" y="${height-4}" font-size="9" fill="#8b95ab" text-anchor="middle" font-family="monospace">${d}</text>`
+  ).join('');
+
+  return `<svg viewBox="0 0 ${width} ${height}" style="width:100%;height:${height}px;">
+    ${gridLines}
+    <polyline points="${points}" fill="none" stroke="#e5384b" stroke-width="2"/>
+    ${days.map(d => `<circle cx="${xFor(d)}" cy="${yFor(dayCounts[d]||0)}" r="2.5" fill="#e5384b"/>`).join('')}
+    ${xLabels}
+  </svg>`;
+}
+
+function barListHTML(entries, maxItems=8){
+  const top = entries.slice(0, maxItems);
+  const maxVal = Math.max(1, ...top.map(e => e[1]));
+  return top.map(([label, val], i) => `
+    <div class="dash-bar-row">
+      <div class="bar-label" title="${label}">${label}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${(val/maxVal)*100}%;background:${BAR_PALETTE[i % BAR_PALETTE.length]};"></div></div>
+      <div class="bar-val">${val}</div>
+    </div>`).join('') || '<div class="loading" style="padding:14px;">sem dados</div>';
+}
+
+function computeMapStats(mapData){
+  let totalSites = 0, affectedSites = 0, totalFailures = 0;
+  const dayCounts = {}, categoryCounts = {}, siteCounts = {}, deviceCounts = {};
+
+  Object.entries(mapData.sites).forEach(([site, siteData]) => {
+    totalSites++;
+    if(siteData.failure_count > 0) affectedSites++;
+    totalFailures += siteData.failure_count;
+    if(siteData.failure_count > 0) siteCounts[site] = (siteCounts[site]||0) + siteData.failure_count;
+
+    siteData.incidents.forEach(inc => {
+      if(inc.excluded) return; // ocorrencia excluida manualmente do relatorio/dashboard
+      const day = parseInt(inc.date.split('-')[2], 10);
+      dayCounts[day] = (dayCounts[day]||0) + 1;
+
+      const cat = categorizeReason(inc.description);
+      categoryCounts[cat] = (categoryCounts[cat]||0) + 1;
+
+      const deviceName = inc.description.split(':')[0].trim();
+      deviceCounts[deviceName] = (deviceCounts[deviceName]||0) + 1;
+    });
+  });
+
+  return {totalSites, affectedSites, totalFailures, dayCounts, categoryCounts, siteCounts, deviceCounts};
+}
+
+function renderMapDashboardSection(mapLabel, stats){
+  const rate = stats.totalSites ? Math.round((stats.affectedSites/stats.totalSites)*100) : 0;
+  return `
+    <div class="dash-map-section">
+      <div class="dash-map-title">${mapLabel}</div>
+      <div class="dash-cards">
+        <div class="dash-card card-total"><div class="label">Total de Locais</div><div class="value">${stats.totalSites}</div><div class="note">monitorados no período</div></div>
+        <div class="dash-card card-fail"><div class="label">Com Ocorrência</div><div class="value" style="color:var(--red);">${stats.affectedSites}</div><div class="note">${rate}% do total</div></div>
+        <div class="dash-card card-ok"><div class="label">Sem Ocorrência</div><div class="value" style="color:var(--green);">${stats.totalSites-stats.affectedSites}</div><div class="note">${100-rate}% do total</div></div>
+        <div class="dash-card card-rate"><div class="label">Total de Ocorrências</div><div class="value" style="color:var(--amber);">${stats.totalFailures}</div><div class="note">no mês</div></div>
+      </div>
+
+      <div class="dash-panel">
+        <div class="dash-panel-title">Ocorrências por Dia do Mês</div>
+        <div class="dash-panel-sub">Evolução diária de ocorrências registradas — ${mapLabel}</div>
+        ${svgLineChart(stats.dayCounts, 900, 200)}
+      </div>
+
+      <div class="dash-grid-2">
+        <div class="dash-panel">
+          <div class="dash-panel-title">Ocorrências por Tipo</div>
+          <div class="dash-panel-sub">Categorizado a partir da descrição de cada ocorrência</div>
+          ${barListHTML(Object.entries(stats.categoryCounts).sort((a,b)=>b[1]-a[1]))}
+        </div>
+        <div class="dash-panel">
+          <div class="dash-panel-title">Ocorrências por Local</div>
+          <div class="dash-panel-sub">Cidades/categorias com mais ocorrências</div>
+          ${barListHTML(Object.entries(stats.siteCounts).sort((a,b)=>b[1]-a[1]))}
+        </div>
+      </div>
+
+      <div class="dash-panel">
+        <div class="dash-panel-title">Top Dispositivos com Mais Ocorrências</div>
+        <div class="dash-panel-sub">Equipamentos que mais geraram ocorrências no mês — ${mapLabel}</div>
+        ${barListHTML(Object.entries(stats.deviceCounts).sort((a,b)=>b[1]-a[1]), 10)}
+      </div>
+    </div>`;
+}
+
+async function renderDashboard(data){
+  const el = document.getElementById('dashboard-content');
+  el.innerHTML = '';
+
+  // resumo geral (todos os mapas combinados) - visao rapida do total
+  let totalSites = 0, affectedSites = 0, totalFailures = 0;
+  Object.values(data.maps).forEach(mapData => {
+    Object.values(mapData.sites).forEach(siteData => {
+      totalSites++;
+      if(siteData.failure_count > 0) affectedSites++;
+      totalFailures += siteData.failure_count;
+    });
+  });
+  const rate = totalSites ? Math.round((affectedSites/totalSites)*100) : 0;
+  const monthLabel = monthSelect.options[monthSelect.selectedIndex].text + ' de ' + yearSelect.value;
+
+  let html = `
+    <div class="dash-summary-bar">
+      <div>
+        <h2>${monthLabel}</h2>
+        <div class="sub">${totalSites} locais monitorados (todos os mapas) · ${totalFailures} ocorrência(s) · ${rate}% dos locais afetados</div>
+      </div>
+      <div class="dash-summary-stats">
+        <div class="stat-box"><div class="v">${totalSites}</div><div class="l">locais</div></div>
+        <div class="stat-box"><div class="v">${totalFailures}</div><div class="l">ocorrências</div></div>
+        <div class="stat-box"><div class="v">${totalSites-affectedSites}</div><div class="l">sem falha</div></div>
+        <div class="stat-box"><div class="v">${rate}%</div><div class="l">taxa afetados</div></div>
+      </div>
+    </div>`;
+
+  // uma secao de analise SEPARADA pra cada mapa (Interior, FG, mapas novos)
+  Object.entries(data.maps).forEach(([mapId, mapData]) => {
+    const stats = computeMapStats(mapData);
+    html += renderMapDashboardSection(mapData.name, stats);
+  });
+
+  // ---- outras localidades acompanhadas por outro sistema ----
+  let otherCities = [];
+  try{
+    const res = await fetch(`/api/monthly-report/outros-sistemas?year=${data.year}&month=${data.month}`, {cache:'no-store'});
+    if(res.ok){
+      const otherData = await res.json();
+      otherCities = otherData.cities || [];
+    }
+  }catch(e){ /* segue sem essa secao se falhar */ }
+
+  if(otherCities.length){
+    html += `
+      <div class="dash-map-section">
+        <div class="dash-map-title">Outras Localidades (Outro Sistema)</div>
+        <div class="dash-panel">
+          <table>
+            <thead><tr><th style="width:220px;">Localidade</th><th style="width:110px;">Situação</th><th>Observação</th></tr></thead>
+            <tbody>
+              ${otherCities.map(c => `
+                <tr>
+                  <td>${c.city}</td>
+                  <td><span style="color:${c.situacao==='Fora'?'var(--red)':'var(--green)'};font-weight:700;">${c.situacao}</span></td>
+                  <td style="color:var(--gray);">${c.observacao || '—'}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = html;
+}
+
+document.getElementById('dashboard-toggle-btn').addEventListener('click', async () => {
+  const dashEl = document.getElementById('dashboard-content');
+  const contentEl = document.getElementById('content');
+  const printBtn = document.getElementById('print-dashboard-btn');
+  const showing = dashEl.style.display !== 'none';
+  if(showing){
+    dashEl.style.display = 'none';
+    contentEl.style.display = 'block';
+    document.getElementById('dashboard-toggle-btn').textContent = '📊 Dashboard';
+    printBtn.style.display = 'none';
+  } else {
+    dashEl.style.display = 'block';
+    contentEl.style.display = 'none';
+    document.getElementById('dashboard-toggle-btn').innerHTML = '&#128203; Ver Lista';
+    printBtn.style.display = 'inline-block';
+    if(lastReportData) renderDashboard(lastReportData);
+  }
+});
+
+document.getElementById('print-dashboard-btn').addEventListener('click', () => {
+  window.print();
+});
+
+document.getElementById('reload-btn').addEventListener('click', loadReport);
+monthSelect.addEventListener('change', loadReport);
+yearSelect.addEventListener('change', loadReport);
+
+document.getElementById('pdf-btn').addEventListener('click', async () => {
+  const btn = document.getElementById('pdf-btn');
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'gerando...';
+
+  const url = `/api/monthly-report/pdf?year=${yearSelect.value}&month=${monthSelect.value}`;
+  try{
+    const res = await fetch(url, {cache:'no-store'});
+    const contentType = res.headers.get('Content-Type') || '';
+
+    if(!res.ok || contentType.includes('json')){
+      let msg = 'Falha ao gerar o PDF (status ' + res.status + ').';
+      try{
+        const errData = await res.json();
+        if(errData.error) msg = errData.error;
+      }catch(e){ /* corpo nao era json */ }
+      if(msg.toLowerCase().includes('reportlab') || msg.toLowerCase().includes('no module')){
+        msg = 'A biblioteca "reportlab" não está instalada no computador que roda o server.py.\n\n' +
+              'Abra o Prompt de Comando / PowerShell nesse PC e rode:\n\npip install reportlab\n\n' +
+              'Depois reinicie o server.py e tente baixar de novo.';
+      }
+      alert(msg);
+      return;
+    }
+
+    const blob = await res.blob();
+    const filenameMatch = (res.headers.get('Content-Disposition') || '').match(/filename="?([^"]+)"?/);
+    const filename = filenameMatch ? filenameMatch[1] : 'relatorio.pdf';
+
+    const blobUrl = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(blobUrl);
+  }catch(err){
+    alert('Erro ao baixar o PDF: ' + err.message);
+  }finally{
+    btn.disabled = false;
+    btn.textContent = originalText;
+  }
+});
+
+
+
+// ---------------- painel de dispositivos incluidos no relatorio ----------------
+document.getElementById('manage-devices-btn').addEventListener('click', async () => {
+  const panel = document.getElementById('devices-panel');
+  panel.style.display = 'flex';
+  await loadDevicesPanel();
+});
+document.getElementById('close-devices-panel').addEventListener('click', () => {
+  document.getElementById('devices-panel').style.display = 'none';
+  loadReport(); // recarrega o relatorio, ja que a inclusao pode ter mudado
+});
+document.getElementById('devices-panel').addEventListener('click', (e) => {
+  if(e.target.id === 'devices-panel'){
+    document.getElementById('devices-panel').style.display = 'none';
+    loadReport();
+  }
+});
+
+async function loadDevicesPanel(){
+  const body = document.getElementById('devices-panel-body');
+  body.innerHTML = '<div class="loading">carregando...</div>';
+  try{
+    const res = await fetch('/api/report-devices', {cache:'no-store'});
+    const data = await res.json();
+    body.innerHTML = '';
+
+    Object.entries(data).forEach(([mapId, mapInfo]) => {
+      if(!mapInfo.devices.length) return;
+      const group = document.createElement('div');
+      group.className = 'devices-map-group';
+      group.innerHTML = `<div class="devices-map-title">${mapInfo.name}</div>`;
+
+      mapInfo.devices.forEach(dev => {
+        const row = document.createElement('div');
+        row.className = 'device-toggle-row';
+        row.innerHTML = `
+          <span><span class="dt-name">${dev.name}</span><span class="dt-site">${dev.site || ''}</span></span>
+          <label class="switch">
+            <input type="checkbox" ${dev.report_enabled !== false ? 'checked' : ''} data-id="${dev.id}">
+            <span class="slider"></span>
+          </label>`;
+        const input = row.querySelector('input');
+        input.addEventListener('change', () => toggleReportDevice(dev.id, input.checked, input));
+        group.appendChild(row);
+      });
+      body.appendChild(group);
+    });
+
+    if(!body.children.length){
+      body.innerHTML = '<div class="loading">nenhum dispositivo encontrado.</div>';
+    }
+  }catch(err){
+    body.innerHTML = '<div class="loading">erro ao carregar: ' + err.message + '</div>';
+  }
+}
+
+async function toggleReportDevice(id, enabled, inputEl){
+  inputEl.disabled = true;
+  try{
+    const res = await fetch('/api/toggle-report-device', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({id, enabled})
+    });
+    const data = await res.json();
+    if(!data.ok) throw new Error(data.error || 'falha ao salvar');
+  }catch(err){
+    alert('Erro ao salvar: ' + err.message);
+    inputEl.checked = !enabled;
+  }finally{
+    inputEl.disabled = false;
+  }
+}
+
+loadReport();
+</script>
+</body>
+</html>
