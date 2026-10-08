@@ -401,11 +401,114 @@ def _save_sessions():
         print("[sessions] erro ao salvar sessions.json:", e, file=sys.stderr)
 
 
-def create_session():
+# --------------------------------------------------------------------------
+# Usuarios individuais (users.json): cada pessoa com login proprio, senha
+# guardada como hash (PBKDF2) e perfil:
+#   admin        -> tudo, inclusive cadastrar usuarios
+#   operador     -> tudo, menos cadastrar usuarios
+#   visualizador -> so olha (nao altera nada nem manda comandos)
+# Na primeira vez, o login antigo (AUTH_USERNAME/AUTH_PASSWORD) vira o
+# usuario admin e e obrigado a trocar a senha no primeiro acesso.
+# --------------------------------------------------------------------------
+USERS_FILE = os.path.join(BASE_DIR, "users.json")
+SESSION_USERS_FILE = os.path.join(BASE_DIR, "session_users.json")
+USERS_LOCK = threading.Lock()
+SESSION_USERS = {}       # token -> usuario
+PERFIS = ("admin", "operador", "visualizador")
+
+
+def _pw_hash(senha, salt):
+    return hashlib.pbkdf2_hmac("sha256", senha.encode("utf-8"), salt.encode("utf-8"), 120000).hex()
+
+
+def load_users():
+    try:
+        with open(USERS_FILE, encoding="utf-8") as f:
+            users = json.load(f)
+        if isinstance(users, list) and users:
+            return users
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    salt = secrets.token_hex(8)
+    users = [{"usuario": AUTH_USERNAME, "nome": "Administrador", "perfil": "admin", "ativo": True,
+              "salt": salt, "hash": _pw_hash(AUTH_PASSWORD, salt), "trocar_senha": True}]
+    save_users(users)
+    return users
+
+
+def save_users(users):
+    with USERS_LOCK:
+        tmp = USERS_FILE + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as f:
+            json.dump(users, f, ensure_ascii=False, indent=2)
+        os.replace(tmp, USERS_FILE)
+
+
+def find_user(usuario):
+    u = (usuario or "").strip().lower()
+    return next((x for x in load_users() if x.get("usuario", "").lower() == u), None)
+
+
+def verify_user(usuario, senha):
+    u = find_user(usuario)
+    if not u or not u.get("ativo", True):
+        return None
+    if _pw_hash(senha or "", u["salt"]) != u["hash"]:
+        return None
+    return u
+
+
+def set_user_password(usuario, nova, trocar=False):
+    if not nova or len(nova) < 6:
+        raise ValueError("a senha precisa ter pelo menos 6 caracteres")
+    users = load_users()
+    for x in users:
+        if x["usuario"].lower() == usuario.lower():
+            x["salt"] = secrets.token_hex(8)
+            x["hash"] = _pw_hash(nova, x["salt"])
+            x["trocar_senha"] = bool(trocar)
+            save_users(users)
+            return True
+    raise ValueError("usuario nao encontrado")
+
+
+def public_users():
+    return [{k: v for k, v in u.items() if k not in ("hash", "salt")} for u in load_users()]
+
+
+def _load_session_users():
+    global SESSION_USERS
+    try:
+        with open(SESSION_USERS_FILE, encoding="utf-8") as f:
+            SESSION_USERS = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        SESSION_USERS = {}
+
+
+def _save_session_users():
+    try:
+        with open(SESSION_USERS_FILE, "w", encoding="utf-8") as f:
+            json.dump({t: u for t, u in SESSION_USERS.items() if t in SESSIONS}, f)
+    except OSError:
+        pass
+
+
+def session_user(token):
+    """usuario da sessao (sessoes antigas, de antes dos usuarios, = admin)."""
+    if not token:
+        return None
+    name = SESSION_USERS.get(token) or AUTH_USERNAME
+    return find_user(name)
+
+
+def create_session(usuario=None):
     token = secrets.token_hex(24)
     with SESSIONS_LOCK:
         SESSIONS[token] = time.time() + SESSION_TTL_S
         _save_sessions()
+    if usuario:
+        SESSION_USERS[token] = usuario
+        _save_session_users()
     return token
 
 
@@ -5532,6 +5635,7 @@ def poll_interval_for(dev):
     return cfg["abrigos_interval_s"]
 _next_due = {}      # dev_id -> timestamp da proxima leitura
 _IN_PROGRESS = set()            # dispositivos com leitura ainda em andamento
+_LOOP_TICK = [time.time()]      # ultima volta do laco de leitura (vigia)
 _POLL_SEM = threading.Semaphore(120)   # cada equipamento tem no maximo 1 leitura em andamento
 _IN_PROGRESS_LOCK = threading.Lock()
 
@@ -5539,6 +5643,7 @@ _IN_PROGRESS_LOCK = threading.Lock()
 def polling_loop():
     global LAST_CYCLE_TS
     while True:
+        _LOOP_TICK[0] = time.time()
         try:
             devices = load_all_devices_for_polling()
             now = time.time()
@@ -5564,7 +5669,9 @@ def polling_loop():
                 def worker(dev):
                     try:
                         with _POLL_SEM:
+                            t0 = time.time()
                             poll_device(dev)
+                            POLL_DUR[dev.get("id")] = time.time() - t0
                     except Exception as e:
                         print("[poll_device] erro:", dev.get("name"), e, file=sys.stderr)
                     finally:
@@ -5643,6 +5750,15 @@ class Handler(BaseHTTPRequestHandler):
         token = get_session_token(self)
         return is_valid_session(token)
 
+    def _user(self):
+        token = get_session_token(self)
+        return session_user(token) if is_valid_session(token) else None
+
+    def _who(self):
+        """quem fez a acao: 'usuario (PC ip)' - vai para log, comandos e Telegram."""
+        u = self._user()
+        return f"{u['usuario'] if u else '?'} (PC {self.client_address[0]})"
+
     def do_GET(self):
         parsed = urlparse(self.path)
 
@@ -5700,6 +5816,10 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/logout":
             token = get_session_token(self)
             if token:
+                u = session_user(token)
+                if u:
+                    log_event("LOGOUT", u["usuario"], self.client_address[0])
+                SESSION_USERS.pop(token, None)
                 destroy_session(token)
             self.send_response(302)
             self.send_header("Location", "/login")
@@ -5713,6 +5833,20 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"error": "nao autenticado"}, status=401)
             else:
                 self._redirect("/login")
+            return
+        _u = self._user()
+        # senha padrao / senha resetada: obriga a trocar antes de usar o painel
+        if _u and _u.get("trocar_senha") and not parsed.path.startswith(("/api/", "/static/")) \
+                and parsed.path not in ("/trocar-senha", "/logout"):
+            self.send_response(302)
+            self.send_header("Location", "/trocar-senha")
+            self.end_headers()
+            return
+        if parsed.path == "/trocar-senha":
+            self._send_file(os.path.join(BASE_DIR, "trocar_senha.html"), "text/html; charset=utf-8")
+            return
+        if parsed.path in ("/config", "/config.html") and _u and _u.get("perfil") == "visualizador":
+            self.send_error(403, "Seu perfil e somente visualizacao")
             return
 
         if parsed.path in ("/", "/index.html", "/selecionar", "/selecionar.html"):
@@ -5753,6 +5887,38 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"error": "abrigo nao encontrado"}, status=404)
                 return
             self._send_json(net)
+        elif parsed.path in ("/saude", "/saude.html"):
+            self._send_file(os.path.join(BASE_DIR, "saude.html"), "text/html; charset=utf-8")
+        elif parsed.path == "/api/saude":
+            self._send_json(saude_snapshot())
+        elif parsed.path == "/api/eu":
+            u = self._user() or {}
+            self._send_json({"usuario": u.get("usuario"), "nome": u.get("nome"), "perfil": u.get("perfil")})
+        elif parsed.path == "/api/usuarios":
+            if (self._user() or {}).get("perfil") != "admin":
+                self._send_json({"error": "so administrador"}, status=403)
+                return
+            self._send_json({"usuarios": public_users()})
+        elif parsed.path == "/api/sistema":
+            cfg = load_sistema()
+            self._send_json({"config": {k: cfg.get(k) for k in DEFAULT_SISTEMA}, "backups": listar_backups()})
+        elif parsed.path == "/api/sistema/backup":
+            if (self._user() or {}).get("perfil") == "visualizador":
+                self._send_json({"error": "sem permissao"}, status=403)
+                return
+            nome = os.path.basename((parse_qs(parsed.query).get("nome") or [""])[0])
+            fp = os.path.join(BACKUP_DIR, nome)
+            if not (nome.startswith("painel_") and os.path.isfile(fp)):
+                self.send_error(404)
+                return
+            with open(fp, "rb") as f:
+                body = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/gzip")
+            self.send_header("Content-Disposition", f'attachment; filename="{nome}"')
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
         elif parsed.path in ("/app", "/app/", "/alertas", "/m"):
             self._send_file(os.path.join(BASE_DIR, "app.html"), "text/html; charset=utf-8")
         elif parsed.path == "/api/alertas":
@@ -6257,9 +6423,11 @@ class Handler(BaseHTTPRequestHandler):
                 username = (form.get("username") or [""])[0]
                 password = (form.get("password") or [""])[0]
 
-            if username == AUTH_USERNAME and password == AUTH_PASSWORD:
+            user_ok = verify_user(username, password)
+            if user_ok:
                 register_login_success(client_ip)
-                token = create_session()
+                token = create_session(user_ok["usuario"])
+                log_event("LOGIN", user_ok["usuario"], client_ip)
                 self.send_response(302)
                 self.send_header("Location", "/")
                 self.send_header(
@@ -6269,6 +6437,7 @@ class Handler(BaseHTTPRequestHandler):
                 self.end_headers()
             else:
                 register_login_failure(client_ip)
+                log_event("LOGIN RECUSADO", username or "?", client_ip)
                 self.send_response(302)
                 self.send_header("Location", "/login?erro=1")
                 self.end_headers()
@@ -6277,6 +6446,38 @@ class Handler(BaseHTTPRequestHandler):
         # todas as demais rotas POST exigem sessao valida
         if not self._is_authenticated():
             self._send_json({"error": "nao autenticado"}, status=401)
+            return
+        _u = self._user() or {}
+        if parsed.path == "/api/auth/minha-senha":
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                payload = json.loads((self.rfile.read(length) if length else b"{}").decode("utf-8") or "{}")
+                if not verify_user(_u.get("usuario"), payload.get("atual")):
+                    raise PermissionError("senha atual incorreta")
+                if payload.get("nova") == payload.get("atual"):
+                    raise ValueError("a nova senha precisa ser diferente da atual")
+                set_user_password(_u["usuario"], payload.get("nova"))
+                log_event("SENHA ALTERADA", _u["usuario"], self.client_address[0])
+                self._send_json({"ok": True})
+            except PermissionError as e:
+                self._send_json({"ok": False, "error": str(e)}, status=403)
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, status=400)
+            return
+        if _u.get("perfil") == "visualizador":
+            self._send_json({"ok": False, "error": "seu perfil e somente visualizacao"}, status=403)
+            return
+        if parsed.path.startswith("/api/usuarios/") or parsed.path.startswith("/api/sistema/"):
+            try:
+                length = int(self.headers.get("Content-Length", 0))
+                payload = json.loads((self.rfile.read(length) if length else b"{}").decode("utf-8") or "{}")
+                if parsed.path.startswith("/api/usuarios/") and _u.get("perfil") != "admin":
+                    raise PermissionError("so o administrador cadastra usuarios")
+                self._send_json(handle_admin_api(parsed.path, payload, _u, self.client_address[0]))
+            except PermissionError as e:
+                self._send_json({"ok": False, "error": str(e)}, status=403)
+            except Exception as e:
+                self._send_json({"ok": False, "error": str(e)}, status=400)
             return
 
         if parsed.path == "/api/toggle":
@@ -7372,7 +7573,7 @@ class Handler(BaseHTTPRequestHandler):
                     if not cmd_token_ok(self.headers.get("X-Cmd-Token")):
                         self._send_json({"ok": False, "error": "senha de comandos necessaria"}, status=401)
                         return
-                    entry = execute_command(payload.get("id"), payload.get("valor"), self.client_address[0])
+                    entry = execute_command(payload.get("id"), payload.get("valor"), self._who())
                     self._send_json({"ok": True, "entry": entry})
             except PermissionError as e:
                 self._send_json({"ok": False, "error": str(e)}, status=403)
@@ -7392,7 +7593,7 @@ class Handler(BaseHTTPRequestHandler):
                 elif parsed.path == "/api/knx/reset":
                     if payload.get("confirmar") != "RESET":
                         raise RuntimeError("confirmacao ausente")
-                    ga = KNX_MONITOR.reset_central(str(payload.get("grupo") or ""), origem=self.client_address[0])
+                    ga = KNX_MONITOR.reset_central(str(payload.get("grupo") or ""), origem=self._who())
                     self._send_json({"ok": True, "ga": ga})
                 else:
                     n = KNX_MONITOR.request_status()
@@ -8041,10 +8242,10 @@ def execute_command(cmd_id, valor, origem):
     entry = {"ts": time.time(), "equipamento": cmd["equipamento"], "comando": cmd["nome"], "acao": acao,
              "origem": origem, "abrigo": cmd["abrigo"]}
     _cmd_log(entry)
-    log_event("COMANDO ENVIADO", cmd["equipamento"], None, detail=f"{cmd['nome']}: {acao} (PC {origem})")
+    log_event("COMANDO ENVIADO", cmd["equipamento"], None, detail=f"{cmd['nome']}: {acao} - {origem}")
     try:
         publish_alert(f"⚙️ COMANDO - {cmd['abrigo']}\n\nEQUIPAMENTO: {cmd['equipamento']}\n"
-                              f"COMANDO: {cmd['nome']}\nAÇÃO: {acao}\nPC: {origem}")
+                              f"COMANDO: {cmd['nome']}\nAÇÃO: {acao}\nPOR: {origem}")
     except Exception:
         pass
     return entry
@@ -8180,6 +8381,283 @@ def alertas_snapshot(limit=500, desde_id=0):
     return {"alertas": lista, "ativos": ativos, "ultimo_id": _ALERTA_SEQ[0], "agora": time.time()}
 
 
+# ==========================================================================
+# VIGIA, BACKUP AUTOMATICO E SAUDE DO SISTEMA
+# ==========================================================================
+SISTEMA_FILE = os.path.join(BASE_DIR, "sistema_config.json")
+HEARTBEAT_FILE = os.path.join(BASE_DIR, "heartbeat.json")
+BACKUP_DIR = os.path.join(BASE_DIR, "backups", "diarios")
+DEFAULT_SISTEMA = {"msg_diaria": True, "msg_hora": 8, "heartbeat_url": "",
+                   "backup_hora": 3, "backup_dias": 30, "backup_pasta_extra": ""}
+STARTED_AT = time.time()
+POLL_DUR = {}            # dev_id -> segundos da ultima leitura
+VIGIA = {"ping_ok": None, "ping_err": None, "ping_ts": None, "ultimo_backup": None, "backup_err": None}
+BACKUP_INCLUIR_PASTAS = ("planilhas", "arquivos_upload", "site_photos", "inventario_pdfs")
+BACKUP_EXCLUIR = ("tile_cache", "backups", "__pycache__", "static", "linux")
+
+
+def load_sistema():
+    cfg = dict(DEFAULT_SISTEMA)
+    try:
+        with open(SISTEMA_FILE, encoding="utf-8") as f:
+            cfg.update(json.load(f))
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    return cfg
+
+
+def save_sistema(data):
+    cfg = load_sistema()
+    for k in DEFAULT_SISTEMA:
+        if k in data:
+            v = data[k]
+            if k in ("msg_hora", "backup_hora"):
+                v = max(0, min(23, int(v)))
+            elif k == "backup_dias":
+                v = max(3, min(365, int(v)))
+            elif k == "msg_diaria":
+                v = bool(v)
+            else:
+                v = str(v or "").strip()
+            cfg[k] = v
+    with open(SISTEMA_FILE, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    return cfg
+
+
+def fazer_backup(motivo="automatico"):
+    """Compacta todos os DADOS do painel (configuracoes, dispositivos, agenda,
+    historico, alertas, usuarios, KNX, planilhas, fotos e PDFs). O codigo
+    nao entra - ele esta no GitHub."""
+    import tarfile, shutil
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+    nome = "painel_" + time.strftime("%Y-%m-%d_%H%M") + ".tar.gz"
+    path = os.path.join(BACKUP_DIR, nome)
+    with tarfile.open(path, "w:gz") as tar:
+        for f in sorted(os.listdir(BASE_DIR)):
+            full = os.path.join(BASE_DIR, f)
+            if os.path.isfile(full) and (f.endswith(".json") or f.endswith(".log")) and not f.endswith(".tmp"):
+                tar.add(full, arcname=f)
+        for d in BACKUP_INCLUIR_PASTAS:
+            full = os.path.join(BASE_DIR, d)
+            if os.path.isdir(full):
+                tar.add(full, arcname=d)
+    cfg = load_sistema()
+    # mantem so os ultimos N dias
+    corte = time.time() - cfg["backup_dias"] * 86400
+    for f in os.listdir(BACKUP_DIR):
+        fp = os.path.join(BACKUP_DIR, f)
+        if f.startswith("painel_") and os.path.getmtime(fp) < corte:
+            os.remove(fp)
+    extra = cfg.get("backup_pasta_extra")
+    if extra:
+        if not os.path.isdir(extra):
+            raise RuntimeError(f"backup feito, mas a pasta extra '{extra}' nao existe (pendrive/rede desconectado?)")
+        shutil.copy2(path, os.path.join(extra, nome))
+    VIGIA["ultimo_backup"] = time.time()
+    VIGIA["backup_err"] = None
+    log_event("BACKUP", nome, None, detail=f"{os.path.getsize(path) // 1024} KB - {motivo}")
+    return nome
+
+
+def listar_backups():
+    if not os.path.isdir(BACKUP_DIR):
+        return []
+    out = []
+    for f in sorted(os.listdir(BACKUP_DIR), reverse=True):
+        if f.startswith("painel_") and f.endswith(".tar.gz"):
+            fp = os.path.join(BACKUP_DIR, f)
+            out.append({"nome": f, "kb": os.path.getsize(fp) // 1024, "ts": os.path.getmtime(fp)})
+    return out
+
+
+def _resumo_texto():
+    devs = load_all_devices_for_polling()
+    with STATUS_LOCK:
+        snap = dict(STATUS)
+    ativos = [d for d in devs if d.get("enabled", True)]
+    on = sum(1 for d in ativos if (snap.get(d.get("id")) or {}).get("reachable"))
+    knx = "conectado" if (KNX_MONITOR and KNX_MONITOR.tunnel and KNX_MONITOR.tunnel.connected) else "SEM CONEXAO"
+    up = int((time.time() - STARTED_AT) // 3600)
+    return f"{on} de {len(ativos)} equipamentos online · KNX {knx} · ligado há {up} h"
+
+
+def vigia_loop():
+    """Roda a cada 30 s: grava o 'estou vivo', avisa o monitor externo,
+    manda a mensagem diaria, faz o backup e reinicia o servico se o laco
+    de leitura travar (o systemd sobe de novo sozinho)."""
+    # quanto tempo ficou parado (queda de energia, travamento, atualizacao)
+    try:
+        with open(HEARTBEAT_FILE, encoding="utf-8") as f:
+            last = json.load(f).get("ts", 0)
+    except (FileNotFoundError, json.JSONDecodeError):
+        last = 0
+    parado = int((STARTED_AT - last) // 60) if last else None
+    try:
+        send_telegram_message("🔄 Painel2 iniciado" + (f" — ficou parado {parado} min (desde {time.strftime('%d/%m %H:%M', time.localtime(last))})"
+                                                       if parado and parado >= 3 else ""))
+    except Exception:
+        pass
+    log_event("PAINEL INICIADO", "Sistema", None, detail=(f"parado {parado} min" if parado else ""))
+    ultimo_ping = 0
+    while True:
+        time.sleep(30)
+        now = time.time()
+        try:
+            with open(HEARTBEAT_FILE, "w", encoding="utf-8") as f:
+                json.dump({"ts": now}, f)
+        except OSError:
+            pass
+        cfg = load_sistema()
+        # 1) laco de leitura travado ha mais de 5 min -> reinicia
+        if now - STARTED_AT > 300 and now - _LOOP_TICK[0] > 300:
+            log_event("PAINEL TRAVADO - REINICIANDO", "Sistema", None)
+            try:
+                send_telegram_message("⚠️ Painel2 parou de ler os equipamentos há 5 min — reiniciando o serviço automaticamente.")
+            except Exception:
+                pass
+            os._exit(3)
+        # 2) monitor externo ("dead man's switch"): se o painel parar de avisar, ELE alerta
+        url = cfg.get("heartbeat_url")
+        if url and now - ultimo_ping >= 60:
+            ultimo_ping = now
+            try:
+                with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "Painel2"}), timeout=10):
+                    pass
+                VIGIA.update(ping_ok=now, ping_err=None, ping_ts=now)
+            except Exception as e:
+                VIGIA.update(ping_err=str(e)[:120], ping_ts=now)
+        lt = time.localtime(now)
+        hoje = time.strftime("%Y-%m-%d", lt)
+        # 3) mensagem diaria "estou vivo"
+        if cfg.get("msg_diaria") and lt.tm_hour == int(cfg.get("msg_hora", 8)) and cfg.get("_msg_dia") != hoje:
+            try:
+                send_telegram_message("✅ Painel2 ativo\\n" + _resumo_texto())
+            except Exception:
+                pass
+            cfg["_msg_dia"] = hoje
+            with open(SISTEMA_FILE, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, ensure_ascii=False, indent=2)
+        # 4) backup diario
+        if lt.tm_hour == int(cfg.get("backup_hora", 3)) and cfg.get("_backup_dia") != hoje:
+            try:
+                fazer_backup()
+            except Exception as e:
+                VIGIA["backup_err"] = str(e)
+                log_event("BACKUP FALHOU", "Sistema", None, detail=str(e))
+                try:
+                    send_telegram_message("⚠️ Painel2: falha no backup diário — " + str(e))
+                except Exception:
+                    pass
+            cfg = load_sistema()
+            cfg["_backup_dia"] = hoje
+            with open(SISTEMA_FILE, "w", encoding="utf-8") as f:
+                json.dump(cfg, f, ensure_ascii=False, indent=2)
+
+
+def saude_snapshot():
+    import shutil
+    now = time.time()
+    devs = load_all_devices_for_polling()
+    with STATUS_LOCK:
+        snap = dict(STATUS)
+    ativos = [d for d in devs if d.get("enabled", True)]
+    off = [d.get("name") for d in ativos if (snap.get(d.get("id")) or {}).get("reachable") is False]
+    durs = sorted(POLL_DUR.values())
+    with _IN_PROGRESS_LOCK:
+        andamento = len(_IN_PROGRESS)
+    disco = shutil.disk_usage(BASE_DIR)
+    mem = {}
+    try:
+        with open("/proc/meminfo") as f:
+            for l in f:
+                k, v = l.split(":", 1)
+                mem[k] = int(v.split()[0]) // 1024
+        with open("/proc/self/status") as f:
+            rss = next((int(l.split()[1]) // 1024 for l in f if l.startswith("VmRSS")), None)
+    except OSError:
+        rss = None
+    knx = KNX_MONITOR.snapshot() if KNX_MONITOR else {}
+    bks = listar_backups()
+    ult_bk = bks[0]["ts"] if bks else None
+    tg = telegram_public_config()
+    def item(nome, ok, valor, dica=""):
+        return {"nome": nome, "status": ok, "valor": valor, "dica": dica}
+    loop_age = now - _LOOP_TICK[0]
+    itens = [
+        item("Leitura dos equipamentos", "ok" if loop_age < 30 else ("aviso" if loop_age < 120 else "falha"),
+             f"última rodada há {int(loop_age)} s · {andamento} leitura(s) em andamento",
+             "se passar de 5 min o serviço reinicia sozinho"),
+        item("Equipamentos online", "ok" if not off else ("aviso" if len(off) <= 5 else "falha"),
+             f"{len(ativos) - len(off)} de {len(ativos)}" + (f" · offline: {', '.join(off[:6])}" + ("…" if len(off) > 6 else "") if off else "")),
+        item("Tempo de leitura", "ok" if not durs or durs[int(len(durs) * 0.9) - 1 if len(durs) > 1 else 0] < 8 else "aviso",
+             (f"média {sum(durs) / len(durs):.1f} s · mais lento {durs[-1]:.1f} s" if durs else "—")),
+        item("KNX (incêndio)", "ok" if knx.get("connected") else "falha",
+             ("conectado" + (f" · último telegrama há {int(now - knx['last_rx'])} s" if knx.get("last_rx") else "")) if knx.get("connected")
+             else (knx.get("error") or "sem conexão")),
+        item("Telegram", "ok" if tg.get("enabled") and not tg.get("last_error") else ("aviso" if tg.get("enabled") else "falha"),
+             ("ativo" if tg.get("enabled") else "desligado") + (f" · último erro: {tg['last_error']}" if tg.get("last_error") else "")),
+        item("Monitor externo", "ok" if VIGIA.get("ping_ok") and not VIGIA.get("ping_err") else ("aviso" if not load_sistema().get("heartbeat_url") else "falha"),
+             "não configurado" if not load_sistema().get("heartbeat_url") else (VIGIA.get("ping_err") or "avisando a cada 1 min")),
+        item("Backup", "ok" if ult_bk and now - ult_bk < 36 * 3600 else ("falha" if VIGIA.get("backup_err") else "aviso"),
+             (f"último {time.strftime('%d/%m %H:%M', time.localtime(ult_bk))} · {len(bks)} guardados" if ult_bk else "nenhum backup ainda")
+             + (f" · erro: {VIGIA['backup_err']}" if VIGIA.get("backup_err") else "")),
+        item("Disco", "ok" if disco.free / disco.total > 0.15 else ("aviso" if disco.free / disco.total > 0.05 else "falha"),
+             f"{disco.free // 2**30} GB livres de {disco.total // 2**30} GB"),
+        item("Memória", "ok" if mem.get("MemAvailable", 9999) > 300 else "aviso",
+             f"painel usando {rss or '?'} MB · livre no PC {mem.get('MemAvailable', '?')} MB"),
+    ]
+    geral = "falha" if any(i["status"] == "falha" for i in itens) else ("aviso" if any(i["status"] == "aviso" for i in itens) else "ok")
+    return {"geral": geral, "itens": itens, "iniciado": STARTED_AT, "agora": now,
+            "versao": time.strftime("%d/%m/%Y %H:%M", time.localtime(os.path.getmtime(__file__))),
+            "carga": os.getloadavg() if hasattr(os, "getloadavg") else None}
+
+
+def handle_admin_api(path, payload, user, ip):
+    if path == "/api/usuarios/salvar":
+        users = load_users()
+        usuario = re.sub(r"[^a-z0-9._-]", "", str(payload.get("usuario") or "").strip().lower())
+        if not usuario:
+            raise ValueError("informe o usuario (letras minusculas, numeros, ponto)")
+        perfil = payload.get("perfil") if payload.get("perfil") in PERFIS else "operador"
+        u = next((x for x in users if x["usuario"] == usuario), None)
+        if u is None:
+            senha = payload.get("senha") or ""
+            if len(senha) < 6:
+                raise ValueError("senha inicial com pelo menos 6 caracteres")
+            salt = secrets.token_hex(8)
+            u = {"usuario": usuario, "salt": salt, "hash": _pw_hash(senha, salt), "trocar_senha": True}
+            users.append(u)
+            acao = "USUARIO CRIADO"
+        else:
+            acao = "USUARIO ALTERADO"
+            if u["usuario"] == user["usuario"] and (perfil != "admin" or payload.get("ativo") is False):
+                raise ValueError("voce nao pode tirar o seu proprio acesso de administrador")
+        u["nome"] = str(payload.get("nome") or u.get("nome") or usuario)[:60]
+        u["perfil"] = perfil
+        u["ativo"] = payload.get("ativo", True) is not False
+        if not any(x.get("perfil") == "admin" and x.get("ativo", True) for x in users):
+            raise ValueError("precisa existir pelo menos um administrador ativo")
+        save_users(users)
+        log_event(acao, usuario, ip, detail=f"perfil {perfil} - por {user['usuario']}")
+        return {"ok": True, "usuarios": public_users()}
+    if path == "/api/usuarios/resetar-senha":
+        set_user_password(payload.get("usuario"), payload.get("senha"), trocar=True)
+        log_event("SENHA RESETADA", payload.get("usuario"), ip, detail=f"por {user['usuario']}")
+        return {"ok": True}
+    if path == "/api/sistema/config":
+        cfg = save_sistema(payload)
+        log_event("CONFIG DO SISTEMA ALTERADA", user["usuario"], ip)
+        return {"ok": True, "config": cfg}
+    if path == "/api/sistema/backup-agora":
+        nome = fazer_backup("manual por " + user["usuario"])
+        return {"ok": True, "nome": nome, "backups": listar_backups()}
+    if path == "/api/sistema/teste-telegram":
+        ok = send_telegram_message("✅ Painel2 ativo (teste)\\n" + _resumo_texto(), force=True)
+        return {"ok": bool(ok), "error": None if ok else "nao foi possivel enviar (veja a configuracao do Telegram)"}
+    raise ValueError("acao desconhecida")
+
+
 # --------------------------------------------------------------------------
 # Ajustes automaticos de unidade/escala (rodam UMA vez, na partida).
 # So mexem em medidas que ainda estao com o valor que veio da importacao -
@@ -8310,10 +8788,15 @@ def main():
     _load_alertas()
     load_incidents()
     load_sessions()
+    _load_session_users()
+    load_users()
     load_history_from_disk()
 
     t = threading.Thread(target=polling_loop, daemon=True)
     t.start()
+
+    # vigia: "estou vivo", backup diario e reinicio automatico se travar
+    threading.Thread(target=vigia_loop, daemon=True).start()
 
     # imagens do mapa de cada abrigo guardadas no proprio servidor
     threading.Thread(target=prewarm_abrigo_tiles, daemon=True).start()

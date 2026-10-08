@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Saúde do sistema — Rede Gazeta</title>
+<style>
+  :root{--bg:#070c18;--bg-1:#0e1628;--line:#223050;--green:#2ecc55;--red:#e5384b;--amber:#f5c451;--gray:#8b95ab;}
+  body{margin:0;background:var(--bg);color:#eef2fa;font-family:'Manrope','Segoe UI',sans-serif;}
+  .topbar{display:flex;align-items:center;gap:18px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--line);background:rgba(7,12,24,.95);position:sticky;top:0;}
+  .topbar h1{margin:0;font-size:17px;} .sub{font-size:12px;color:var(--gray);} .spacer{flex:1;}
+  .topbar a{font-size:12.5px;color:var(--gray);text-decoration:none;border:1px solid var(--line);border-radius:8px;padding:7px 12px;}
+  main{max-width:1100px;margin:0 auto;padding:20px 24px 50px;}
+  .hero{display:flex;align-items:center;gap:16px;border-radius:16px;padding:18px 22px;margin-bottom:18px;border:1px solid var(--line);background:var(--bg-1);}
+  .hero .big{font-size:26px;font-weight:800;} .hero .ic{font-size:40px;}
+  .hero.ok{border-color:#1f6b41;background:linear-gradient(135deg,#0b3d24,#0e1628 70%);}
+  .hero.aviso{border-color:#7a5a12;background:linear-gradient(135deg,#3d2e0b,#0e1628 70%);}
+  .hero.falha{border-color:#e5384b;background:linear-gradient(135deg,#5c0d17,#0e1628 70%);}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px;}
+  .it{background:var(--bg-1);border:1px solid var(--line);border-left:5px solid #434f6c;border-radius:12px;padding:12px 14px;}
+  .it.ok{border-left-color:var(--green);} .it.aviso{border-left-color:var(--amber);} .it.falha{border-left-color:var(--red);}
+  .it .n{font-weight:800;font-size:14px;display:flex;justify-content:space-between;}
+  .it .n span{font-size:11px;font-weight:800;padding:2px 9px;border-radius:999px;}
+  .it.ok .n span{background:rgba(46,204,85,.12);color:#6fe38e;} .it.aviso .n span{background:rgba(245,196,81,.12);color:var(--amber);}
+  .it.falha .n span{background:rgba(229,56,75,.14);color:#ff8f9a;}
+  .it .v{font-size:12.5px;color:#dbe3f5;margin-top:6px;line-height:1.45;} .it .d{font-size:11px;color:var(--gray);margin-top:4px;}
+</style></head><body>
+<div class="topbar">
+  <div class="brand-badge gz"><img src="/static/img/logo-gazeta-azul.png" alt="Rede Gazeta" style="height:24px"></div>
+  <div><h1>Saúde do sistema</h1><div class="sub" id="sub">carregando…</div></div>
+  <div class="spacer"></div><a href="/config#seguranca">Configurar</a><a href="/selecionar">Mapas</a>
+</div>
+<main><div class="hero" id="hero"></div><div class="grid" id="grid"></div></main>
+<script>
+const TXT = {ok: ['✅', 'Tudo funcionando'], aviso: ['⚠️', 'Funcionando, com pontos de atenção'], falha: ['❌', 'Há falhas no sistema']};
+const ST = {ok: 'OK', aviso: 'atenção', falha: 'falha'};
+const esc = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+async function load(){
+  try{
+    const r = await fetch('/api/saude', {cache: 'no-store'}); if(r.status === 401){ location.href = '/login'; return; }
+    const d = await r.json();
+    const up = Math.floor((d.agora - d.iniciado) / 3600);
+    document.getElementById('sub').textContent = 'versão de ' + d.versao + ' · ligado há ' + (up >= 24 ? Math.floor(up / 24) + ' d ' + (up % 24) + ' h' : up + ' h') +
+      (d.carga ? ' · carga ' + d.carga.map(x => x.toFixed(2)).join(' ') : '');
+    const h = document.getElementById('hero'); h.className = 'hero ' + d.geral;
+    h.innerHTML = '<div class="ic">' + TXT[d.geral][0] + '</div><div><div class="big">' + TXT[d.geral][1] + '</div><div class="sub">atualiza a cada 10 s</div></div>';
+    document.getElementById('grid').innerHTML = d.itens.map(i => '<div class="it ' + i.status + '"><div class="n">' + esc(i.nome) +
+      '<span>' + ST[i.status] + '</span></div><div class="v">' + esc(i.valor) + '</div>' + (i.dica ? '<div class="d">' + esc(i.dica) + '</div>' : '') + '</div>').join('');
+  }catch(e){ document.getElementById('sub').textContent = 'sem conexão com o servidor'; }
+}
+load(); setInterval(load, 10000);
+</script>
+<link rel="stylesheet" href="/static/theme.css">
+</body></html>

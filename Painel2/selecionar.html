@@ -151,6 +151,7 @@
         <a href="/graficos-historico" target="_blank" rel="noopener"><span class="pm-icon">&#128200;</span>Gráficos Históricos</a>
       </div>
     </div>
+    <a href="/saude" target="_blank" rel="noopener" id="saude-link">&#129658; Saúde</a>
     <a href="/app" target="_blank" rel="noopener">&#128241; App de alertas</a>
     <a href="/comandos" target="_blank" rel="noopener">&#128272; Comandos</a>
     <a href="/logout">&#128274; sair</a>
@@ -299,6 +300,12 @@ async function loadAbrigos(){
 }
 loadAbrigos();
 setInterval(loadAbrigos, 30000);
+async function loadSaude(){
+  try{ const d = await (await fetch('/api/saude', {cache:'no-store'})).json();
+       const c = {ok: '#2ecc55', aviso: '#f5c451', falha: '#e5384b'}[d.geral];
+       document.getElementById('saude-link').innerHTML = '<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:' + c + ';margin-right:6px"></span>Saúde'; }catch(e){}
+}
+loadSaude(); setInterval(loadSaude, 30000);
 
 async function loadFogoStatus(){
   try{

@@ -373,6 +373,63 @@
   </div>
 </div>
 
+<div class="appearance-panel" id="me-panel">
+  <div class="appearance-head"><span>&#128100; Minha conta</span><span id="me-who" style="font-size:12px;font-weight:600;"></span></div>
+  <div class="appearance-body">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;">
+      <div><label>Senha atual</label><input type="password" id="me-a"></div>
+      <div><label>Nova senha (mín. 6)</label><input type="password" id="me-n"></div>
+      <button type="button" class="btn-primary" id="me-ok">Trocar minha senha</button>
+      <span id="me-msg" style="font-size:12px;"></span>
+    </div>
+  </div>
+</div>
+
+<div class="appearance-panel" id="users-panel">
+  <div class="appearance-head"><span>&#128101; Usuários</span><span style="font-size:12px;color:var(--gray);">cada pessoa com o seu login — o log mostra quem fez cada ação</span></div>
+  <div class="appearance-body">
+    <div class="appearance-note" style="margin:0 0 10px;line-height:1.6;"><b>admin</b>: tudo, inclusive cadastrar usuários · <b>operador</b>: tudo menos usuários · <b>visualizador</b>: só olha (não altera nada nem manda comandos).
+      Usuário novo ou com senha resetada é obrigado a criar a própria senha no primeiro acesso.</div>
+    <div class="ab-table-wrap" style="margin-top:0;"><table class="ab-table"><thead><tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th>Situação</th><th></th></tr></thead><tbody id="us-list"></tbody></table></div>
+    <div class="ab-add"><b>&#10133; Novo usuário / alterar</b>
+      <div class="ab-add-row">
+        <input type="text" id="us-u" placeholder="usuário (ex: marcos)" style="min-width:150px;">
+        <input type="text" id="us-n" placeholder="nome completo" style="min-width:200px;">
+        <select id="us-p"><option value="operador">operador</option><option value="visualizador">visualizador</option><option value="admin">admin</option></select>
+        <label style="display:flex;align-items:center;gap:6px;"><input type="checkbox" id="us-a" checked> ativo</label>
+        <input type="password" id="us-s" placeholder="senha inicial (só p/ novo)" style="min-width:170px;">
+        <button type="button" class="btn-primary" id="us-ok">Salvar usuário</button>
+      </div>
+      <div id="us-msg" style="font-size:12px;margin-top:6px;"></div>
+    </div>
+  </div>
+</div>
+
+<div class="appearance-panel" id="vigia-panel">
+  <div class="appearance-head"><span>&#128737;&#65039; Vigia e backup automático</span><a href="/saude" target="_blank" style="font-size:12px;color:#7fa6ff;">abrir Saúde do sistema &#8599;</a></div>
+  <div class="appearance-body">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;">
+      <div><label><input type="checkbox" id="sy-md"> Mensagem diária "Painel2 ativo" no Telegram, às</label>
+        <input type="number" id="sy-mh" min="0" max="23" style="width:80px;"> h</div>
+      <div><label>Endereço do monitor externo (opcional)</label>
+        <input type="text" id="sy-hb" placeholder="https://hc-ping.com/…" style="width:100%;">
+        <div class="appearance-note" style="margin:4px 0 0;">O painel avisa esse endereço a cada 1 min; se parar de avisar, o serviço externo manda o alerta (funciona mesmo com o PC desligado). Ex.: healthchecks.io, gratuito.</div></div>
+      <div><label>Backup diário às</label><input type="number" id="sy-bh" min="0" max="23" style="width:80px;"> h ·
+        guardar <input type="number" id="sy-bd" min="3" max="365" style="width:70px;"> dias</div>
+      <div><label>Copiar o backup também para a pasta (pendrive/rede)</label>
+        <input type="text" id="sy-be" placeholder="/media/transmissao/PENDRIVE/backup_painel" style="width:100%;"></div>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;align-items:center;">
+      <button type="button" class="btn-primary" id="sy-ok">Salvar</button>
+      <button type="button" class="btn-secondary" id="sy-bk">&#128190; Fazer backup agora</button>
+      <button type="button" class="btn-secondary" id="sy-tg">Testar mensagem "ativo"</button>
+      <span id="sy-msg" style="font-size:12px;"></span>
+    </div>
+    <div class="ab-table-wrap"><table class="ab-table"><thead><tr><th>Backups guardados</th><th>Tamanho</th><th></th></tr></thead><tbody id="sy-list"></tbody></table></div>
+    <div class="appearance-note" style="margin-top:8px;">Para restaurar um backup no Debian: <code>sudo bash /opt/painel/linux/restaurar_backup.sh /opt/painel/backups/diarios/painel_AAAA-MM-DD_HHMM.tar.gz</code></div>
+  </div>
+</div>
+
 <div class="appearance-panel" id="speed-panel">
   <div class="appearance-head"><span>&#9201; Velocidade de atualização</span></div>
   <div class="appearance-body">
@@ -2970,6 +3027,8 @@ loadDevices();
      match: []},
     {id: 'agenda', ic: '&#128197;', t: 'Resumos e agenda', d: 'resumo de domingo e avisos do Planning',
      match: [/resumo/i, /aviso da agenda/i]},
+    {id: 'seguranca', ic: '&#128737;&#65039;', t: 'Segurança e backup', d: 'usuários, minha senha, vigia e backup',
+     match: [/minha conta/i, /usu[aá]rios/i, /vigia e backup/i]},
     {id: 'sistema', ic: '&#9881;&#65039;', t: 'Sistema', d: 'velocidade, rede/acesso e aparência dos mapas',
      match: [/velocidade/i, /configura[cç][oõ]es de rede/i, /apar[eê]ncia/i]},
     {id: 'avancado', ic: '&#129520;', t: 'Avançado', d: 'editor de mapa, biblioteca e busca SNMP',
@@ -3033,6 +3092,54 @@ loadDevices();
   }
   const start = (location.hash || '').slice(1) || (function(){ try{ return localStorage.getItem('cfg_tab'); }catch(e){ return null; } })() || 'abrigos';
   show(start);
+})();
+
+// ==================== Minha conta / Usuarios / Vigia e backup ====================
+(function(){
+  const $ = id => document.getElementById(id);
+  const esc = t => { const d = document.createElement('div'); d.textContent = t == null ? '' : String(t); return d.innerHTML; };
+  const post = async (u, b) => { const r = await fetch(u, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(b)});
+    const d = await r.json().catch(() => ({ok: false, error: 'resposta invalida'})); if(!d.ok) throw new Error(d.error || 'erro'); return d; };
+  const say = (el, t, ok) => { $(el).textContent = t; $(el).style.color = ok ? 'var(--green)' : (ok === false ? 'var(--red)' : 'var(--gray)'); };
+  let ME = {};
+  fetch('/api/eu').then(r => r.json()).then(u => {
+    ME = u; $('me-who').textContent = (u.nome || u.usuario || '') + ' · ' + (u.perfil || '');
+    if(u.perfil !== 'admin') $('users-panel').style.display = 'none'; else loadUsers();
+  });
+  $('me-ok').onclick = async () => { try{ await post('/api/auth/minha-senha', {atual: $('me-a').value, nova: $('me-n').value});
+    $('me-a').value = $('me-n').value = ''; say('me-msg', 'senha trocada ✓', true); }catch(e){ say('me-msg', e.message, false); } };
+
+  async function loadUsers(){
+    const d = await (await fetch('/api/usuarios', {cache: 'no-store'})).json();
+    $('us-list').innerHTML = (d.usuarios || []).map(u => '<tr><td class="n"><b>' + esc(u.usuario) + '</b></td><td>' + esc(u.nome || '') + '</td><td>' + esc(u.perfil) +
+      '</td><td>' + (u.ativo === false ? '<span style="color:var(--red)">desativado</span>' : (u.trocar_senha ? '<span style="color:var(--amber)">vai criar senha</span>' : 'ativo')) +
+      '</td><td><div class="ab-actions"><button type="button" class="btn-secondary us-ed" data-u="' + esc(u.usuario) + '">Editar</button>' +
+      '<button type="button" class="btn-secondary us-rs" data-u="' + esc(u.usuario) + '">Resetar senha</button></div></td></tr>').join('');
+    $('us-list').querySelectorAll('.us-ed').forEach(b => b.onclick = () => { const u = d.usuarios.find(x => x.usuario === b.dataset.u);
+      $('us-u').value = u.usuario; $('us-n').value = u.nome || ''; $('us-p').value = u.perfil; $('us-a').checked = u.ativo !== false; $('us-s').value = ''; $('us-u').focus(); });
+    $('us-list').querySelectorAll('.us-rs').forEach(b => b.onclick = async () => {
+      const nova = prompt('Senha provisória para ' + b.dataset.u + ' (mín. 6). No próximo acesso ele cria a dele:'); if(!nova) return;
+      try{ await post('/api/usuarios/resetar-senha', {usuario: b.dataset.u, senha: nova}); say('us-msg', 'senha resetada ✓', true); loadUsers(); }
+      catch(e){ say('us-msg', e.message, false); } });
+  }
+  $('us-ok').onclick = async () => { try{
+    await post('/api/usuarios/salvar', {usuario: $('us-u').value, nome: $('us-n').value, perfil: $('us-p').value, ativo: $('us-a').checked, senha: $('us-s').value});
+    say('us-msg', 'usuário salvo ✓', true); $('us-u').value = $('us-n').value = $('us-s').value = ''; loadUsers(); }catch(e){ say('us-msg', e.message, false); } };
+
+  async function loadSis(){
+    const d = await (await fetch('/api/sistema', {cache: 'no-store'})).json(); const c = d.config || {};
+    $('sy-md').checked = !!c.msg_diaria; $('sy-mh').value = c.msg_hora; $('sy-hb').value = c.heartbeat_url || '';
+    $('sy-bh').value = c.backup_hora; $('sy-bd').value = c.backup_dias; $('sy-be').value = c.backup_pasta_extra || '';
+    $('sy-list').innerHTML = (d.backups || []).slice(0, 15).map(b => '<tr><td>' + esc(b.nome) + '<small>' + new Date(b.ts * 1000).toLocaleString('pt-BR') + '</small></td><td>' +
+      (b.kb > 1024 ? (b.kb / 1024).toFixed(1) + ' MB' : b.kb + ' KB') + '</td><td><a class="btn-secondary" style="text-decoration:none;padding:4px 9px;font-size:11.5px;" href="/api/sistema/backup?nome=' +
+      encodeURIComponent(b.nome) + '">baixar</a></td></tr>').join('') || '<tr><td colspan="3" style="color:var(--gray)">nenhum backup ainda</td></tr>';
+  }
+  $('sy-ok').onclick = async () => { try{ await post('/api/sistema/config', {msg_diaria: $('sy-md').checked, msg_hora: $('sy-mh').value, heartbeat_url: $('sy-hb').value,
+      backup_hora: $('sy-bh').value, backup_dias: $('sy-bd').value, backup_pasta_extra: $('sy-be').value}); say('sy-msg', 'salvo ✓', true); }catch(e){ say('sy-msg', e.message, false); } };
+  $('sy-bk').onclick = async () => { say('sy-msg', 'fazendo backup…'); try{ const d = await post('/api/sistema/backup-agora', {}); say('sy-msg', 'backup ' + d.nome + ' ✓', true); loadSis(); }
+      catch(e){ say('sy-msg', e.message, false); loadSis(); } };
+  $('sy-tg').onclick = async () => { try{ await post('/api/sistema/teste-telegram', {}); say('sy-msg', 'mensagem enviada ✓', true); }catch(e){ say('sy-msg', e.message, false); } };
+  loadSis();
 })();
 </script>
 </body>

@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trocar senha — Rede Gazeta</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#070c18;color:#eef2fa;font-family:'Manrope','Segoe UI',sans-serif;}
+  .box{width:min(400px,92vw);background:#0e1628;border:1px solid #223050;border-radius:16px;padding:26px;}
+  h1{font-size:19px;margin:12px 0 6px;} p{color:#8b95ab;font-size:13px;line-height:1.5;margin:0 0 16px;}
+  input{width:100%;box-sizing:border-box;background:#121d36;color:#fff;border:1px solid #223050;border-radius:9px;padding:11px 12px;font:inherit;margin-bottom:10px;}
+  button{width:100%;background:#0a4bb5;border:none;color:#fff;font:inherit;font-weight:700;border-radius:9px;padding:11px;cursor:pointer;}
+  .msg{font-size:12.5px;margin-top:10px;min-height:16px;}
+  .brand-badge img{height:26px;}
+</style></head><body>
+<div class="box">
+  <div class="brand-badge gz"><img src="/static/img/logo-gazeta-azul.png" alt="Rede Gazeta"></div>
+  <h1>Crie uma senha nova</h1>
+  <p id="who">Por segurança, troque a senha antes de continuar. Mínimo de 6 caracteres.</p>
+  <input type="password" id="a" placeholder="senha atual" autocomplete="current-password">
+  <input type="password" id="n1" placeholder="nova senha" autocomplete="new-password">
+  <input type="password" id="n2" placeholder="repita a nova senha" autocomplete="new-password">
+  <button id="ok">Salvar e entrar</button>
+  <div class="msg" id="msg"></div>
+</div>
+<script>
+fetch('/api/eu').then(r => r.json()).then(u => { if(u.usuario) document.getElementById('who').textContent =
+  'Usuário ' + u.usuario + ': por segurança, troque a senha antes de continuar. Mínimo de 6 caracteres.'; });
+document.getElementById('ok').onclick = async () => {
+  const m = document.getElementById('msg'), n1 = document.getElementById('n1').value;
+  if(n1 !== document.getElementById('n2').value){ m.textContent = 'as senhas novas não conferem'; m.style.color = '#ff8f9a'; return; }
+  const r = await fetch('/api/auth/minha-senha', {method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({atual: document.getElementById('a').value, nova: n1})});
+  const d = await r.json();
+  if(d.ok){ m.textContent = 'senha trocada ✓'; m.style.color = '#6fe38e'; setTimeout(() => location.href = '/selecionar', 700); }
+  else { m.textContent = d.error || 'erro'; m.style.color = '#ff8f9a'; }
+};
+</script>
+<link rel="stylesheet" href="/static/theme.css">
+</body></html>
